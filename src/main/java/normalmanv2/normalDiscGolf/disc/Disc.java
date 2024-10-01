@@ -5,6 +5,7 @@ import normalmanv2.normalDiscGolf.technique.ThrowTechnique;
 import org.bukkit.entity.Player;
 
 public abstract class Disc {
+//
     private final int speed;
     private final int glide;
     private final double turn;

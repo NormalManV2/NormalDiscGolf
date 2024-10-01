@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface GameRound {
-
+//
     void startRound();
     void endRound();
     void addPlayer(UUID player);

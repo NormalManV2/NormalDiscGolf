@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.attribute;
 
 public class AbstractSkill implements Skill {
-
+//
     private int level;
     private int maxLevel;
 
