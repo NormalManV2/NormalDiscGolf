@@ -1,0 +1,8 @@
+name: NormalDiscGolf
+version: '1.0-SNAPSHOT'
+main: normalmanv2.normalDiscGolf.NormalDiscGolf
+api-version: '1.21'
+prefix: NormalDiscGolf
+load: STARTUP
+authors: [ NormalMan_V2 ]
+description: Disc golf in minecraft!
