@@ -1,9 +1,14 @@
 package normalmanv2.normalDiscGolf.attribute;
 
 public class AbstractSkill implements Skill {
-//
+
     private int level;
     private int maxLevel;
+
+    public AbstractSkill(int level, int maxLevel) {
+        this.level = level;
+        this.maxLevel = maxLevel;
+    }
 
     @Override
     public int getLevel() {

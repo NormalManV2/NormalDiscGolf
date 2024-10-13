@@ -1,7 +1,9 @@
 package normalmanv2.normalDiscGolf.round;
 
-import normalmanv2.normalDiscGolf.attribute.PlayerAttribute;
+import normalmanv2.normalDiscGolf.player.PlayerData;
+import normalmanv2.normalDiscGolf.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.disc.Disc;
+import normalmanv2.normalDiscGolf.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.technique.ThrowTechnique;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -14,16 +16,18 @@ import java.util.List;
 import java.util.UUID;
 
 public class FFARound implements GameRound {
-//
+
     private final List<UUID> players;
     private boolean roundOver;
     private BukkitTask task;
     private final JavaPlugin plugin;
+    private final PlayerDataManager playerDataManager;
 
     public FFARound(JavaPlugin plugin) {
         this.players = new ArrayList<>();
         this.roundOver = false;
         this.plugin = plugin;
+        this.playerDataManager = new PlayerDataManager();
     }
 
     @Override
@@ -60,10 +64,10 @@ public class FFARound implements GameRound {
         if (player == null) {
             return;
         }
-        PlayerAttribute attribute = getAttributeByPlayer(player);
+        PlayerData playerData = playerDataManager.getDataByPlayer(player.getUniqueId());
+        PlayerSkills skills = playerData.getSkills();
 
-
-        disc.handleThrow(player, attribute, technique);
+        disc.handleThrow(player, skills, technique);
     }
 
     @Override

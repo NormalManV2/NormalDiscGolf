@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface GameRound {
-//
+
     void startRound();
     void endRound();
     void addPlayer(UUID player);
@@ -15,6 +15,4 @@ public interface GameRound {
     void handleThrow(UUID player, ThrowTechnique technique, Disc disc);
     boolean isRoundOver();
     List<UUID> getPlayers();
-
-
 }

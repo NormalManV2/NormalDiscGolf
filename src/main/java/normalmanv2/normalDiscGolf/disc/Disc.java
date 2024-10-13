@@ -1,11 +1,13 @@
 package normalmanv2.normalDiscGolf.disc;
 
-import normalmanv2.normalDiscGolf.attribute.PlayerAttribute;
+import normalmanv2.normalDiscGolf.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.technique.ThrowTechnique;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
+import org.bukkit.util.Vector;
 
 public abstract class Disc {
-//
+
     private final int speed;
     private final int glide;
     private final double turn;
@@ -40,6 +42,8 @@ public abstract class Disc {
         return this.type;
     }
 
-    public abstract void handleThrow(Player player, PlayerAttribute attribute, ThrowTechnique technique);
+    public abstract void handleThrow(Player player, PlayerSkills attribute, ThrowTechnique technique);
+
+    public abstract void applyDiscPhysics(Player player, TextDisplay discDisplay, Vector initialVelocity, int maxTicks, ThrowTechnique technique);
 
 }
