@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.player;
 
-import normalmanv2.normalDiscGolf.attribute.*;
+import normalmanv2.normalDiscGolf.skill.*;
 
 public class PlayerSkills {
 
@@ -14,7 +14,6 @@ public class PlayerSkills {
     private final SCurve sCurve;
     private final Thumber thumber;
     private final Tomahawk tomahawk;
-
 
     public PlayerSkills(int startingLevel, int maxLevel) {
         this.accuracy = new Accuracy(startingLevel, maxLevel);

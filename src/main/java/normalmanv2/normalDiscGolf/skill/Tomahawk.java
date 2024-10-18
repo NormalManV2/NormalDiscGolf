@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.attribute;
+package normalmanv2.normalDiscGolf.skill;
 
 public class Tomahawk extends AbstractSkill {
 

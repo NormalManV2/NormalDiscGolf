@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.player.score;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,7 +36,7 @@ public class PlayerScoreCard {
     }
 
     public Map<Integer, Integer> getHoleScores() {
-        return this.holeScores;
+        return Collections.unmodifiableMap(this.holeScores);
     }
 
 }

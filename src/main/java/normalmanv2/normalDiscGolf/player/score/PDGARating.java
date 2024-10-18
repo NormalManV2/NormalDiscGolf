@@ -19,11 +19,10 @@ public class PDGARating {
         this.division = Division.JUNIOR;
     }
 
-    public void addRoundScore(double roundScore, CourseDifficulty difficulty) {
+    public void handleRoundEnd(double roundScore) {
         this.totalScore += roundScore;
         this.totalRounds++;
         this.averageScore = this.totalScore / this.totalRounds;
-        this.updateRating(difficulty);
     }
 
     private void updateRating(CourseDifficulty difficulty) {

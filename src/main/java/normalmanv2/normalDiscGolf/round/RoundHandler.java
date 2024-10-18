@@ -1,53 +1,52 @@
 package normalmanv2.normalDiscGolf.round;
 
-import normalmanv2.normalDiscGolf.disc.Disc;
-import normalmanv2.normalDiscGolf.technique.ThrowTechnique;
-
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class RoundHandler {
 
-    private GameRound round;
+    private final ConcurrentMap<RoundState, Set<GameRound>> activeRounds;
+
+    public RoundHandler() {
+        this.activeRounds = new ConcurrentHashMap<>();
+    }
 
     public void startRound(GameRound round) {
-        if (round == null){
-            return;
-        }
-        this.round = round;
+        this.activeRounds.computeIfAbsent(RoundState.START, k -> new HashSet<>()).add(round);
         round.startRound();
     }
 
-    public void endRound() {
-        if (this.round == null){
-            return;
+    public void endRound(GameRound round) {
+        this.activeRounds.computeIfAbsent(RoundState.END, k -> new HashSet<>()).add(round);
+        this.cleanupEndedRounds();
+    }
+
+    public void cancelRound(GameRound round) {
+        this.activeRounds.computeIfAbsent(RoundState.CANCEL, k -> new HashSet<>()).add(round);
+        this.cleanupEndedRounds();
+    }
+
+    private void cleanupEndedRounds() {
+        for (RoundState state : Set.of(RoundState.END, RoundState.CANCEL)) {
+            Set<GameRound> rounds = this.activeRounds.get(state);
+            if (rounds == null) {
+                return;
+            }
+            Iterator<GameRound> iterator = rounds.iterator();
+            while (iterator.hasNext()) {
+                GameRound round = iterator.next();
+                round.endRound();
+                iterator.remove();
+            }
         }
-        this.round.endRound();
-        this.round = null;
     }
 
-    public void handlePlayerThrow(UUID player, ThrowTechnique technique, Disc disc) {
-        if (this.round == null){
-            return;
-        }
-        this.round.handleThrow(player, technique, disc);
+    public List<GameRound> getActiveRounds() {
+        return new ArrayList<>(this.activeRounds.getOrDefault(RoundState.START, Set.of()));
     }
-
-    public void addPlayerToRound(UUID player) {
-        if (this.round == null){
-            return;
-        }
-        this.round.addPlayer(player);
-    }
-
-    public void removePlayerFromRound(UUID player) {
-        if (this.round == null){
-            return;
-        }
-        this.round.removePlayer(player);
-    }
-
-    public GameRound getRound() {
-        return this.round;
-    }
-
 }

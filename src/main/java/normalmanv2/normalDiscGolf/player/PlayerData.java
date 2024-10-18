@@ -8,7 +8,7 @@ public class PlayerData {
     private final PDGARating rating;
 
     public PlayerData() {
-        this.skills = new PlayerSkills(1, 5);
+        this.skills = new PlayerSkills(0, 5);
         this.rating = new PDGARating();
     }
 

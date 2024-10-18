@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.attribute;
+package normalmanv2.normalDiscGolf.skill;
 
 public class Forehand extends AbstractSkill {
     public Forehand(int level, int maxLevel) {

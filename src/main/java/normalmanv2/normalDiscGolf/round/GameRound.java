@@ -10,9 +10,10 @@ public interface GameRound {
 
     void startRound();
     void endRound();
+    void cancelRound();
     void addPlayer(UUID player);
     void removePlayer(UUID player);
-    void handleThrow(UUID player, ThrowTechnique technique, Disc disc);
+    void handleStroke(UUID player, ThrowTechnique technique, Disc disc);
     boolean isRoundOver();
     List<UUID> getPlayers();
 }
