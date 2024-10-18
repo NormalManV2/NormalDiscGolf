@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf.disc;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
+import normalmanv2.normalDiscGolf.api.API;
 import normalmanv2.normalDiscGolf.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.disc.util.MathUtil;
 import normalmanv2.normalDiscGolf.technique.ThrowTechnique;
@@ -16,7 +17,6 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 public class Driver extends Disc {
-
     private final NormalDiscGolf normalDiscGolf;
     private BukkitTask discTask;
 
@@ -26,7 +26,7 @@ public class Driver extends Disc {
     }
 
     @Override
-    public void handleThrow(Player player, PlayerSkills skills, ThrowTechnique technique) {
+    public void handleThrow(Player player, PlayerSkills skills, String technique) {
 
         World world = player.getWorld();
         Vector direction = player.getEyeLocation().getDirection().normalize();
@@ -61,15 +61,17 @@ public class Driver extends Disc {
     }
 
     @Override
-    public void applyDiscPhysics(Player player, TextDisplay discDisplay, Vector initialVelocity, int maxTicks, ThrowTechnique technique) {
+    public void applyDiscPhysics(Player player, TextDisplay discDisplay, Vector initialVelocity, int maxTicks, String technique) {
         Vector currentVelocity = initialVelocity.clone();
         final int[] tickCount = {0};
 
+        final ThrowTechnique throwTechnique = API.getThrowTechniqueRegistry().getTechnique(technique);
         this.discTask = Bukkit.getScheduler().runTaskTimer(normalDiscGolf, () -> {
 
             Location currentLocation = discDisplay.getLocation();
             currentLocation.add(currentVelocity);
-            MathUtil.adjustFlightPath(currentVelocity, tickCount[0], maxTicks, this, technique);
+            throwTechnique.applyPhysics(this, currentVelocity, tickCount[0], maxTicks);
+            // REMOVED : MathUtil.adjustFlightPath(currentVelocity, tickCount[0], maxTicks, this, technique);
             discDisplay.teleport(currentLocation);
             player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, currentLocation, 5);
 

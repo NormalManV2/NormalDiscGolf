@@ -1,7 +1,5 @@
 package normalmanv2.normalDiscGolf.disc.util;
 
-import normalmanv2.normalDiscGolf.disc.Disc;
-import normalmanv2.normalDiscGolf.technique.ThrowTechnique;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -22,7 +20,8 @@ public class MathUtil {
         return result.getHitBlock() != null && result.getHitBlock().getType().isSolid() || result.getHitBlock().getType() == Material.WATER;
     }
 
-    public static void adjustFlightPath(Vector currentVelocity, int tickCount, int maxTicks, Disc disc, ThrowTechnique technique) {
+
+    /*public static void adjustFlightPath(Vector currentVelocity, int tickCount, int maxTicks, Disc disc, OldThrowTechnique technique) {
 
         double flightPhase = (double) tickCount / (double) maxTicks;
 
@@ -96,5 +95,5 @@ public class MathUtil {
             }
         }
         currentVelocity.setZ(currentVelocity.getZ() + (Math.sin(tickCount * 0.1) * 0.01));
-    }
+    }*/
 }

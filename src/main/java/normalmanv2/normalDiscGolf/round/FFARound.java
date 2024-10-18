@@ -7,7 +7,6 @@ import normalmanv2.normalDiscGolf.disc.Disc;
 import normalmanv2.normalDiscGolf.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.player.score.PDGARating;
 import normalmanv2.normalDiscGolf.player.score.PlayerScoreCard;
-import normalmanv2.normalDiscGolf.technique.ThrowTechnique;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -74,7 +73,7 @@ public class FFARound implements GameRound {
     }
 
     @Override
-    public void handleStroke(UUID playerId, ThrowTechnique technique, Disc disc) {
+    public void handleStroke(UUID playerId, String technique, Disc disc) {
         Player player = Bukkit.getPlayer(playerId);
         if (player == null) {
             return;

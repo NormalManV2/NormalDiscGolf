@@ -42,8 +42,8 @@ public abstract class Disc {
         return this.type;
     }
 
-    public abstract void handleThrow(Player player, PlayerSkills attribute, ThrowTechnique technique);
+    public abstract void handleThrow(Player player, PlayerSkills attribute, String technique);
 
-    public abstract void applyDiscPhysics(Player player, TextDisplay discDisplay, Vector initialVelocity, int maxTicks, ThrowTechnique technique);
+    public abstract void applyDiscPhysics(Player player, TextDisplay discDisplay, Vector initialVelocity, int maxTicks, String technique);
 
 }

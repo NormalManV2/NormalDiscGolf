@@ -4,7 +4,6 @@ import normalmanv2.normalDiscGolf.disc.Disc;
 import normalmanv2.normalDiscGolf.player.PlayerData;
 import normalmanv2.normalDiscGolf.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.player.PlayerSkills;
-import normalmanv2.normalDiscGolf.technique.ThrowTechnique;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -30,7 +29,7 @@ public class ForehandTest implements CommandExecutor {
         PlayerData playerData = playerDataManager.getDataByPlayer(player.getUniqueId());
         PlayerSkills skills = playerData.getSkills();
 
-        disc.handleThrow(player, skills, ThrowTechnique.FOREHAND);
+        disc.handleThrow(player, skills, "forehand");
 
         return true;
     }

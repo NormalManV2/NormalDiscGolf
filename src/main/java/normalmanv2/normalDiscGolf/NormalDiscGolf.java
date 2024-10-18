@@ -6,6 +6,7 @@ import normalmanv2.normalDiscGolf.disc.Driver;
 import normalmanv2.normalDiscGolf.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.round.FFARound;
 import normalmanv2.normalDiscGolf.round.RoundHandler;
+import normalmanv2.normalDiscGolf.technique.ThrowTechniqueRegistry;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -16,6 +17,7 @@ public final class NormalDiscGolf extends JavaPlugin implements Listener {
 
     private static final PlayerDataManager playerDataManager = new PlayerDataManager();
     private static final RoundHandler roundHandler = new RoundHandler();
+    private static final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
 
     @Override
     public void onEnable() {
@@ -44,6 +46,10 @@ public final class NormalDiscGolf extends JavaPlugin implements Listener {
 
     public static RoundHandler getRoundHandler() {
         return roundHandler;
+    }
+
+    public static ThrowTechniqueRegistry getThrowTechniqueRegistry() {
+        return throwTechniqueRegistry;
     }
 
     @Override
