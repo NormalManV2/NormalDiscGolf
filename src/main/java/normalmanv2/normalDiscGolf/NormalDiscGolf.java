@@ -1,12 +1,13 @@
 package normalmanv2.normalDiscGolf;
 
-import normalmanv2.normalDiscGolf.api.API;
-import normalmanv2.normalDiscGolf.player.PlayerData;
-import normalmanv2.normalDiscGolf.disc.Driver;
-import normalmanv2.normalDiscGolf.player.PlayerDataManager;
-import normalmanv2.normalDiscGolf.round.FFARound;
-import normalmanv2.normalDiscGolf.round.RoundHandler;
-import normalmanv2.normalDiscGolf.technique.ThrowTechniqueRegistry;
+import normalmanv2.normalDiscGolf.impl.disc.MidRange;
+import normalmanv2.normalDiscGolf.impl.disc.Putter;
+import normalmanv2.normalDiscGolf.impl.player.PlayerData;
+import normalmanv2.normalDiscGolf.impl.disc.Driver;
+import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
+import normalmanv2.normalDiscGolf.impl.round.FFARound;
+import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
+import normalmanv2.normalDiscGolf.impl.technique.ThrowTechniqueRegistry;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -18,15 +19,24 @@ public final class NormalDiscGolf extends JavaPlugin implements Listener {
     private static final PlayerDataManager playerDataManager = new PlayerDataManager();
     private static final RoundHandler roundHandler = new RoundHandler();
     private static final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
+    private static final DiscRegistry discRegistry = new DiscRegistry();
 
     @Override
     public void onEnable() {
         // Plugin startup logic
-        Driver testDriver = new Driver(9, 5, -1, 2, this);
-        Driver testDriver1 = new Driver(9, 5, -3, 1, this);
         getServer().getPluginManager().registerEvents(this, this);
-        getCommand("testDriver").setExecutor(new BackHandTest(testDriver, playerDataManager));
-        getCommand("testDriver1").setExecutor(new ForehandTest(testDriver1, playerDataManager));
+        this.registerDefaultDiscs();
+        getCommand("testBackHand").setExecutor(new BackHandTest(playerDataManager, discRegistry));
+        getCommand("testForeHand").setExecutor(new ForehandTest(playerDataManager, discRegistry));
+    }
+
+    private void registerDefaultDiscs() {
+        discRegistry.registerDisc("TestDriver", new Driver(9, 5, -1, 2, "&6TestDriver", this));
+        discRegistry.registerDisc("TestDriver1", new Driver(9, 5, -3, 1, "&aTestDriver1", this));
+        discRegistry.registerDisc("Midrange", new MidRange(5, 6, -1, 1, "&7Midrange", this));
+        discRegistry.registerDisc("Midrange1", new MidRange(5, 6, -3, 1, "&cMidrange1", this));
+        discRegistry.registerDisc("Putter", new Putter(2, 4, -1, 1, "&4Putter", this));
+        discRegistry.registerDisc("Putter1", new Putter(2, 4, 0, 2, "&3Putter1", this));
     }
 
     @EventHandler
@@ -34,10 +44,6 @@ public final class NormalDiscGolf extends JavaPlugin implements Listener {
         Player player = event.getPlayer();
         PlayerData playerData = new PlayerData();
         playerDataManager.registerPlayerData(player.getUniqueId(), playerData);
-    }
-
-    public void startFFARound() {
-        FFARound ffaRound = new FFARound(this);
     }
 
     public static PlayerDataManager getPlayerDataManager() {

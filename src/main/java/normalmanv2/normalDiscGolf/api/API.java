@@ -1,36 +1,38 @@
 package normalmanv2.normalDiscGolf.api;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
-import normalmanv2.normalDiscGolf.player.PlayerDataManager;
-import normalmanv2.normalDiscGolf.round.RoundHandler;
-import normalmanv2.normalDiscGolf.technique.ThrowTechniqueRegistry;
+import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
+import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
+import normalmanv2.normalDiscGolf.impl.technique.ThrowTechniqueRegistry;
 
 public class API {
-
-    private static final PlayerDataManager playerDataManager = NormalDiscGolf.getPlayerDataManager();
-    private static final RoundHandler roundHandler = NormalDiscGolf.getRoundHandler();
-    private static final ThrowTechniqueRegistry throwTechniqueRegistry = NormalDiscGolf.getThrowTechniqueRegistry();
+    private final PlayerDataManager playerDataManager;
+    private final RoundHandler roundHandler;
+    private final ThrowTechniqueRegistry throwTechniqueRegistry;
     private static API instance;
 
-    private API() {
+    private API(PlayerDataManager playerDataManager, RoundHandler roundHandler, ThrowTechniqueRegistry throwTechniqueRegistry) {
+        this.playerDataManager = playerDataManager;
+        this.roundHandler = roundHandler;
+        this.throwTechniqueRegistry = throwTechniqueRegistry;
     }
 
     public static API getInstance() {
         if (instance == null) {
-            instance = new API();
+            instance = new API(NormalDiscGolf.getPlayerDataManager(), NormalDiscGolf.getRoundHandler(), NormalDiscGolf.getThrowTechniqueRegistry());
         }
         return instance;
     }
 
-    public static PlayerDataManager getPlayerDataManager() {
+    public PlayerDataManager getPlayerDataManager() {
         return playerDataManager;
     }
 
-    public static RoundHandler getRoundHandler() {
+    public RoundHandler getRoundHandler() {
         return roundHandler;
     }
 
-    public static ThrowTechniqueRegistry getThrowTechniqueRegistry() {
+    public ThrowTechniqueRegistry getThrowTechniqueRegistry() {
         return throwTechniqueRegistry;
     }
 }
