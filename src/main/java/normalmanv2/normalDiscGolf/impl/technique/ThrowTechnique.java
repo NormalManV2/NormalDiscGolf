@@ -3,6 +3,7 @@ package normalmanv2.normalDiscGolf.impl.technique;
 import normalmanv2.normalDiscGolf.impl.disc.Disc;
 import normalmanv2.normalDiscGolf.impl.technique.data.TechniquePhysicsData;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
+import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
 public abstract class ThrowTechnique {
@@ -16,9 +17,9 @@ public abstract class ThrowTechnique {
         return this.technique;
     }
 
-    public void applyPhysics(Disc disc, Vector discVelocity, int tick, int maxTicks) {
+    public void applyPhysics(Disc disc, Vector discVelocity, int tick, int maxTicks, BlockFace direction) {
         final double flightPhase = (double) tick / (double) maxTicks;
-
+        discVelocity.normalize();
         // final double gravityFactor = (double) disc.getGlide() / 200;
         // final double liftFactor = gravityFactor + (Math.sin(tick * 0.1) + 0.001);
 
@@ -30,9 +31,9 @@ public abstract class ThrowTechnique {
         discVelocity.multiply(0.98);
 
         // discVelocity.setY(discVelocity.getY() - gravityFactor);
-        this.applyTechniquePhysics(disc, discVelocity, tick, new TechniquePhysicsData(flightPhase, turnFactor, fadeFactor));
-        discVelocity.setZ(discVelocity.getZ() + (Math.sin(tick * 0.1) * 0.01));
+        this.applyTechniquePhysics(disc, discVelocity, tick, new TechniquePhysicsData(flightPhase, turnFactor, fadeFactor), direction);
+        // discVelocity.setZ(discVelocity.getZ() + (Math.sin(tick * 0.1) * 0.01));
     }
 
-    public abstract void applyTechniquePhysics(Disc disc, Vector discVelocity, int tick, TechniquePhysicsData techniquePhysicsData);
+    public abstract void applyTechniquePhysics(Disc disc, Vector discVelocity, int tick, TechniquePhysicsData techniquePhysicsData, BlockFace direction);
 }

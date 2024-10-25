@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
-import normalmanv2.normalDiscGolf.api.API;
+import normalmanv2.normalDiscGolf.api.NDGApi;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil;
 import normalmanv2.normalDiscGolf.impl.technique.ThrowTechnique;
@@ -11,6 +11,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.World;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
@@ -22,17 +23,17 @@ import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
 public class Driver extends Disc {
-    private final NormalDiscGolf normalDiscGolf;
-    private final API api = API.getInstance();
+    private final NormalDiscGolf plugin;
+    private final NDGApi api = NDGApi.getInstance();
     private BukkitTask discTask;
 
-    public Driver(int speed, int glide, int turn, int fade, String discName, NormalDiscGolf normalDiscGolf) {
+    public Driver(int speed, int glide, int turn, int fade, String discName, NormalDiscGolf plugin) {
         super(speed, glide, turn, fade, discName, DiscType.DRIVER);
-        this.normalDiscGolf = normalDiscGolf;
+        this.plugin = plugin;
     }
 
     @Override
-    public void handleThrow(Player player, PlayerSkills skills, String technique) {
+    public void handleThrow(Player player, PlayerSkills skills, String technique, BlockFace faceDirection) {
 
         World world = player.getWorld();
         Vector direction = player.getEyeLocation().getDirection().normalize();
@@ -61,26 +62,27 @@ public class Driver extends Disc {
         double baseVelocity = discBaseSpeed * (1 + (powerLevel * 0.05));
         double finalVelocity = baseVelocity * (1 + (formLevel * 0.02));
 
-        Vector velocity = direction.multiply(finalVelocity);
+        Vector velocity = direction.multiply(finalVelocity).normalize();
+
 
         double maxSpread = 0.05 - (accuracyLevel * 0.5);
         velocity.setX(velocity.getX() + (Math.random() * maxSpread - maxSpread / 2));
         velocity.setZ(velocity.getZ() + (Math.random() * maxSpread - maxSpread / 2));
 
-        applyDiscPhysics(player, display, velocity, 100, technique);
+        applyDiscPhysics(player, display, velocity, 100, technique, faceDirection);
     }
 
     @Override
-    public void applyDiscPhysics(Player player, ItemDisplay discDisplay, Vector initialVelocity, int maxTicks, String technique) {
-        Vector currentVelocity = initialVelocity.clone();
+    public void applyDiscPhysics(Player player, ItemDisplay discDisplay, Vector initialVelocity, int maxTicks, String technique, BlockFace direction) {
+        Vector currentVelocity = initialVelocity.clone().normalize();
         final int[] tickCount = {0};
 
         final ThrowTechnique throwTechnique = api.getThrowTechniqueRegistry().getTechnique(technique);
-        this.discTask = Bukkit.getScheduler().runTaskTimer(normalDiscGolf, () -> {
+        this.discTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
 
             Location currentLocation = discDisplay.getLocation();
-            currentLocation.add(currentVelocity);
-            throwTechnique.applyPhysics(this, currentVelocity, tickCount[0], maxTicks);
+            currentLocation.add(currentVelocity.normalize());
+            throwTechnique.applyPhysics(this, currentVelocity.normalize(), tickCount[0], maxTicks, direction);
             // REMOVED : MathUtil.adjustFlightPath(currentVelocity, tickCount[0], maxTicks, this, technique);
             discDisplay.teleport(currentLocation);
             player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, currentLocation, 5);
@@ -92,8 +94,14 @@ public class Driver extends Disc {
                 Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));
 
                 player.teleport(teleportLocation);
-                discTask.cancel();
+
+                if (this.discTask == null) {
+                    return;
+                }
+
+                this.discTask.cancel();
                 this.discTask = null;
+                Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100);
                 return;
             }
 

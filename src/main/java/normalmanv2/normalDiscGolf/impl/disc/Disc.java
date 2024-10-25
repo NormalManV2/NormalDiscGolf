@@ -1,11 +1,12 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-public abstract class Disc {
+public abstract class Disc implements Cloneable {
 
     private final int speed;
     private final int glide;
@@ -47,8 +48,12 @@ public abstract class Disc {
         return this.type;
     }
 
-    public abstract void handleThrow(Player player, PlayerSkills skills, String technique);
+    public Disc clone() throws CloneNotSupportedException {
+        return (Disc) super.clone();
+    }
 
-    public abstract void applyDiscPhysics(Player player, ItemDisplay discDisplay, Vector initialVelocity, int maxTicks, String technique);
+    public abstract void handleThrow(Player player, PlayerSkills skills, String technique, BlockFace direction);
+
+    public abstract void applyDiscPhysics(Player player, ItemDisplay discDisplay, Vector initialVelocity, int maxTicks, String technique, BlockFace direction);
 
 }

@@ -30,13 +30,16 @@ public class BackHandTest implements CommandExecutor {
             return false;
         }
 
-        Disc disc = discRegistry.getDiscByString(args[0]);
+        try {
+            Disc disc = discRegistry.getDiscByString(args[0]);
+            PlayerData playerData = dataManager.getDataByPlayer(player.getUniqueId());
+            PlayerSkills skills = playerData.getSkills();
 
-        PlayerData playerData = dataManager.getDataByPlayer(player.getUniqueId());
-        PlayerSkills skills = playerData.getSkills();
-
-        disc.handleThrow(player, skills, "backhand");
-
+            disc.handleThrow(player, skills, "backhand", player.getFacing());
+        } catch (CloneNotSupportedException exception) {
+            exception.printStackTrace();
+            return false;
+        }
         return true;
     }
 }

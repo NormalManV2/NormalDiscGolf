@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
+import normalmanv2.normalDiscGolf.impl.course.Course;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.disc.Disc;
@@ -37,7 +38,7 @@ public class FFARound implements GameRound {
     }
 
     @Override
-    public void startRound() {
+    public void startRound(Course course) {
 
         for (UUID uuid : players) {
             this.scoreCards.put(uuid, new PlayerScoreCard());
@@ -81,7 +82,7 @@ public class FFARound implements GameRound {
         PlayerData playerData = playerDataManager.getDataByPlayer(playerId);
         PlayerSkills skills = playerData.getSkills();
 
-        disc.handleThrow(player, skills, technique);
+        disc.handleThrow(player, skills, technique, player.getFacing());
     }
 
     @Override

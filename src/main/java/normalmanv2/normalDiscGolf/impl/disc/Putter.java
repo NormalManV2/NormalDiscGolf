@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
-import normalmanv2.normalDiscGolf.api.API;
+import normalmanv2.normalDiscGolf.api.NDGApi;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.technique.ThrowTechnique;
@@ -11,6 +11,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.World;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
@@ -24,7 +25,7 @@ import org.joml.Vector3f;
 public class Putter extends Disc {
 
     private final NormalDiscGolf plugin;
-    private final API api = API.getInstance();
+    private final NDGApi api = NDGApi.getInstance();
     private BukkitTask discTask;
 
     public Putter(int speed, int glide, int turn, int fade, String discName, NormalDiscGolf plugin) {
@@ -33,7 +34,7 @@ public class Putter extends Disc {
     }
 
     @Override
-    public void handleThrow(Player player, PlayerSkills skills, String technique) {
+    public void handleThrow(Player player, PlayerSkills skills, String technique, BlockFace faceDirection) {
         World world = player.getWorld();
         Vector direction = player.getEyeLocation().getDirection().normalize();
         Location throwLoc = player.getEyeLocation().add(direction.multiply(2));
@@ -68,11 +69,11 @@ public class Putter extends Disc {
         velocity.setX(velocity.getX() + (Math.random() * maxSpread - maxSpread / 2));
         velocity.setZ(velocity.getZ() + (Math.random() * maxSpread - maxSpread / 2));
 
-        applyDiscPhysics(player, display, velocity, 60, technique);
+        applyDiscPhysics(player, display, velocity, 60, technique, faceDirection);
     }
 
     @Override
-    public void applyDiscPhysics(Player player, ItemDisplay discDisplay, Vector initialVelocity, int maxTicks, String technique) {
+    public void applyDiscPhysics(Player player, ItemDisplay discDisplay, Vector initialVelocity, int maxTicks, String technique, BlockFace direction) {
         Vector currentVelocity = initialVelocity.clone();
         final int[] tickCount = {0};
 
@@ -81,7 +82,7 @@ public class Putter extends Disc {
 
             Location currentLocation = discDisplay.getLocation();
             currentLocation.add(currentVelocity);
-            throwTechnique.applyPhysics(this, currentVelocity, tickCount[0], maxTicks);
+            throwTechnique.applyPhysics(this, currentVelocity, tickCount[0], maxTicks, direction);
             // REMOVED : MathUtil.adjustFlightPath(currentVelocity, tickCount[0], maxTicks, this, technique);
             discDisplay.teleport(currentLocation);
             player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, currentLocation, 5);

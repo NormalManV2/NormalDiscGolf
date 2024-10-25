@@ -5,21 +5,21 @@ import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.technique.ThrowTechniqueRegistry;
 
-public class API {
+public class NDGApi {
     private final PlayerDataManager playerDataManager;
     private final RoundHandler roundHandler;
     private final ThrowTechniqueRegistry throwTechniqueRegistry;
-    private static API instance;
+    private static NDGApi instance;
 
-    private API(PlayerDataManager playerDataManager, RoundHandler roundHandler, ThrowTechniqueRegistry throwTechniqueRegistry) {
+    private NDGApi(PlayerDataManager playerDataManager, RoundHandler roundHandler, ThrowTechniqueRegistry throwTechniqueRegistry) {
         this.playerDataManager = playerDataManager;
         this.roundHandler = roundHandler;
         this.throwTechniqueRegistry = throwTechniqueRegistry;
     }
 
-    public static API getInstance() {
+    public static NDGApi getInstance() {
         if (instance == null) {
-            instance = new API(NormalDiscGolf.getPlayerDataManager(), NormalDiscGolf.getRoundHandler(), NormalDiscGolf.getThrowTechniqueRegistry());
+            instance = new NDGApi(NormalDiscGolf.getPlayerDataManager(), NormalDiscGolf.getRoundHandler(), NormalDiscGolf.getThrowTechniqueRegistry());
         }
         return instance;
     }

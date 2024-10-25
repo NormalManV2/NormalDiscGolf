@@ -16,7 +16,7 @@ public class DiscRegistry {
         this.discs.put(discName, disc);
     }
 
-    public Disc getDiscByString(String discName) {
-        return this.discs.get(discName);
+    public Disc getDiscByString(String discName) throws CloneNotSupportedException {
+        return this.discs.get(discName).clone();
     }
 }

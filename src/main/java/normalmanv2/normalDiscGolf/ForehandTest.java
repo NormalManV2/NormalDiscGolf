@@ -29,14 +29,17 @@ public class ForehandTest implements CommandExecutor {
         if (args.length != 1) {
             return false;
         }
+        try {
+            Disc disc = discRegistry.getDiscByString(args[0]);
 
-        Disc disc = discRegistry.getDiscByString(args[0]);
+            PlayerData playerData = playerDataManager.getDataByPlayer(player.getUniqueId());
+            PlayerSkills skills = playerData.getSkills();
 
-        PlayerData playerData = playerDataManager.getDataByPlayer(player.getUniqueId());
-        PlayerSkills skills = playerData.getSkills();
-
-        disc.handleThrow(player, skills, "forehand");
-
+            disc.handleThrow(player, skills, "forehand", player.getFacing());
+        } catch (CloneNotSupportedException exception) {
+            exception.printStackTrace();
+            return false;
+        }
         return true;
     }
 }
