@@ -19,20 +19,15 @@ public abstract class ThrowTechnique {
 
     public void applyPhysics(Disc disc, Vector discVelocity, int tick, int maxTicks, BlockFace direction) {
         final double flightPhase = (double) tick / (double) maxTicks;
-        discVelocity.normalize();
-        // final double gravityFactor = (double) disc.getGlide() / 200;
-        // final double liftFactor = gravityFactor + (Math.sin(tick * 0.1) + 0.001);
 
         // Diminishing factor of the turn phase
         final double turnFactor = (Constants.TURN_PHASE_END - flightPhase) / Constants.TURN_PHASE_END;
         // Exponential increase of the fade phase - scale the last number for increase / decrease of the exponential effect
         final double fadeFactor = Math.pow((flightPhase - Constants.FADE_PHASE_START) / (1 - Constants.FADE_PHASE_START), 3);
+        // Drag factor
+        discVelocity.multiply(Constants.DRAG_FACTOR);
 
-        discVelocity.multiply(0.98);
-
-        // discVelocity.setY(discVelocity.getY() - gravityFactor);
         this.applyTechniquePhysics(disc, discVelocity, tick, new TechniquePhysicsData(flightPhase, turnFactor, fadeFactor), direction);
-        // discVelocity.setZ(discVelocity.getZ() + (Math.sin(tick * 0.1) * 0.01));
     }
 
     public abstract void applyTechniquePhysics(Disc disc, Vector discVelocity, int tick, TechniquePhysicsData techniquePhysicsData, BlockFace direction);

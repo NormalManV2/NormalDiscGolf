@@ -19,8 +19,8 @@ public class BackhandTechnique extends ThrowTechnique {
         final double turnFactor = techniquePhysicsData.turnFactor();
         final double fadeFactor = techniquePhysicsData.fadeFactor();
         final double gravityFactor = (double) disc.getGlide() / 220;
-        final double turnAdjustment = turn * turnFactor * 0.15;
-        final double fadeAdjustment = turn * fadeFactor * 0.25;
+        final double turnAdjustment = turn * turnFactor * Constants.TURN_ADJUSTMENT;
+        final double fadeAdjustment = turn * fadeFactor * Constants.FADE_ADJUSTMENT;
 
         if (flightPhase <= Constants.STRAIGHT_PHASE_END) {
             return;
