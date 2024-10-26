@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf;
+package normalmanv2.normalDiscGolf.impl.event;
 
 import normalmanv2.normalDiscGolf.impl.round.GameRound;
 import org.bukkit.entity.Player;

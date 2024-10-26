@@ -1,5 +1,6 @@
-package normalmanv2.normalDiscGolf;
+package normalmanv2.normalDiscGolf.impl.listener;
 
+import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import org.bukkit.event.EventHandler;

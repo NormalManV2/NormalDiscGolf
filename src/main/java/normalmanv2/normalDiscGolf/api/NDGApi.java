@@ -1,10 +1,10 @@
 package normalmanv2.normalDiscGolf.api;
 
-import normalmanv2.normalDiscGolf.DiscRegistry;
+import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
-import normalmanv2.normalDiscGolf.impl.technique.ThrowTechniqueRegistry;
+import normalmanv2.normalDiscGolf.impl.registry.ThrowTechniqueRegistry;
 
 public class NDGApi {
     private final PlayerDataManager playerDataManager;

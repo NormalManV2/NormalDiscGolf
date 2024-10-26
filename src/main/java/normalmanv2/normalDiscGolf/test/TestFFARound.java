@@ -1,5 +1,6 @@
-package normalmanv2.normalDiscGolf;
+package normalmanv2.normalDiscGolf.test;
 
+import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.api.NDGApi;
 import normalmanv2.normalDiscGolf.impl.course.Course;
 import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;

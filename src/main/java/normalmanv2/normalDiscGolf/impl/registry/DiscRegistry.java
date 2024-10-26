@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf;
+package normalmanv2.normalDiscGolf.impl.registry;
 
 import normalmanv2.normalDiscGolf.impl.disc.Disc;
 

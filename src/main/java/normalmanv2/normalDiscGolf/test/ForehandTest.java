@@ -1,7 +1,7 @@
-package normalmanv2.normalDiscGolf;
+package normalmanv2.normalDiscGolf.test;
 
+import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.api.NDGApi;
-import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
 import org.bukkit.command.Command;
@@ -11,13 +11,13 @@ import org.bukkit.entity.Player;
 
 import java.util.UUID;
 
-public class BackHandTest implements CommandExecutor {
+public class ForehandTest implements CommandExecutor {
 
     private final DiscRegistry discRegistry;
     private final RoundHandler roundHandler;
     private GameRound round;
 
-    public BackHandTest(NDGApi ndgApi) {
+    public ForehandTest(NDGApi ndgApi) {
         this.discRegistry = ndgApi.getDiscRegistry();
         this.roundHandler = ndgApi.getRoundHandler();
     }
@@ -43,10 +43,10 @@ public class BackHandTest implements CommandExecutor {
         }
 
         try {
-            round.handleStroke(playerId, "backhand", discRegistry.getDiscByString(args[0]));
+            round.handleStroke(playerId, "forehand", discRegistry.getDiscByString(args[0]));
         } catch (CloneNotSupportedException exception) {
-          exception.printStackTrace();
-          return false;
+            exception.printStackTrace();
+            return false;
         }
 
         return true;

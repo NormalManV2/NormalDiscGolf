@@ -1,5 +1,6 @@
-package normalmanv2.normalDiscGolf.impl.technique;
+package normalmanv2.normalDiscGolf.impl.registry;
 
+import normalmanv2.normalDiscGolf.impl.technique.ThrowTechnique;
 import normalmanv2.normalDiscGolf.impl.technique.type.BackhandTechnique;
 import normalmanv2.normalDiscGolf.impl.technique.type.ForehandTechnique;
 

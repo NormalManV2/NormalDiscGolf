@@ -1,13 +1,11 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
-import normalmanv2.normalDiscGolf.DiscThrowEvent;
-import normalmanv2.normalDiscGolf.GoalScoreEvent;
+import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.api.NDGApi;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
-import normalmanv2.normalDiscGolf.impl.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.technique.ThrowTechnique;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Bukkit;
