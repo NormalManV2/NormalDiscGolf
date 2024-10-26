@@ -1,8 +1,5 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
-import normalmanv2.normalDiscGolf.impl.course.Course;
-import org.bukkit.Location;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,9 +16,10 @@ public class RoundHandler {
         this.activeRounds = new HashMap<>();
     }
 
-    public void startRound(GameRound round, Location startLocation) {
+    public boolean startRound(GameRound round) {
         this.activeRounds.computeIfAbsent(RoundState.START, k -> new HashSet<>()).add(round);
-        round.startRound(new Course(CourseDifficulty.EASY, "Test Course", 18, startLocation));
+        round.startRound();
+        return round.getTask() == null;
     }
 
     public void endRound(GameRound round) {
@@ -45,6 +43,7 @@ public class RoundHandler {
                 GameRound round = iterator.next();
                 round.endRound();
                 iterator.remove();
+                System.out.println(round + "Has been ended!");
             }
         }
     }

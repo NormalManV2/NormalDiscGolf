@@ -25,12 +25,11 @@ public class PDGARating {
         this.averageScore = this.totalScore / this.totalRounds;
     }
 
-    private void updateRating(CourseDifficulty difficulty) {
+    public void updateRating(CourseDifficulty difficulty) {
         this.rating = calculateRating(this.averageScore, this.division, difficulty);
     }
 
     private int calculateRating(double averageScore, Division division, CourseDifficulty difficulty) {
-
         return (int) ((1000 - averageScore) * (1.1));
     }
 

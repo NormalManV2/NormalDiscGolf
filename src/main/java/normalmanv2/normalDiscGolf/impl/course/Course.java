@@ -18,6 +18,7 @@ public class Course {
     private final Location startingLocation;
     private final Set<Location> holeLocations;
     private static final Map<Obstacle, Location> obstacleLocations = new HashMap<>();
+    private final Map<Integer, Integer> holePars;
 
     public Course(CourseDifficulty difficulty, String name, int holes, Location startingLocation) {
         this.difficulty = difficulty;
@@ -25,6 +26,7 @@ public class Course {
         this.holes = holes;
         this.startingLocation = startingLocation;
         this.holeLocations = new HashSet<>();
+        this.holePars = new HashMap<>();
     }
 
     public static void registerObstacle(Obstacle obstacle) {

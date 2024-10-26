@@ -9,10 +9,12 @@ public class PlayerScoreCard {
     private int totalStrokes;
     private int totalScore;
     private final Map<Integer, Integer> holeScores;
+    private int currentStrokes;
 
     public PlayerScoreCard() {
         this.totalStrokes = 0;
         this.totalScore = 0;
+        this.currentStrokes = 0;
         this.holeScores = new HashMap<>();
     }
 
@@ -21,6 +23,14 @@ public class PlayerScoreCard {
         this.totalStrokes += strokes;
         int scoreRelativeToPar = strokes - par;
         this.totalScore += scoreRelativeToPar;
+    }
+
+    public void trackStroke() {
+        this.currentStrokes++;
+    }
+
+    public void resetCurrentStrokes() {
+        this.currentStrokes = 0;
     }
 
     public void addPenalty(int penaltyStrokes) {
@@ -33,6 +43,10 @@ public class PlayerScoreCard {
 
     public int getTotalStrokes() {
         return this.totalStrokes;
+    }
+
+    public int getCurrentStrokes() {
+        return this.currentStrokes;
     }
 
     public Map<Integer, Integer> getHoleScores() {

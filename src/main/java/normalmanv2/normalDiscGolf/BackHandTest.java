@@ -1,22 +1,25 @@
 package normalmanv2.normalDiscGolf;
 
-import normalmanv2.normalDiscGolf.impl.disc.Disc;
-import normalmanv2.normalDiscGolf.impl.player.PlayerData;
+import normalmanv2.normalDiscGolf.api.NDGApi;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
-import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
+import normalmanv2.normalDiscGolf.impl.round.GameRound;
+import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.UUID;
+
 public class BackHandTest implements CommandExecutor {
 
-    private final PlayerDataManager dataManager;
     private final DiscRegistry discRegistry;
+    private final RoundHandler roundHandler;
+    private GameRound round;
 
-    public BackHandTest(PlayerDataManager dataManager, DiscRegistry discRegistry) {
-        this.dataManager = dataManager;
-        this.discRegistry = discRegistry;
+    public BackHandTest(NDGApi ndgApi) {
+        this.discRegistry = ndgApi.getDiscRegistry();
+        this.roundHandler = ndgApi.getRoundHandler();
     }
 
     @Override
@@ -30,16 +33,22 @@ public class BackHandTest implements CommandExecutor {
             return false;
         }
 
-        try {
-            Disc disc = discRegistry.getDiscByString(args[0]);
-            PlayerData playerData = dataManager.getDataByPlayer(player.getUniqueId());
-            PlayerSkills skills = playerData.getSkills();
+        UUID playerId = player.getUniqueId();
 
-            disc.handleThrow(player, skills, "backhand", player.getFacing());
-        } catch (CloneNotSupportedException exception) {
-            exception.printStackTrace();
-            return false;
+        for (GameRound round : roundHandler.getActiveRounds()) {
+            if (round.getPlayers().contains(playerId)) {
+                this.round = round;
+                break;
+            }
         }
+
+        try {
+            round.handleStroke(playerId, "backhand", discRegistry.getDiscByString(args[0]));
+        } catch (CloneNotSupportedException exception) {
+          exception.printStackTrace();
+          return false;
+        }
+
         return true;
     }
 }

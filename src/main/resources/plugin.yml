@@ -9,3 +9,4 @@ description: Disc golf in minecraft!
 commands:
   testBackHand:
   testForeHand:
+  startRound:

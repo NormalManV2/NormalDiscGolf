@@ -1,10 +1,13 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
+import normalmanv2.normalDiscGolf.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.api.NDGApi;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
+import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.technique.ThrowTechnique;
+import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -16,6 +19,7 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
@@ -41,15 +45,11 @@ public class Putter extends Disc {
 
         ItemDisplay display = world.spawn(throwLoc, ItemDisplay.class);
         display.setItemStack(new ItemStack(Material.POPPED_CHORUS_FRUIT));
+        ItemMeta displayMeta = display.getItemStack().getItemMeta();
 
-        Vector3f translation = new Vector3f();
-        AxisAngle4f leftRotation = new AxisAngle4f();
-        Vector3f scale = new Vector3f(1, 1, 1);
-        AxisAngle4f rightRotation = new AxisAngle4f();
+        displayMeta.setCustomModelData(1);
+        display.getItemStack().setItemMeta(displayMeta);
 
-        Transformation transformation = new Transformation(translation, leftRotation, scale, rightRotation);
-
-        // display.setTransformation(transformation);
         display.setBillboard(Display.Billboard.CENTER);
         display.setCustomName(ChatColor.translateAlternateColorCodes('&', this.getDiscName()));
         display.setCustomNameVisible(true);
@@ -59,13 +59,13 @@ public class Putter extends Disc {
         int formLevel = skills.getForm().getLevel();
         int powerLevel = skills.getPower().getLevel();
 
-        double discBaseSpeed = 1.3;
-        double baseVelocity = discBaseSpeed * (1 + (powerLevel * 0.05));
-        double finalVelocity = baseVelocity * (1 + (formLevel * 0.02));
+        double discBaseSpeed = Constants.PUTTER_BASE_SPEED;
+        double baseVelocity = discBaseSpeed * (1 + (powerLevel * Constants.POWER_ADJUSTMENT));
+        double finalVelocity = baseVelocity * (1 + (formLevel * Constants.FORM_ADJUSTMENT));
 
         Vector velocity = direction.multiply(finalVelocity);
 
-        double maxSpread = 0.05 - (accuracyLevel * 0.5);
+        double maxSpread = 0.05 - (accuracyLevel * Constants.ACCURACY_ADJUSTMENT);
         velocity.setX(velocity.getX() + (Math.random() * maxSpread - maxSpread / 2));
         velocity.setZ(velocity.getZ() + (Math.random() * maxSpread - maxSpread / 2));
 
@@ -83,19 +83,42 @@ public class Putter extends Disc {
             Location currentLocation = discDisplay.getLocation();
             currentLocation.add(currentVelocity);
             throwTechnique.applyPhysics(this, currentVelocity, tickCount[0], maxTicks, direction);
-            // REMOVED : MathUtil.adjustFlightPath(currentVelocity, tickCount[0], maxTicks, this, technique);
             discDisplay.teleport(currentLocation);
             player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, currentLocation, 5);
 
-            // Conditional for when the disc task should no longer run, ie: Disc hits the ground or an obstacle.
+            if (MathUtil.detectGoalCollision(player.getWorld(), discDisplay.getLocation(), currentVelocity) || tickCount[0] > maxTicks) {
+                Vector throwDirection = initialVelocity.clone().normalize();
+                Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));
+
+                player.teleport(teleportLocation);
+
+                FFARound round = (FFARound) api.getRoundHandler().getActiveRounds().get(0);
+                System.out.println("Disc hit the goal!");
+                Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, 1, round));
+                if (this.discTask == null) {
+                    discDisplay.remove();
+                    return;
+                }
+                this.discTask.cancel();
+                this.discTask = null;
+                Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100);
+                return;
+            }
 
             if (MathUtil.detectCollision(player.getWorld(), discDisplay.getLocation(), currentVelocity) || tickCount[0] > maxTicks) {
                 Vector throwDirection = initialVelocity.clone().normalize();
                 Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));
 
                 player.teleport(teleportLocation);
-                discTask.cancel();
+
+                if (this.discTask == null) {
+                    discDisplay.remove();
+                    return;
+                }
+
+                this.discTask.cancel();
                 this.discTask = null;
+                Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100);
                 return;
             }
 

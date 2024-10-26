@@ -1,13 +1,14 @@
 package normalmanv2.normalDiscGolf;
 
+import normalmanv2.normalDiscGolf.api.NDGApi;
 import normalmanv2.normalDiscGolf.impl.disc.MidRange;
 import normalmanv2.normalDiscGolf.impl.disc.Putter;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
 import normalmanv2.normalDiscGolf.impl.disc.Driver;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
-import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.technique.ThrowTechniqueRegistry;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -23,11 +24,12 @@ public final class NormalDiscGolf extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
-        // Plugin startup logic
         getServer().getPluginManager().registerEvents(this, this);
         this.registerDefaultDiscs();
-        getCommand("testBackHand").setExecutor(new BackHandTest(playerDataManager, discRegistry));
-        getCommand("testForeHand").setExecutor(new ForehandTest(playerDataManager, discRegistry));
+        getCommand("testBackHand").setExecutor(new BackHandTest(NDGApi.getInstance()));
+        getCommand("testForeHand").setExecutor(new ForehandTest(NDGApi.getInstance()));
+        getCommand("startRound").setExecutor(new TestFFARound(NDGApi.getInstance(), this));
+        Bukkit.getPluginManager().registerEvents(new GoalScoreListener(), this);
     }
 
     private void registerDefaultDiscs() {
@@ -58,8 +60,11 @@ public final class NormalDiscGolf extends JavaPlugin implements Listener {
         return throwTechniqueRegistry;
     }
 
+    public static DiscRegistry getDiscRegistry() {
+        return discRegistry;
+    }
+
     @Override
     public void onDisable() {
-        // Plugin shutdown logic
     }
 }

@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
-import normalmanv2.normalDiscGolf.NormalDiscGolf;
+import normalmanv2.normalDiscGolf.api.NDGApi;
 import normalmanv2.normalDiscGolf.impl.course.Course;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
@@ -28,25 +28,30 @@ public class FFARound implements GameRound {
     private BukkitTask task;
     private final JavaPlugin plugin;
     private final PlayerDataManager playerDataManager;
+    private final Course course;
+    private int holeNumber;
 
-    public FFARound(JavaPlugin plugin) {
+    public FFARound(JavaPlugin plugin, Course course) {
         this.players = new ArrayList<>();
         this.scoreCards = new ConcurrentHashMap<>();
         this.roundOver = false;
         this.plugin = plugin;
-        this.playerDataManager = NormalDiscGolf.getPlayerDataManager();
+        this.playerDataManager = NDGApi.getInstance().getPlayerDataManager();
+        this.course = course;
     }
 
     @Override
-    public void startRound(Course course) {
-
+    public void startRound() {
+        this.holeNumber = 1;
         for (UUID uuid : players) {
             this.scoreCards.put(uuid, new PlayerScoreCard());
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) {
+                // player.teleport(this.course.getStartingLocation());
+            }
         }
 
-        this.task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-
-        }, 0, 20);
+        this.task = Bukkit.getScheduler().runTaskTimer(plugin, () -> System.out.println("FFA ROUND IN PROGRESS"), 0, 100);
     }
 
     @Override
@@ -81,6 +86,8 @@ public class FFARound implements GameRound {
         }
         PlayerData playerData = playerDataManager.getDataByPlayer(playerId);
         PlayerSkills skills = playerData.getSkills();
+        PlayerScoreCard scoreCard = scoreCards.get(player.getUniqueId());
+        scoreCard.trackStroke();
 
         disc.handleThrow(player, skills, technique, player.getFacing());
     }
@@ -105,12 +112,29 @@ public class FFARound implements GameRound {
             PlayerData playerData = playerDataManager.getDataByPlayer(uuid);
             PDGARating rating = playerData.getRating();
             rating.handleRoundEnd(scoreCard.getTotalScore());
+            rating.updateRating(course.getDifficulty());
+            System.out.println(scoreCard.getTotalStrokes());
+            System.out.println(scoreCard.getTotalScore());
+            System.out.println(rating.getRating());
+            System.out.println(rating.getAverageScore());
+            System.out.println(rating.getDivision());
+            System.out.println(rating.getTotalRounds());
         }
         this.dispose();
     }
 
-    public BukkitTask getRoundTask() {
+    @Override
+    public Course getCourse() {
+        return this.course;
+    }
+
+    @Override
+    public BukkitTask getTask() {
         return this.task;
+    }
+
+    public ConcurrentMap<UUID, PlayerScoreCard> getScoreCards() {
+        return this.scoreCards;
     }
 
     private void dispose() {
@@ -119,5 +143,4 @@ public class FFARound implements GameRound {
         this.scoreCards.clear();
         this.players.clear();
     }
-
 }

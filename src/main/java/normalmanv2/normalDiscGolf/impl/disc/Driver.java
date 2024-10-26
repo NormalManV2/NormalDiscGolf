@@ -1,9 +1,13 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
+import normalmanv2.normalDiscGolf.DiscThrowEvent;
+import normalmanv2.normalDiscGolf.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.api.NDGApi;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil;
+import normalmanv2.normalDiscGolf.impl.round.FFARound;
+import normalmanv2.normalDiscGolf.impl.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.technique.ThrowTechnique;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Bukkit;
@@ -17,6 +21,7 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
@@ -39,6 +44,10 @@ public class Driver extends Disc {
 
         ItemDisplay display = world.spawn(throwLoc, ItemDisplay.class);
         display.setItemStack(new ItemStack(Material.POPPED_CHORUS_FRUIT));
+        ItemMeta displayMeta = display.getItemStack().getItemMeta();
+
+        displayMeta.setCustomModelData(1);
+        display.getItemStack().setItemMeta(displayMeta);
 
         display.setBillboard(Display.Billboard.CENTER);
         display.setCustomName(ChatColor.translateAlternateColorCodes('&', this.getDiscName()));
@@ -74,6 +83,25 @@ public class Driver extends Disc {
             throwTechnique.applyPhysics(this, currentVelocity, tickCount[0], maxTicks, direction);
             discDisplay.teleport(currentLocation);
             player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, currentLocation, 5);
+
+            if (MathUtil.detectGoalCollision(player.getWorld(), discDisplay.getLocation(), currentVelocity) || tickCount[0] > maxTicks) {
+                Vector throwDirection = initialVelocity.clone().normalize();
+                Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));
+
+                player.teleport(teleportLocation);
+
+                FFARound round = (FFARound) api.getRoundHandler().getActiveRounds().get(0);
+                System.out.println("Disc hit the goal!");
+                Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, 1, round));
+                if (this.discTask == null) {
+                    discDisplay.remove();
+                    return;
+                }
+                this.discTask.cancel();
+                this.discTask = null;
+                Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100);
+                return;
+            }
 
             if (MathUtil.detectCollision(player.getWorld(), discDisplay.getLocation(), currentVelocity) || tickCount[0] > maxTicks) {
                 Vector throwDirection = initialVelocity.clone().normalize();
