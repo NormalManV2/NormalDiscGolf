@@ -2,7 +2,7 @@ package normalmanv2.normalDiscGolf;
 
 import normalmanv2.normalDiscGolf.api.NDGApi;
 import normalmanv2.normalDiscGolf.impl.course.Course;
-import normalmanv2.normalDiscGolf.impl.round.CourseDifficulty;
+import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
@@ -37,7 +37,7 @@ public class TestFFARound implements CommandExecutor {
         }
 
         if (args[0].equalsIgnoreCase("start")) {
-            round = new FFARound(plugin, new Course(CourseDifficulty.EASY, "Test Course", 18, new Location(player.getWorld(), 19, 68, -107)));
+            round = new FFARound(plugin, new Course(CourseDifficulty.EASY, "Test Course", 18, new Location(player.getWorld(), 19, 68, -107)), false);
             for (Player player1 : Bukkit.getOnlinePlayers()) {
                 round.addPlayer(player1.getUniqueId());
             }

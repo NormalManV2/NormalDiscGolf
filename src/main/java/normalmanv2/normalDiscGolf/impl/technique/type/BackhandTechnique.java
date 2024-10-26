@@ -28,50 +28,13 @@ public class BackhandTechnique extends ThrowTechnique {
 
         discVelocity.setY(discVelocity.getY() - gravityFactor);
 
-        switch (direction) {
-            case NORTH -> {
-                if (flightPhase <= Constants.TURN_PHASE_END) {
-
-                    discVelocity.setX(discVelocity.getX() + turnAdjustment);
-                }
-                if (flightPhase >= Constants.FADE_PHASE_START) {
-
-                    discVelocity.setX(discVelocity.getX() - fadeAdjustment);
-                }
-            }
-
-            case SOUTH -> {
-                if (flightPhase <= Constants.TURN_PHASE_END) {
-
-                    discVelocity.setX(discVelocity.getX() - turnAdjustment);
-                }
-                if (flightPhase >= Constants.FADE_PHASE_START) {
-
-                    discVelocity.setX(discVelocity.getX() + fadeAdjustment);
-                }
-            }
-
-            case WEST -> {
-                if (flightPhase <= Constants.TURN_PHASE_END) {
-
-                    discVelocity.setZ(discVelocity.getZ() - turnAdjustment);
-                }
-                if (flightPhase >= Constants.FADE_PHASE_START) {
-
-                    discVelocity.setZ(discVelocity.getZ() + fadeAdjustment);
-                }
-            }
-
-            case EAST -> {
-                if (flightPhase <= Constants.TURN_PHASE_END) {
-
-                    discVelocity.setZ(discVelocity.getZ() + turnAdjustment);
-                }
-                if (flightPhase >= Constants.FADE_PHASE_START) {
-
-                    discVelocity.setZ(discVelocity.getZ() - fadeAdjustment);
-                }
-            }
+        Vector currentDirection = new Vector(discVelocity.getX(), 0, discVelocity.getZ()).normalize();
+        Vector leftwardDrift = new Vector(-currentDirection.getZ(), 0, currentDirection.getX()).normalize();
+        if (flightPhase <= Constants.TURN_PHASE_END) {
+            discVelocity.add(leftwardDrift.clone().multiply(turnAdjustment));
+        }
+        if (flightPhase >= Constants.FADE_PHASE_START) {
+            discVelocity.subtract(leftwardDrift.clone().multiply(fadeAdjustment));
         }
     }
 }

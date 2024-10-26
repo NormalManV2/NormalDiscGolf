@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.impl.round;
+package normalmanv2.normalDiscGolf.impl.course;
 
 public enum CourseDifficulty {
     EASY,

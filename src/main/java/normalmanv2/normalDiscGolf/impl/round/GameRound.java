@@ -19,4 +19,5 @@ public interface GameRound {
     List<UUID> getPlayers();
     Course getCourse();
     BukkitTask getTask();
+    boolean isTournamentRound();
 }

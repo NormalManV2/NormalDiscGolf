@@ -1,7 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
 import normalmanv2.normalDiscGolf.impl.course.objects.Obstacle;
-import normalmanv2.normalDiscGolf.impl.round.CourseDifficulty;
 import org.bukkit.Location;
 
 import java.util.Collections;
@@ -16,6 +15,7 @@ public class Course {
     private final String name;
     private final int holes;
     private final Location startingLocation;
+    private final Map<Integer, Location> teeLocations;
     private final Set<Location> holeLocations;
     private static final Map<Obstacle, Location> obstacleLocations = new HashMap<>();
     private final Map<Integer, Integer> holePars;
@@ -25,6 +25,7 @@ public class Course {
         this.name = name;
         this.holes = holes;
         this.startingLocation = startingLocation;
+        this.teeLocations = new HashMap<>();
         this.holeLocations = new HashSet<>();
         this.holePars = new HashMap<>();
     }

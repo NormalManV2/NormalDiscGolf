@@ -7,7 +7,7 @@ import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.disc.Disc;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.player.score.PDGARating;
-import normalmanv2.normalDiscGolf.impl.player.score.PlayerScoreCard;
+import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -23,28 +23,30 @@ import java.util.concurrent.ConcurrentMap;
 public class FFARound implements GameRound {
 
     private final List<UUID> players;
-    private final ConcurrentMap<UUID, PlayerScoreCard> scoreCards;
+    private final ConcurrentMap<UUID, ScoreCard> scoreCards;
     private boolean roundOver;
     private BukkitTask task;
     private final JavaPlugin plugin;
     private final PlayerDataManager playerDataManager;
     private final Course course;
+    private final boolean isTournamentRound;
     private int holeNumber;
 
-    public FFARound(JavaPlugin plugin, Course course) {
+    public FFARound(JavaPlugin plugin, Course course, boolean isTournamentRound) {
         this.players = new ArrayList<>();
         this.scoreCards = new ConcurrentHashMap<>();
         this.roundOver = false;
         this.plugin = plugin;
         this.playerDataManager = NDGApi.getInstance().getPlayerDataManager();
         this.course = course;
+        this.isTournamentRound = isTournamentRound;
     }
 
     @Override
     public void startRound() {
         this.holeNumber = 1;
         for (UUID uuid : players) {
-            this.scoreCards.put(uuid, new PlayerScoreCard());
+            this.scoreCards.put(uuid, new ScoreCard());
             Player player = Bukkit.getPlayer(uuid);
             if (player != null) {
                 // player.teleport(this.course.getStartingLocation());
@@ -86,7 +88,7 @@ public class FFARound implements GameRound {
         }
         PlayerData playerData = playerDataManager.getDataByPlayer(playerId);
         PlayerSkills skills = playerData.getSkills();
-        PlayerScoreCard scoreCard = scoreCards.get(player.getUniqueId());
+        ScoreCard scoreCard = scoreCards.get(player.getUniqueId());
         scoreCard.trackStroke();
 
         disc.handleThrow(player, skills, technique, player.getFacing());
@@ -98,6 +100,11 @@ public class FFARound implements GameRound {
     }
 
     @Override
+    public boolean isTournamentRound() {
+        return this.isTournamentRound;
+    }
+
+    @Override
     public List<UUID> getPlayers() {
         return Collections.unmodifiableList(this.players);
     }
@@ -105,7 +112,7 @@ public class FFARound implements GameRound {
     private void handleRoundEnd() {
         this.roundOver = true;
         for (UUID uuid : this.players) {
-            PlayerScoreCard scoreCard = this.scoreCards.get(uuid);
+            ScoreCard scoreCard = this.scoreCards.get(uuid);
             if (scoreCard == null) {
                 return;
             }
@@ -133,7 +140,7 @@ public class FFARound implements GameRound {
         return this.task;
     }
 
-    public ConcurrentMap<UUID, PlayerScoreCard> getScoreCards() {
+    public ConcurrentMap<UUID, ScoreCard> getScoreCards() {
         return this.scoreCards;
     }
 

@@ -4,14 +4,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-public class PlayerScoreCard {
+public class ScoreCard {
 
     private int totalStrokes;
     private int totalScore;
     private final Map<Integer, Integer> holeScores;
     private int currentStrokes;
 
-    public PlayerScoreCard() {
+    public ScoreCard() {
         this.totalStrokes = 0;
         this.totalScore = 0;
         this.currentStrokes = 0;
