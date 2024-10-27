@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
+import normalmanv2.normalDiscGolf.api.GameRound;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;

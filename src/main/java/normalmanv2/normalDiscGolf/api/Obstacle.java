@@ -1,8 +1,8 @@
-package normalmanv2.normalDiscGolf.impl.course.objects;
+package normalmanv2.normalDiscGolf.api;
 
 import org.bukkit.Location;
 
-public interface IObstacle {
+public interface Obstacle {
 
     Location getLocation();
     String getSchematicName();

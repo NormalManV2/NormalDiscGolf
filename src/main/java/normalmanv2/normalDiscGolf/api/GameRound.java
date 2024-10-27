@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.impl.round;
+package normalmanv2.normalDiscGolf.api;
 
 import normalmanv2.normalDiscGolf.impl.course.Course;
 import normalmanv2.normalDiscGolf.impl.disc.Disc;

@@ -1,9 +1,9 @@
-package normalmanv2.normalDiscGolf.impl.team;
+package normalmanv2.normalDiscGolf.api;
 
 import java.util.Set;
 import java.util.UUID;
 
-public interface ITeam {
+public interface Team {
 
     void addPlayer(UUID player);
     void removePlayer(UUID player);

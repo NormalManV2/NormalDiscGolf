@@ -2,7 +2,7 @@ package normalmanv2.normalDiscGolf.impl.course.objects;
 
 import org.bukkit.Location;
 
-public class Obstacle implements IObstacle {
+public class Obstacle implements normalmanv2.normalDiscGolf.api.Obstacle {
 
     private Location location;
     private String schematicName;

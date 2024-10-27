@@ -24,13 +24,12 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 public class Driver extends Disc {
-    private final NormalDiscGolf plugin;
+    private final NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
     private final NDGApi api = NDGApi.getInstance();
     private BukkitTask discTask;
 
-    public Driver(int speed, int glide, int turn, int fade, String discName, NormalDiscGolf plugin) {
+    public Driver(int speed, int glide, int turn, int fade, String discName) {
         super(speed, glide, turn, fade, discName, DiscType.DRIVER);
-        this.plugin = plugin;
     }
 
     @Override

@@ -25,13 +25,12 @@ import org.bukkit.util.Vector;
 
 public class Putter extends Disc {
 
-    private final NormalDiscGolf plugin;
+    private final NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
     private final NDGApi api = NDGApi.getInstance();
     private BukkitTask discTask;
 
-    public Putter(int speed, int glide, int turn, int fade, String discName, NormalDiscGolf plugin) {
+    public Putter(int speed, int glide, int turn, int fade, String discName) {
         super(speed, glide, turn, fade, discName, DiscType.PUTTER);
-        this.plugin = plugin;
     }
 
     @Override

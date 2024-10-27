@@ -5,7 +5,7 @@ import normalmanv2.normalDiscGolf.api.NDGApi;
 import normalmanv2.normalDiscGolf.impl.course.Course;
 import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
-import normalmanv2.normalDiscGolf.impl.round.GameRound;
+import normalmanv2.normalDiscGolf.api.GameRound;
 import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;

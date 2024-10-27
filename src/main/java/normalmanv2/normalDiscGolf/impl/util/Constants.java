@@ -4,8 +4,8 @@ public class Constants {
     public static final double STRAIGHT_PHASE_END = 0.2;
     public static final double TURN_PHASE_END = 0.4;
     public static final double FADE_PHASE_START = 0.4;
-    public static final double TURN_ADJUSTMENT = 0.25;
-    public static final double FADE_ADJUSTMENT = 0.25;
+    public static final double TURN_ADJUSTMENT = 0.15;
+    public static final double FADE_ADJUSTMENT = 0.15;
     public static final double DRAG_FACTOR = 0.98;
     public static final double DRIVER_BASE_SPEED = 2.5;
     public static final double MID_BASE_SPEED = 1.9;

@@ -1,6 +1,6 @@
-package normalmanv2.normalDiscGolf.impl.skill;
+package normalmanv2.normalDiscGolf.api;
 
-public interface ISkill {
+public interface Skill {
 
     int getLevel();
     void setLevel(int level);

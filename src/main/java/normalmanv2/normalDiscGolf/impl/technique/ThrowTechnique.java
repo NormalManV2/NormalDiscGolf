@@ -7,14 +7,14 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.util.Vector;
 
 public abstract class ThrowTechnique {
-    private final String technique;
+    private final String id;
 
-    public ThrowTechnique(String technique) {
-        this.technique = technique;
+    public ThrowTechnique(String id) {
+        this.id = id;
     }
 
-    public String getTechnique() {
-        return this.technique;
+    public String getId() {
+        return this.id;
     }
 
     public void applyPhysics(Disc disc, Vector discVelocity, int tick, int maxTicks, BlockFace direction) {

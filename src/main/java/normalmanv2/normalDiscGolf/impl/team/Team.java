@@ -5,7 +5,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-public class Team implements ITeam {
+public class Team implements normalmanv2.normalDiscGolf.api.Team {
 
     private final UUID ownerId;
     private final Set<UUID> teamMembers;

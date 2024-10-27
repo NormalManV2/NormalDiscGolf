@@ -21,7 +21,7 @@ public class ThrowTechniqueRegistry {
     }
 
     public void registerTechnique(ThrowTechnique technique) {
-        this.techniques.put(technique.getTechnique(), technique);
+        this.techniques.put(technique.getId(), technique);
     }
 
     private void registerDefaults() {

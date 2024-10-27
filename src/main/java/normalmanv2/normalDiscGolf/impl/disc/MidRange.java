@@ -25,13 +25,12 @@ import org.bukkit.util.Vector;
 
 public class MidRange extends Disc {
 
-    private final NormalDiscGolf plugin;
+    private final NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
     private final NDGApi api = NDGApi.getInstance();
     private BukkitTask discTask;
 
-    public MidRange(int speed, int glide, int turn, int fade, String discName, NormalDiscGolf plugin) {
+    public MidRange(int speed, int glide, int turn, int fade, String discName) {
         super(speed, glide, turn, fade, discName, DiscType.MID_RANGE);
-        this.plugin = plugin;
     }
 
     @Override

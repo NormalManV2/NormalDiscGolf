@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.skill;
 
-public class Skill implements ISkill {
+public class Skill implements normalmanv2.normalDiscGolf.api.Skill {
 
     private int level;
     private int maxLevel;
