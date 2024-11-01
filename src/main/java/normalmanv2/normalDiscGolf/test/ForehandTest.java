@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.test;
 
+import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.api.NDGApi;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
@@ -36,9 +37,10 @@ public class ForehandTest implements CommandExecutor {
         UUID playerId = player.getUniqueId();
 
         for (GameRound round : roundHandler.getActiveRounds()) {
-            if (round.getPlayers().contains(playerId)) {
-                this.round = round;
-                break;
+            for (Team team : round.getTeams()) {
+                if (team.getPlayers().contains(playerId)) {
+                    this.round = round;
+                }
             }
         }
 
