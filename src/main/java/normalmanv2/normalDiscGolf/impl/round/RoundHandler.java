@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
-import normalmanv2.normalDiscGolf.api.GameRound;
+import normalmanv2.normalDiscGolf.api.round.GameRound;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,10 +18,9 @@ public class RoundHandler {
         this.activeRounds = new HashMap<>();
     }
 
-    public boolean startRound(GameRound round) {
+    public void startRound(GameRound round) {
         this.activeRounds.computeIfAbsent(RoundState.START, k -> new HashSet<>()).add(round);
         round.startRound();
-        return round.getTask() == null;
     }
 
     public void endRound(GameRound round) {

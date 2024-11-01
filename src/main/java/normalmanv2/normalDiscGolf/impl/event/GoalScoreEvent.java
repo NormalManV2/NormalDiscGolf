@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.event;
 
-import normalmanv2.normalDiscGolf.api.GameRound;
+import normalmanv2.normalDiscGolf.api.round.GameRound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;

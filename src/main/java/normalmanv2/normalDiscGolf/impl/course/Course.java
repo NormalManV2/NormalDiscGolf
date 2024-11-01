@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
-import normalmanv2.normalDiscGolf.impl.course.objects.Obstacle;
+import normalmanv2.normalDiscGolf.impl.course.objects.ObstacleImpl;
 import org.bukkit.Location;
 
 import java.util.Collections;
@@ -17,7 +17,7 @@ public class Course {
     private final Location startingLocation;
     private final Map<Integer, Location> teeLocations;
     private final Set<Location> holeLocations;
-    private static final Map<Obstacle, Location> obstacleLocations = new HashMap<>();
+    private static final Map<ObstacleImpl, Location> obstacleLocations = new HashMap<>();
     private final Map<Integer, Integer> holePars;
 
     public Course(CourseDifficulty difficulty, String name, int holes, Location startingLocation) {
@@ -30,12 +30,12 @@ public class Course {
         this.holePars = new HashMap<>();
     }
 
-    public static void registerObstacle(Obstacle obstacle) {
-        obstacleLocations.put(obstacle, obstacle.getLocation());
+    public static void registerObstacle(ObstacleImpl obstacleImpl) {
+        obstacleLocations.put(obstacleImpl, obstacleImpl.getLocation());
     }
 
-    public static void unregisterObstacle(Obstacle obstacle) {
-        obstacleLocations.remove(obstacle);
+    public static void unregisterObstacle(ObstacleImpl obstacleImpl) {
+        obstacleLocations.remove(obstacleImpl);
     }
 
     public void clearAndSetHoleLocations(Set<Location> locations) {
@@ -67,7 +67,7 @@ public class Course {
         return Collections.unmodifiableSet(this.holeLocations);
     }
 
-    public Map<Obstacle, Location> getObstacleLocations() {
+    public Map<ObstacleImpl, Location> getObstacleLocations() {
         return Collections.unmodifiableMap(obstacleLocations);
     }
 

@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.registry;
 
-import normalmanv2.normalDiscGolf.impl.disc.Disc;
+import normalmanv2.normalDiscGolf.api.disc.Disc;
 
 import java.util.HashMap;
 import java.util.Map;

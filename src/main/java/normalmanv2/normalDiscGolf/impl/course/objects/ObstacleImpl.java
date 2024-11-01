@@ -1,13 +1,14 @@
 package normalmanv2.normalDiscGolf.impl.course.objects;
 
+import normalmanv2.normalDiscGolf.impl.course.Obstacle;
 import org.bukkit.Location;
 
-public class Obstacle implements normalmanv2.normalDiscGolf.api.Obstacle {
+public class ObstacleImpl implements Obstacle {
 
     private Location location;
     private String schematicName;
 
-    public Obstacle(Location location, String schematicName) {
+    public ObstacleImpl(Location location, String schematicName) {
         this.location = location;
         this.schematicName = schematicName;
     }

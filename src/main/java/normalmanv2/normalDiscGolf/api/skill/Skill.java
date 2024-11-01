@@ -1,6 +1,6 @@
-package normalmanv2.normalDiscGolf.impl.skill;
+package normalmanv2.normalDiscGolf.api.skill;
 
-public class Skill implements normalmanv2.normalDiscGolf.api.Skill {
+public class Skill {
 
     private int level;
     private int maxLevel;
@@ -10,22 +10,21 @@ public class Skill implements normalmanv2.normalDiscGolf.api.Skill {
         this.maxLevel = maxLevel;
     }
 
-    @Override
     public int getLevel() {
         return this.level;
     }
 
-    @Override
+
     public int getMaxLevel() {
         return this.maxLevel;
     }
 
-    @Override
+
     public void setLevel(int level) {
         this.level = level;
     }
 
-    @Override
+
     public void setMaxLevel(int maxLevel) {
         this.maxLevel = maxLevel;
     }

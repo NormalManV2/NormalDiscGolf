@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
+import normalmanv2.normalDiscGolf.api.disc.Disc;
+import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.api.NDGApi;
@@ -88,7 +90,6 @@ public class Driver extends Disc {
                 player.teleport(teleportLocation);
 
                 FFARound round = (FFARound) api.getRoundHandler().getActiveRounds().get(0);
-                System.out.println("Disc hit the goal!");
                 Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, 1, round));
                 if (this.discTask == null) {
                     discDisplay.remove();
@@ -120,5 +121,4 @@ public class Driver extends Disc {
             tickCount[0]++;
         }, 0, 1);
     }
-
 }

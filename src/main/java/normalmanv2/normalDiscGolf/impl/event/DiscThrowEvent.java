@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.event;
 
 import normalmanv2.normalDiscGolf.impl.course.Course;
-import normalmanv2.normalDiscGolf.impl.disc.Disc;
+import normalmanv2.normalDiscGolf.api.disc.Disc;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;

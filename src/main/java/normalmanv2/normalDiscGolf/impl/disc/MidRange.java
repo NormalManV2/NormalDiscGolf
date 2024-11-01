@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
+import normalmanv2.normalDiscGolf.api.disc.Disc;
+import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.api.NDGApi;

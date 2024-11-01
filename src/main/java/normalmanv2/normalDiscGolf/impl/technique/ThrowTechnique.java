@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.technique;
 
-import normalmanv2.normalDiscGolf.impl.disc.Disc;
+import normalmanv2.normalDiscGolf.api.disc.Disc;
 import normalmanv2.normalDiscGolf.impl.technique.data.TechniquePhysicsData;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.block.BlockFace;

@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.impl.disc;
+package normalmanv2.normalDiscGolf.api.disc;
 
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import org.bukkit.block.BlockFace;

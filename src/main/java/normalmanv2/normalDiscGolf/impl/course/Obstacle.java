@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.api;
+package normalmanv2.normalDiscGolf.impl.course;
 
 import org.bukkit.Location;
 

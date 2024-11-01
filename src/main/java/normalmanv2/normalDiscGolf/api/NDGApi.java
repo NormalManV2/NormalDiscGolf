@@ -9,10 +9,10 @@ import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.registry.ThrowTechniqueRegistry;
 
 public class NDGApi {
-    private static final PlayerDataManager playerDataManager = new PlayerDataManager();
-    private static final RoundHandler roundHandler = new RoundHandler();
+    private final PlayerDataManager playerDataManager = new PlayerDataManager();
+    private final RoundHandler roundHandler = new RoundHandler();
     private static final DiscRegistry discRegistry = new DiscRegistry();
-    private static final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
+    private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
     private static NDGApi instance;
 
     private NDGApi() {

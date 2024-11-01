@@ -2,7 +2,7 @@ package normalmanv2.normalDiscGolf.test;
 
 import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.api.NDGApi;
-import normalmanv2.normalDiscGolf.api.GameRound;
+import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
