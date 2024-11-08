@@ -1,48 +1,54 @@
-package normalmanv2.normalDiscGolf.api;
+package normalmanv2.normalDiscGolf.impl;
 
 import normalmanv2.normalDiscGolf.impl.disc.Driver;
 import normalmanv2.normalDiscGolf.impl.disc.MidRange;
 import normalmanv2.normalDiscGolf.impl.disc.Putter;
+import normalmanv2.normalDiscGolf.impl.invite.InviteService;
 import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.registry.ThrowTechniqueRegistry;
 
-public class NDGApi {
+public class NDGManager {
     private final PlayerDataManager playerDataManager = new PlayerDataManager();
     private final RoundHandler roundHandler = new RoundHandler();
-    private static final DiscRegistry discRegistry = new DiscRegistry();
+    private final DiscRegistry discRegistry = new DiscRegistry();
     private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
-    private static NDGApi instance;
+    private final InviteService inviteService = new InviteService();
+    private static NDGManager instance;
 
-    private NDGApi() {
+    private NDGManager() {
+        registerDefaultDiscs();
     }
 
-    public static NDGApi getInstance() {
+    public static NDGManager getInstance() {
         if (instance == null) {
-            instance = new NDGApi();
-            registerDefaultDiscs();
+            instance = new NDGManager();
         }
         return instance;
     }
 
     public PlayerDataManager getPlayerDataManager() {
-        return playerDataManager;
+        return this.playerDataManager;
     }
 
     public RoundHandler getRoundHandler() {
-        return roundHandler;
+        return this.roundHandler;
     }
 
     public ThrowTechniqueRegistry getThrowTechniqueRegistry() {
-        return throwTechniqueRegistry;
+        return this.throwTechniqueRegistry;
     }
 
     public DiscRegistry getDiscRegistry() {
-        return discRegistry;
+        return this.discRegistry;
     }
 
-    private static void registerDefaultDiscs() {
+    public InviteService getInviteService() {
+        return this.inviteService;
+    }
+
+    private void registerDefaultDiscs() {
         discRegistry.registerDisc("TestDriver", new Driver(9, 5, -1, 2, "&6TestDriver"));
         discRegistry.registerDisc("TestDriver1", new Driver(9, 5, -3, 1, "&aTestDriver1"));
         discRegistry.registerDisc("Midrange", new MidRange(5, 6, -1, 1, "&7Midrange"));

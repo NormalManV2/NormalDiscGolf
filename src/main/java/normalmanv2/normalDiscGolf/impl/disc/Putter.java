@@ -4,7 +4,7 @@ import normalmanv2.normalDiscGolf.api.disc.Disc;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
-import normalmanv2.normalDiscGolf.api.NDGApi;
+import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
@@ -28,7 +28,7 @@ import org.bukkit.util.Vector;
 public class Putter extends Disc {
 
     private final NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
-    private final NDGApi api = NDGApi.getInstance();
+    private final NDGManager api = NDGManager.getInstance();
     private BukkitTask discTask;
 
     public Putter(int speed, int glide, int turn, int fade, String discName) {

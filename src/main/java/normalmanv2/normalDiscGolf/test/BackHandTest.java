@@ -1,8 +1,8 @@
 package normalmanv2.normalDiscGolf.test;
 
-import normalmanv2.normalDiscGolf.api.team.Team;
+import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
 import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
-import normalmanv2.normalDiscGolf.api.NDGApi;
+import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
 import org.bukkit.command.Command;
@@ -18,9 +18,9 @@ public class BackHandTest implements CommandExecutor {
     private final RoundHandler roundHandler;
     private GameRound round;
 
-    public BackHandTest(NDGApi ndgApi) {
-        this.discRegistry = ndgApi.getDiscRegistry();
-        this.roundHandler = ndgApi.getRoundHandler();
+    public BackHandTest(NDGManager ndgManager) {
+        this.discRegistry = ndgManager.getDiscRegistry();
+        this.roundHandler = ndgManager.getRoundHandler();
     }
 
     @Override
@@ -37,8 +37,8 @@ public class BackHandTest implements CommandExecutor {
         UUID playerId = player.getUniqueId();
 
         for (GameRound round : roundHandler.getActiveRounds()) {
-            for (Team team : round.getTeams()) {
-                if (team.getPlayers().contains(playerId)) {
+            for (TeamImpl teamImpl : round.getTeams()) {
+                if (teamImpl.getPlayers().contains(playerId)) {
                     this.round = round;
                 }
             }

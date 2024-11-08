@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
 import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.course.Course;
 import normalmanv2.normalDiscGolf.api.disc.Disc;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
@@ -8,7 +9,7 @@ import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.player.score.PDGARating;
 import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
-import normalmanv2.normalDiscGolf.api.team.Team;
+import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -24,8 +25,8 @@ import java.util.UUID;
 
 public class Round implements GameRound {
 
-    private final List<Team> teams;
-    private final Map<Team, ScoreCard> scoreCards;
+    private final List<TeamImpl> teams;
+    private final Map<TeamImpl, ScoreCard> scoreCards;
     private boolean roundOver;
     private final boolean isTournamentRound;
     private final Plugin plugin;
@@ -33,6 +34,7 @@ public class Round implements GameRound {
     private final Course course;
     private final List<Integer> holes;
     private int holeIndex;
+    private int turnIndex;
     private BukkitTask gameTask;
 
     public Round(Plugin plugin, PlayerDataManager playerDataManager, Course course, boolean isTournamentRound) {
@@ -53,10 +55,10 @@ public class Round implements GameRound {
         for (int i = 0; i <= this.course.getHoles(); i++) {
             this.holes.add(i);
         }
-        for (Team team : teams) {
-            this.scoreCards.put(team, new ScoreCard());
+        for (TeamImpl teamImpl : teams) {
+            this.scoreCards.put(teamImpl, new ScoreCard());
 
-            for (UUID playerId : team.getPlayers()) {
+            for (UUID playerId : teamImpl.getTeamMembers()) {
                 Player player = Bukkit.getPlayer(playerId);
                 if (player == null) {
                     continue;
@@ -82,12 +84,15 @@ public class Round implements GameRound {
 
     @Override
     public void addTeam(Team team) {
-        this.teams.add(team);
+        if (!(team instanceof TeamImpl)) {
+            throw new IllegalArgumentException("Team must extend TeamImpl!");
+        }
+        this.teams.add((TeamImpl) team);
     }
 
     @Override
     public void removeTeam(Team team) {
-        this.teams.remove(team);
+        this.teams.remove((TeamImpl) team);
     }
 
     @Override
@@ -100,9 +105,9 @@ public class Round implements GameRound {
         PlayerData playerData = playerDataManager.getDataByPlayer(playerId);
         PlayerSkills skills = playerData.getSkills();
 
-        for (Team team : this.teams) {
-            if (team.getPlayers().contains(playerId)) {
-                ScoreCard scoreCard = this.scoreCards.get(team);
+        for (TeamImpl teamImpl : this.teams) {
+            if (teamImpl.getTeamMembers().contains(playerId)) {
+                ScoreCard scoreCard = this.scoreCards.get(teamImpl);
                 scoreCard.trackStroke();
             }
         }
@@ -111,6 +116,25 @@ public class Round implements GameRound {
     }
 
     @Override
+    public void handleTurn(Team team) {
+
+    }
+
+    @Override
+    public void handleTurn(UUID playerId) {
+
+    }
+
+    @Override
+    public boolean isTurn(Team team) {
+        return false;
+    }
+
+    @Override
+    public boolean isTurn(UUID playerId) {
+        return false;
+    }
+
     public boolean isRoundOver() {
         return this.roundOver;
     }
@@ -137,13 +161,13 @@ public class Round implements GameRound {
 
     private void handleRoundEnd() {
         this.roundOver = true;
-        for (Team team : this.teams) {
-            ScoreCard scoreCard = this.scoreCards.get(team);
+        for (TeamImpl teamImpl : this.teams) {
+            ScoreCard scoreCard = this.scoreCards.get(teamImpl);
             if (scoreCard == null) {
                 return;
             }
 
-            for (UUID playerId : team.getPlayers()) {
+            for (UUID playerId : teamImpl.getTeamMembers()) {
                 PlayerData playerData = playerDataManager.getDataByPlayer(playerId);
                 PDGARating rating = playerData.getRating();
                 rating.handleRoundEnd(scoreCard.getTotalScore());

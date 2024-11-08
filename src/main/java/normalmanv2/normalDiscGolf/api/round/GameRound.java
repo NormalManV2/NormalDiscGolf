@@ -1,8 +1,9 @@
 package normalmanv2.normalDiscGolf.api.round;
 
+import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.course.Course;
 import normalmanv2.normalDiscGolf.api.disc.Disc;
-import normalmanv2.normalDiscGolf.api.team.Team;
+import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
 
 import java.util.List;
 import java.util.UUID;
@@ -15,11 +16,19 @@ public interface GameRound {
 
     void cancelRound();
 
-    void addTeam(Team team);
+    void addTeam(Team teamImpl);
 
-    void removeTeam(Team team);
+    void removeTeam(Team teamImpl);
 
     void handleStroke(UUID playerId, String technique, Disc disc);
+
+    void handleTurn(Team team);
+
+    void handleTurn(UUID playerId);
+
+    boolean isTurn(Team team);
+
+    boolean isTurn(UUID playerId);
 
     boolean isRoundOver();
 
