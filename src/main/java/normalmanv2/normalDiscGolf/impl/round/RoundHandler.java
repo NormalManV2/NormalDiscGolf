@@ -12,44 +12,44 @@ import java.util.Set;
 
 public class RoundHandler {
 
-    private final Map<RoundState, Set<GameRound>> activeRounds;
+    private final Set<GameRound> activeRounds;
 
     public RoundHandler() {
-        this.activeRounds = new HashMap<>();
+        this.activeRounds = new HashSet<>();
     }
 
     public void startRound(GameRound round) {
-        this.activeRounds.computeIfAbsent(RoundState.START, k -> new HashSet<>()).add(round);
+        round.setRoundState(RoundState.START);
+        this.activeRounds.add(round);
         round.startRound();
     }
 
     public void endRound(GameRound round) {
-        this.activeRounds.computeIfAbsent(RoundState.END, k -> new HashSet<>()).add(round);
+        round.setRoundState(RoundState.END);
         this.cleanupEndedRounds();
     }
 
     public void cancelRound(GameRound round) {
-        this.activeRounds.computeIfAbsent(RoundState.CANCEL, k -> new HashSet<>()).add(round);
+        round.setRoundState(RoundState.CANCEL);
         this.cleanupEndedRounds();
     }
 
     private void cleanupEndedRounds() {
-        for (RoundState state : Set.of(RoundState.END, RoundState.CANCEL)) {
-            Set<GameRound> rounds = this.activeRounds.get(state);
-            if (rounds == null) {
-                return;
+        final Iterator<GameRound> activeRoundsIterator = activeRounds.iterator();
+        while (activeRoundsIterator.hasNext()) {
+            final GameRound gameRound = activeRoundsIterator.next();
+            final RoundState roundState = gameRound.getRoundState();
+            if (roundState != RoundState.END && roundState != RoundState.CANCEL) {
+                continue;
             }
-            Iterator<GameRound> iterator = rounds.iterator();
-            while (iterator.hasNext()) {
-                GameRound round = iterator.next();
-                round.endRound();
-                iterator.remove();
-                System.out.println(round + "Has been ended!");
-            }
+
+            activeRoundsIterator.remove();
+            gameRound.endRound();
+            System.out.println(gameRound + "Has been ended!");
         }
     }
 
     public List<GameRound> getActiveRounds() {
-        return new ArrayList<>(this.activeRounds.getOrDefault(RoundState.START, Set.of()));
+        return new ArrayList<>(this.activeRounds);
     }
 }

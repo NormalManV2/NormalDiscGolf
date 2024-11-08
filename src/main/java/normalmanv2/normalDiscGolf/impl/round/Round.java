@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public class Round implements GameRound {
-
+    private RoundState roundState;
     private final List<TeamImpl> teams;
     private final Map<TeamImpl, ScoreCard> scoreCards;
     private boolean roundOver;
@@ -45,6 +45,16 @@ public class Round implements GameRound {
         this.scoreCards = new HashMap<>();
         this.isTournamentRound = isTournamentRound;
         this.holes = new ArrayList<>();
+    }
+
+    @Override
+    public RoundState getRoundState() {
+        return this.roundState;
+    }
+
+    @Override
+    public void setRoundState(RoundState roundState) {
+        this.roundState = roundState;
     }
 
     @Override

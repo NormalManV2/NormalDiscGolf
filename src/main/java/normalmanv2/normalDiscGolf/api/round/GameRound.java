@@ -3,12 +3,17 @@ package normalmanv2.normalDiscGolf.api.round;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.course.Course;
 import normalmanv2.normalDiscGolf.api.disc.Disc;
+import normalmanv2.normalDiscGolf.impl.round.RoundState;
 import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
 
 import java.util.List;
 import java.util.UUID;
 
 public interface GameRound {
+
+    RoundState getRoundState();
+
+    void setRoundState(RoundState roundState);
 
     void startRound();
 
