@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
-import normalmanv2.normalDiscGolf.api.disc.Disc;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
+import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
@@ -25,14 +25,15 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
-public class MidRange extends Disc {
+public class MidRange extends DiscImpl {
 
     private final NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
-    private final NDGManager api = NDGManager.getInstance();
+    private final NDGManager api;
     private BukkitTask discTask;
 
-    public MidRange(int speed, int glide, int turn, int fade, String discName) {
+    public MidRange(int speed, int glide, int turn, int fade, String discName, NDGManager api) {
         super(speed, glide, turn, fade, discName, DiscType.MID_RANGE);
+        this.api = api;
     }
 
     @Override
@@ -50,7 +51,7 @@ public class MidRange extends Disc {
         display.getItemStack().setItemMeta(displayMeta);
 
         display.setBillboard(Display.Billboard.CENTER);
-        display.setCustomName(ChatColor.translateAlternateColorCodes('&', this.getDiscName()));
+        display.setCustomName(ChatColor.translateAlternateColorCodes('&', this.getName()));
         display.setCustomNameVisible(true);
 
         int accuracyLevel = skills.getAccuracy().getLevel();

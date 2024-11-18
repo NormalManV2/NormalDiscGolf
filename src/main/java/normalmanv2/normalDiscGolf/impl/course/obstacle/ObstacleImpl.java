@@ -1,6 +1,6 @@
-package normalmanv2.normalDiscGolf.impl.course.objects;
+package normalmanv2.normalDiscGolf.impl.course.obstacle;
 
-import normalmanv2.normalDiscGolf.impl.course.Obstacle;
+import normalmanv2.normalDiscGolf.api.course.obstacle.Obstacle;
 import org.bukkit.Location;
 
 public class ObstacleImpl implements Obstacle {
@@ -36,5 +36,15 @@ public class ObstacleImpl implements Obstacle {
     @Override
     public void getSchematicFile() {
 
+    }
+
+    @Override
+    public boolean canGenerate() {
+        return false;
+    }
+
+    @Override
+    public boolean generate(Location location) {
+        return false;
     }
 }

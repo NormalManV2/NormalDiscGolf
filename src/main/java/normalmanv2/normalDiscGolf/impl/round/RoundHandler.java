@@ -3,11 +3,9 @@ package normalmanv2.normalDiscGolf.impl.round;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 public class RoundHandler {
@@ -22,11 +20,13 @@ public class RoundHandler {
         round.setRoundState(RoundState.START);
         this.activeRounds.add(round);
         round.startRound();
+        System.out.println("Verify startRound is invoked in RoundHandler");
     }
 
     public void endRound(GameRound round) {
         round.setRoundState(RoundState.END);
         this.cleanupEndedRounds();
+        System.out.println("Verify endRound is invoked in RoundHandler");
     }
 
     public void cancelRound(GameRound round) {

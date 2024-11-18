@@ -49,11 +49,11 @@ public class NDGManager {
     }
 
     private void registerDefaultDiscs() {
-        discRegistry.registerDisc("TestDriver", new Driver(9, 5, -1, 2, "&6TestDriver"));
-        discRegistry.registerDisc("TestDriver1", new Driver(9, 5, -3, 1, "&aTestDriver1"));
-        discRegistry.registerDisc("Midrange", new MidRange(5, 6, -1, 1, "&7Midrange"));
-        discRegistry.registerDisc("Midrange1", new MidRange(5, 6, -3, 1, "&cMidrange1"));
-        discRegistry.registerDisc("Putter", new Putter(2, 4, -1, 1, "&4Putter"));
-        discRegistry.registerDisc("Putter1", new Putter(2, 4, 0, 2, "&3Putter1"));
+        discRegistry.registerDisc("TestDriver", new Driver(9, 5, -1, 2, "&6TestDriver", this));
+        discRegistry.registerDisc("TestDriver1", new Driver(9, 5, -3, 1, "&aTestDriver1", this));
+        discRegistry.registerDisc("Midrange", new MidRange(5, 6, -1, 1, "&7Midrange", this));
+        discRegistry.registerDisc("Midrange1", new MidRange(5, 6, -3, 1, "&cMidrange1", this));
+        discRegistry.registerDisc("Putter", new Putter(2, 4, -1, 1, "&4Putter", this));
+        discRegistry.registerDisc("Putter1", new Putter(2, 4, 0, 2, "&3Putter1", this));
     }
 }

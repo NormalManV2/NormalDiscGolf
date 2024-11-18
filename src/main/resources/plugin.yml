@@ -10,3 +10,4 @@ commands:
   testBackHand:
   testForeHand:
   startRound:
+  wfctest:

@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.technique;
 
-import normalmanv2.normalDiscGolf.api.disc.Disc;
+import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.technique.data.TechniquePhysicsData;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.block.BlockFace;
@@ -17,7 +17,7 @@ public abstract class ThrowTechnique {
         return this.id;
     }
 
-    public void applyPhysics(Disc disc, Vector discVelocity, int tick, int maxTicks, BlockFace direction) {
+    public void applyPhysics(DiscImpl discImpl, Vector discVelocity, int tick, int maxTicks, BlockFace direction) {
         final double flightPhase = (double) tick / (double) maxTicks;
 
         // Diminishing factor of the turn phase
@@ -27,8 +27,8 @@ public abstract class ThrowTechnique {
         // Drag factor
         discVelocity.multiply(Constants.DRAG_FACTOR);
 
-        this.applyTechniquePhysics(disc, discVelocity, tick, new TechniquePhysicsData(flightPhase, turnFactor, fadeFactor), direction);
+        this.applyTechniquePhysics(discImpl, discVelocity, tick, new TechniquePhysicsData(flightPhase, turnFactor, fadeFactor), direction);
     }
 
-    public abstract void applyTechniquePhysics(Disc disc, Vector discVelocity, int tick, TechniquePhysicsData techniquePhysicsData, BlockFace direction);
+    public abstract void applyTechniquePhysics(DiscImpl discImpl, Vector discVelocity, int tick, TechniquePhysicsData techniquePhysicsData, BlockFace direction);
 }

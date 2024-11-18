@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.api.skill;
+package normalmanv2.normalDiscGolf.impl.skill;
 
 public class Skill {
 

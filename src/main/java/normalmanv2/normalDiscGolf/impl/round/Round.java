@@ -2,8 +2,8 @@ package normalmanv2.normalDiscGolf.impl.round;
 
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.team.Team;
-import normalmanv2.normalDiscGolf.impl.course.Course;
-import normalmanv2.normalDiscGolf.api.disc.Disc;
+import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
+import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
@@ -31,16 +31,16 @@ public class Round implements GameRound {
     private final boolean isTournamentRound;
     private final Plugin plugin;
     private final PlayerDataManager playerDataManager;
-    private final Course course;
+    private final CourseImpl courseImpl;
     private final List<Integer> holes;
     private int holeIndex;
     private int turnIndex;
     private BukkitTask gameTask;
 
-    public Round(Plugin plugin, PlayerDataManager playerDataManager, Course course, boolean isTournamentRound) {
+    public Round(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound) {
         this.plugin = plugin;
         this.playerDataManager = playerDataManager;
-        this.course = course;
+        this.courseImpl = courseImpl;
         this.teams = new ArrayList<>();
         this.scoreCards = new HashMap<>();
         this.isTournamentRound = isTournamentRound;
@@ -59,10 +59,10 @@ public class Round implements GameRound {
 
     @Override
     public void startRound() {
-        Location startingLocation = this.course.getStartingLocation();
+        Location startingLocation = this.courseImpl.getStartingLocation();
         this.roundOver = false;
 
-        for (int i = 0; i <= this.course.getHoles(); i++) {
+        for (int i = 0; i <= this.courseImpl.getHoles(); i++) {
             this.holes.add(i);
         }
         for (TeamImpl teamImpl : teams) {
@@ -80,6 +80,10 @@ public class Round implements GameRound {
         this.gameTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             System.out.println(this + " Round Currently Running");
         }, 0, 100);
+    }
+
+    public Map<TeamImpl, ScoreCard> getScoreCards() {
+        return this.scoreCards;
     }
 
     @Override
@@ -106,7 +110,7 @@ public class Round implements GameRound {
     }
 
     @Override
-    public void handleStroke(UUID playerId, String technique, Disc disc) {
+    public void handleStroke(UUID playerId, String technique, DiscImpl discImpl) {
         Player player = Bukkit.getPlayer(playerId);
         if (player == null) {
             return;
@@ -122,7 +126,7 @@ public class Round implements GameRound {
             }
         }
 
-        disc.handleThrow(player, skills, technique, player.getFacing());
+        discImpl.handleThrow(player, skills, technique, player.getFacing());
     }
 
     @Override
@@ -155,8 +159,8 @@ public class Round implements GameRound {
     }
 
     @Override
-    public Course getCourse() {
-        return this.course;
+    public CourseImpl getCourse() {
+        return this.courseImpl;
     }
 
     @Override
@@ -181,7 +185,7 @@ public class Round implements GameRound {
                 PlayerData playerData = playerDataManager.getDataByPlayer(playerId);
                 PDGARating rating = playerData.getRating();
                 rating.handleRoundEnd(scoreCard.getTotalScore());
-                rating.updateRating(course.getDifficulty());
+                rating.updateRating(courseImpl.getDifficulty());
                 System.out.println(scoreCard.getTotalStrokes());
                 System.out.println(scoreCard.getTotalScore());
                 System.out.println(rating.getRating());

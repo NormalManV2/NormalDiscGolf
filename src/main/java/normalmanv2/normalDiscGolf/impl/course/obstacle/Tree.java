@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.impl.course.objects;
+package normalmanv2.normalDiscGolf.impl.course.obstacle;
 
 import org.bukkit.Location;
 

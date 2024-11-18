@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
-import normalmanv2.normalDiscGolf.api.disc.Disc;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
+import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
@@ -25,13 +25,14 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
-public class Driver extends Disc {
+public class Driver extends DiscImpl {
     private final NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
-    private final NDGManager api = NDGManager.getInstance();
+    private final NDGManager manager;
     private BukkitTask discTask;
 
-    public Driver(int speed, int glide, int turn, int fade, String discName) {
+    public Driver(int speed, int glide, int turn, int fade, String discName, NDGManager api) {
         super(speed, glide, turn, fade, discName, DiscType.DRIVER);
+        this.manager = api;
     }
 
     @Override
@@ -49,7 +50,7 @@ public class Driver extends Disc {
         display.getItemStack().setItemMeta(displayMeta);
 
         display.setBillboard(Display.Billboard.CENTER);
-        display.setCustomName(ChatColor.translateAlternateColorCodes('&', this.getDiscName()));
+        display.setCustomName(ChatColor.translateAlternateColorCodes('&', this.getName()));
         display.setCustomNameVisible(true);
 
         int accuracyLevel = skills.getAccuracy().getLevel();
@@ -74,7 +75,7 @@ public class Driver extends Disc {
         Vector currentVelocity = initialVelocity.clone();
         final int[] tickCount = {0};
 
-        final ThrowTechnique throwTechnique = api.getThrowTechniqueRegistry().getTechnique(technique);
+        final ThrowTechnique throwTechnique = manager.getThrowTechniqueRegistry().getTechnique(technique);
         this.discTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
 
             Location currentLocation = discDisplay.getLocation();
@@ -89,7 +90,7 @@ public class Driver extends Disc {
 
                 player.teleport(teleportLocation);
 
-                FFARound round = (FFARound) api.getRoundHandler().getActiveRounds().get(0);
+                FFARound round = (FFARound) manager.getRoundHandler().getActiveRounds().get(0);
                 Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, 1, round));
                 if (this.discTask == null) {
                     discDisplay.remove();

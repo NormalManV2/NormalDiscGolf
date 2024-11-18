@@ -2,18 +2,22 @@ package normalmanv2.normalDiscGolf.test;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
-import normalmanv2.normalDiscGolf.impl.course.Course;
+import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
+import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.course.TileTypes;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class TestFFARound implements CommandExecutor {
 
@@ -39,15 +43,19 @@ public class TestFFARound implements CommandExecutor {
         }
 
         if (args[0].equalsIgnoreCase("start")) {
-            round = new FFARound(plugin, NDGManager.getInstance().getPlayerDataManager(), new Course(CourseDifficulty.EASY, "Test Course", 18, new Location(player.getWorld(), 19, 68, -107)), false);
+            List<TileTypes> tileTypes = Arrays.asList(TileTypes.values());
+            CourseGrid courseGrid = new CourseGrid(20, 20, tileTypes);
+            round = new FFARound(plugin, NDGManager.getInstance().getPlayerDataManager(), new CourseImpl(CourseDifficulty.EASY, "Test Course", 18, player.getLocation(), courseGrid), false);
             for (Player player1 : Bukkit.getOnlinePlayers()) {
                 TeamImpl teamImpl = new TeamImpl(player1.getUniqueId());
                 round.addTeam(teamImpl);
             }
             roundHandler.startRound(round);
+            System.out.println("Round should be started now??");
         } else if (args[0].equalsIgnoreCase("end")) {
             for (GameRound foundRound : roundHandler.getActiveRounds()) {
                 roundHandler.endRound(foundRound);
+                System.out.println("Round should be ended now??");
             }
         }
 

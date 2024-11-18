@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
-import normalmanv2.normalDiscGolf.impl.course.Course;
-import normalmanv2.normalDiscGolf.api.disc.Disc;
+import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
+import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import org.bukkit.plugin.Plugin;
 
@@ -9,12 +9,12 @@ import java.util.UUID;
 
 public class DoublesRound extends Round {
 
-    public DoublesRound(Plugin plugin, PlayerDataManager playerDataManager, Course course, boolean isTournamentRound) {
-        super(plugin, playerDataManager, course, isTournamentRound);
+    public DoublesRound(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound) {
+        super(plugin, playerDataManager, courseImpl, isTournamentRound);
     }
 
     @Override
-    public void handleStroke(UUID playerId, String technique, Disc disc) {
-        super.handleStroke(playerId, technique, disc);
+    public void handleStroke(UUID playerId, String technique, DiscImpl discImpl) {
+        super.handleStroke(playerId, technique, discImpl);
     }
 }

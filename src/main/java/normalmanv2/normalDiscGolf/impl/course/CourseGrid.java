@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
+import org.bukkit.Location;
+
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -7,79 +9,228 @@ import java.util.Random;
 
 public class CourseGrid {
 
-    private Tile[][] grid;
-    private int width, height;
-    private List<String> tileTypes;
-    private Random random;
+    private final Tile[][] grid;
+    private final int width, depth;
+    private final List<TileTypes> tileTypes;
+    private final Random random;
 
-    public CourseGrid(int width, int height, List<String> tileTypes) {
+    private static final int TILE_SIZE = 4;
+
+    public CourseGrid(int width, int depth, List<TileTypes> tileTypes) {
         this.width = width;
-        this.height = height;
+        this.depth = depth;
         this.tileTypes = tileTypes;
-        this.grid = new Tile[width][height];
+        this.grid = new Tile[width][depth];
+        this.random = new Random();
 
         initializeSuperposition();
     }
 
+    public void printCourse() {
+        for (int z = 0; z < depth; z++) {
+            for (int x = 0; x < width; x++) {
+                System.out.print(grid[x][z].getCollapsedState() == TileTypes.FAIRWAY ? "F" :
+                        grid[x][z].getCollapsedState() == TileTypes.OBSTACLE ? "O" :
+                                grid[x][z].getCollapsedState() == TileTypes.WATER ? "W" :
+                                        grid[x][z].getCollapsedState() == TileTypes.PIN ? "P" :
+                                                grid[x][z].getCollapsedState() == TileTypes.TEE ? "T" :
+                                        " ");
+            }
+            System.out.println();
+        }
+    }
+
     private void initializeSuperposition() {
+        int y = 64;
         for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                grid[x][y] = null;
+            for (int z = 0; z < depth; z++) {
+                Location tileLocation = new Location(null, x * TILE_SIZE, y, z * TILE_SIZE);
+                grid[x][z] = new Tile(tileTypes, tileLocation);
             }
         }
     }
 
-    public Tile getTileAt(int x, int y) {
-        return grid[x][y];
-    }
-
-    public void setTileAt(int x, int y, Tile tile) {
-        grid[x][y] = tile;
-    }
-
-    public void collapse() {
-        // While there are cells to collapse, find the cell with the lowest entropy
-        while (!allCellsCollapsed()) {
-            Position pos = findLowestEntropyCell();
-            if (pos != null) {
-                Tile chosenTile = chooseRandomTile(pos);
-                setTileAt(pos.x, pos.y, chosenTile);
-                propagateConstraints(pos.x, pos.y);
-            }
+    public void generate() {
+        generateFairwayPath();
+        while (!isFullyCollapsed()) {
+            Tile tileToCollapse = selectTileWithLowestEntropy();
+            collapseTile(tileToCollapse);
+            propagateConstraints(tileToCollapse);
         }
     }
 
-    private Position findLowestEntropyCell() {
-        // Find a cell with the fewest possible tiles (not yet collapsed)
-        // This function returns the (x, y) coordinates of that cell
-        return new Position(x, y); // Return position of cell with lowest entropy
+    private void generateFairwayPath() {
+        // Start at a random spot on the top row
+        int x = random.nextInt(width);
+        int z = 0;
+
+        // Set the starting tile to TEE
+        Tile teeTile = grid[x][z];
+        teeTile.collapseTo(TileTypes.TEE);
+
+        // Randomly select an x coordinate for the PIN tile along the bottom row
+        int pinX = random.nextInt(width);
+        int pinZ = depth - 1;
+
+        // Set the ending tile to PIN
+        Tile pinTile = grid[pinX][pinZ];
+        pinTile.collapseTo(TileTypes.PIN);
+
+        // Create the fairway path from TEE to PIN
+        int currentX = x;
+        int currentZ = z;
+
+        while (currentZ < depth - 1) {
+            // Move one step forward in the z direction
+            currentZ++;
+
+            // Ensure the PIN tile is not overwritten
+            if (currentX == pinX && currentZ == pinZ) {
+                break;
+            }
+
+            // Randomly change the fairway pathing direction
+            int directionOffset = random.nextInt(3) - 1; // Move left (-1), straight (0), or right (+1)
+
+            // Smoother curvature by adding influence from the previous direction
+            if (random.nextInt(100) < 40) { // 40% chance to continue in the same direction
+                directionOffset += (Integer.compare(pinX, currentX));
+            }
+
+            // Clamp directionOffset to -1, 0, or 1
+            directionOffset = Math.max(-1, Math.min(1, directionOffset));
+            currentX += directionOffset;
+
+            // Clamp x to be within bounds
+            currentX = Math.max(0, Math.min(width - 1, currentX));
+
+            // Collapse the tile to fairway if it's not TEE or PIN
+            Tile currentTile = grid[currentX][currentZ];
+            if (currentTile.getCollapsedState() != TileTypes.TEE && currentTile.getCollapsedState() != TileTypes.PIN) {
+                currentTile.collapseTo(TileTypes.FAIRWAY);
+            }
+
+            // Random chance to generate water or obstacles near the fairway
+            if (random.nextInt(10) < 3) { // 30% chance
+                setObstacleOrWaterNearby(currentX, currentZ);
+            }
+        }
+
+        // Propagate constraints along the generated path
+        propagateFairwayConstraints();
     }
 
-    private String chooseRandomTile(Position pos) {
-        // Choose a random tile from the possible tiles at `pos`
-        return tileTypes.get(random.nextInt(tileTypes.size()));
-    }
-
-    private void propagateConstraints(int x, int y) {
-        Queue<Position> queue = new LinkedList<>();
-        queue.add(new Position(x, y));
-
-        while (!queue.isEmpty()) {
-            Position current = queue.poll();
-            // For each neighboring cell, remove invalid tiles based on constraints
-            for (Position neighbor : getNeighbors(current)) {
-                // If constraints have been updated, add neighbor to the queue
-                if (updateNeighborOptions(current, neighbor)) {
-                    queue.add(neighbor);
+    private void propagateFairwayConstraints() {
+        for (int z = 0; z < depth; z++) {
+            for (int x = 0; x < width; x++) {
+                Tile tile = grid[x][z];
+                if (tile.isCollapsed() && tile.getCollapsedState() == TileTypes.FAIRWAY) {
+                    propagateConstraints(tile);
                 }
             }
         }
     }
 
-    private boolean updateNeighborOptions(Position current, Position neighbor) {
-        // Implement adjacency rules here
-        // Return true if neighbor's options have been updated
-        return false;
+    private void setObstacleOrWaterNearby(int x, int z) {
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dz == 0) continue;
+
+                int nx = x + dx;
+                int nz = z + dz;
+
+                if (isInBounds(nx, nz)) {
+                    Tile tile = grid[nx][nz];
+                    if (tile.isCollapsed() && (tile.getCollapsedState() == TileTypes.TEE || tile.getCollapsedState() == TileTypes.PIN)) {
+                        continue;
+                    }
+
+                    if (!tile.isCollapsed()) {
+                        TileTypes surroundingType = random.nextBoolean() ? TileTypes.OBSTACLE : TileTypes.WATER;
+                        tile.collapseTo(surroundingType);
+                    }
+                }
+            }
+        }
     }
 
+    public int getWidth() {
+        return this.width;
+    }
+
+    public int getDepth() {
+        return this.depth;
+    }
+
+    public Tile getTile(int x, int z) {
+        return this.grid[x][z];
+    }
+
+    private boolean isFullyCollapsed() {
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                if (!grid[x][z].isCollapsed()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private Tile selectTileWithLowestEntropy() {
+        Tile lowestEntropyTile = null;
+        int lowestEntropy = Integer.MAX_VALUE;
+
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                Tile tile = grid[x][z];
+                if (!tile.isCollapsed() && tile.getEntropy() < lowestEntropy) {
+                    lowestEntropy = tile.getEntropy();
+                    lowestEntropyTile = tile;
+                }
+            }
+        }
+
+        return lowestEntropyTile;
+    }
+
+    private void collapseTile(Tile tile) {
+        if (!tile.isCollapsed()) {
+            tile.collapse(random);
+        }
+    }
+
+    private void propagateConstraints(Tile tile) {
+        Queue<Tile> queue = new LinkedList<>();
+        queue.add(tile);
+
+        while (!queue.isEmpty()) {
+            Tile current = queue.poll();
+            int x = (int) (current.getLocation().getX() / TILE_SIZE);
+            int z = (int) (current.getLocation().getZ() / TILE_SIZE);
+
+            for (int[] direction : DIRECTIONS) {
+                int nx = x + direction[0];
+                int nz = z + direction[1];
+                if (isInBounds(nx, nz)) {
+                    Tile neighbor = grid[nx][nz];
+                    if (!neighbor.isCollapsed()) {
+                        return;
+                    }
+                    boolean updated = neighbor.updatePossibleStatesBasedOn(current);
+                    if (updated) {
+                        queue.add(neighbor);
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean isInBounds(int x, int z) {
+        return x >= 0 && x < width && z >= 0 && z < depth;
+    }
+
+    private static final int[][] DIRECTIONS = {
+            {0, 1}, {1, 0}, {0, -1}, {-1, 0}
+    };
 }

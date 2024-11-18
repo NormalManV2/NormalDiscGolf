@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.impl.course;
+package normalmanv2.normalDiscGolf.api.course.obstacle;
 
 import org.bukkit.Location;
 
@@ -9,4 +9,6 @@ public interface Obstacle {
     void setLocation(Location location);
     void setSchematicName(String schematicName);
     void getSchematicFile();
+    boolean canGenerate();
+    boolean generate(Location location);
 }

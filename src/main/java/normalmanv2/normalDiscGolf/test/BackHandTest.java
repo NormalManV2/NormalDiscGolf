@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.test;
 
-import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
+import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
@@ -37,8 +37,8 @@ public class BackHandTest implements CommandExecutor {
         UUID playerId = player.getUniqueId();
 
         for (GameRound round : roundHandler.getActiveRounds()) {
-            for (TeamImpl teamImpl : round.getTeams()) {
-                if (teamImpl.getPlayers().contains(playerId)) {
+            for (Team team : round.getTeams()) {
+                if (team.getTeamMembers().contains(playerId)) {
                     this.round = round;
                 }
             }

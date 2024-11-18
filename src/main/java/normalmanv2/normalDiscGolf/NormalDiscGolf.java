@@ -6,6 +6,7 @@ import normalmanv2.normalDiscGolf.impl.listener.PlayerJoinListener;
 import normalmanv2.normalDiscGolf.test.BackHandTest;
 import normalmanv2.normalDiscGolf.test.ForehandTest;
 import normalmanv2.normalDiscGolf.test.TestFFARound;
+import normalmanv2.normalDiscGolf.test.WFCTest;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -16,6 +17,7 @@ public final class NormalDiscGolf extends JavaPlugin {
         getCommand("testBackHand").setExecutor(new BackHandTest(NDGManager.getInstance()));
         getCommand("testForeHand").setExecutor(new ForehandTest(NDGManager.getInstance()));
         getCommand("startRound").setExecutor(new TestFFARound(NDGManager.getInstance(), this));
+        getCommand("wfctest").setExecutor(new WFCTest(this));
         Bukkit.getPluginManager().registerEvents(new GoalScoreListener(), this);
         Bukkit.getPluginManager().registerEvents(new PlayerJoinListener(), this);
     }
@@ -23,4 +25,7 @@ public final class NormalDiscGolf extends JavaPlugin {
     @Override
     public void onDisable() {
     }
+
+
+
 }
