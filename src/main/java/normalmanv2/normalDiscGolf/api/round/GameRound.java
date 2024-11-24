@@ -26,13 +26,13 @@ public interface GameRound {
 
     void handleStroke(UUID playerId, String technique, DiscImpl discImpl);
 
-    void handleTurn(Team team);
-
-    void handleTurn(UUID playerId);
+    void setTurn(Team team);
 
     boolean isTurn(Team team);
 
-    boolean isTurn(UUID playerId);
+    void nextTurn();
+
+    void nextHole();
 
     boolean isRoundOver();
 

@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
+import normalmanv2.normalDiscGolf.impl.course.obstacle.Bush;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleGenerator;
 import org.bukkit.Location;
 
 import java.util.LinkedList;
@@ -52,6 +54,8 @@ public class CourseGrid {
 
     public void generate() {
         generateFairwayPath();
+        ObstacleGenerator obstacleGenerator = new ObstacleGenerator(this);
+        obstacleGenerator.generateObstacles();
         while (!isFullyCollapsed()) {
             Tile tileToCollapse = selectTileWithLowestEntropy();
             collapseTile(tileToCollapse);

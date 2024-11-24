@@ -36,7 +36,7 @@ public class WFCTest implements CommandExecutor {
         World finalWorld = world;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             List<TileTypes> tileTypes = Arrays.asList(TileTypes.FAIRWAY, TileTypes.OBSTACLE, TileTypes.WATER);
-            CourseGrid courseGrid = new CourseGrid(8, 8, tileTypes);
+            CourseGrid courseGrid = new CourseGrid(20, 20, tileTypes);
             Location startingLocation = new Location(finalWorld, 0, 64, 0);
             CourseImpl courseImpl = new CourseImpl(CourseDifficulty.EASY, "Test_Course", 18, startingLocation, courseGrid);
             courseImpl.generateCourseGrid();
@@ -64,19 +64,19 @@ public class WFCTest implements CommandExecutor {
             for (int z = 0; z < 16; z++) {
                 Location blockLocation = new Location(world, startX + x, y, startZ + z);
                 switch (type) {
-                    case FAIRWAY:
+                    case FAIRWAY ->
                         world.getBlockAt(blockLocation).setType(Material.GRASS_BLOCK);
-                        break;
-                    case OBSTACLE:
+
+                    case OBSTACLE ->
                         world.getBlockAt(blockLocation).setType(Material.STONE);
-                        break;
-                    case WATER:
+
+                    case WATER ->
                         world.getBlockAt(blockLocation).setType(Material.WATER);
-                        break;
-                    case TEE:
+
+                    case TEE ->
                         world.getBlockAt(blockLocation).setType(Material.GREEN_STAINED_GLASS);
-                        break;
-                    case PIN:
+
+                    case PIN ->
                         world.getBlockAt(blockLocation).setType(Material.PINK_STAINED_GLASS);
 
                 }

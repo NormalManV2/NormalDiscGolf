@@ -20,13 +20,11 @@ public class RoundHandler {
         round.setRoundState(RoundState.START);
         this.activeRounds.add(round);
         round.startRound();
-        System.out.println("Verify startRound is invoked in RoundHandler");
     }
 
     public void endRound(GameRound round) {
         round.setRoundState(RoundState.END);
         this.cleanupEndedRounds();
-        System.out.println("Verify endRound is invoked in RoundHandler");
     }
 
     public void cancelRound(GameRound round) {

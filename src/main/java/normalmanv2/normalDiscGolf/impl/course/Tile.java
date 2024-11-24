@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
+import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
 import org.bukkit.Location;
 
 import java.util.ArrayList;
@@ -65,6 +66,12 @@ public class Tile {
             case FAIRWAY -> List.of(TileTypes.FAIRWAY, TileTypes.OBSTACLE, TileTypes.WATER);
             default -> List.of(TileTypes.FAIRWAY);
         };
+    }
+
+    public void setObstacle(ObstacleImpl obstacle, Location location) {
+        if (obstacle.generate(location)) {
+            System.out.println("Obstacle generated at " + location.toString());
+        }
     }
 
     public TileTypes getCollapsedState() {

@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.event;
 
+import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import org.bukkit.entity.Player;
@@ -13,12 +14,14 @@ public class DiscThrowEvent extends Event {
     private final CourseImpl currentCourseImpl;
     private final int holeNumber;
     private final Player player;
+    private final GameRound round;
 
-    public DiscThrowEvent(DiscImpl thrownDiscImpl, CourseImpl currentCourseImpl, int holeNumber, Player player) {
+    public DiscThrowEvent(DiscImpl thrownDiscImpl, CourseImpl currentCourseImpl, int holeNumber, Player player, GameRound round) {
         this.thrownDiscImpl = thrownDiscImpl;
         this.currentCourseImpl = currentCourseImpl;
         this.holeNumber = holeNumber;
         this.player = player;
+        this.round = round;
     }
 
     public DiscImpl getThrownDisc() {
@@ -35,6 +38,10 @@ public class DiscThrowEvent extends Event {
 
     public Player getPlayer() {
         return this.player;
+    }
+
+    public GameRound getRound() {
+        return this.round;
     }
 
     @Override

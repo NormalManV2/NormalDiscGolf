@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 public class Round implements GameRound {
@@ -34,8 +35,9 @@ public class Round implements GameRound {
     private final CourseImpl courseImpl;
     private final List<Integer> holes;
     private int holeIndex;
-    private int turnIndex;
     private BukkitTask gameTask;
+    private final Random random = new Random();
+    private TeamImpl currentTeamTurn;
 
     public Round(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound) {
         this.plugin = plugin;
@@ -61,6 +63,7 @@ public class Round implements GameRound {
     public void startRound() {
         Location startingLocation = this.courseImpl.getStartingLocation();
         this.roundOver = false;
+        this.holeIndex = 0;
 
         for (int i = 0; i <= this.courseImpl.getHoles(); i++) {
             this.holes.add(i);
@@ -71,19 +74,34 @@ public class Round implements GameRound {
             for (UUID playerId : teamImpl.getTeamMembers()) {
                 Player player = Bukkit.getPlayer(playerId);
                 if (player == null) {
+                    teamImpl.removePlayer(playerId);
+                    if (teamImpl.getTeamMembers().isEmpty()) {
+                        this.teams.remove(teamImpl);
+                        this.scoreCards.remove(teamImpl);
+                    }
                     continue;
                 }
                 player.teleport(startingLocation);
             }
+
+            this.currentTeamTurn = this.teams.get(random.nextInt(this.teams.size()));
         }
 
         this.gameTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            for (TeamImpl teamImpl : teams) {
+                for (UUID playerId : teamImpl.getTeamMembers()) {
+                    Player player = Bukkit.getPlayer(playerId);
+                    if (player == null) {
+                        teamImpl.removePlayer(playerId);
+                        if (teamImpl.getTeamMembers().isEmpty()) {
+                            this.teams.remove(teamImpl);
+                            this.scoreCards.remove(teamImpl);
+                        }
+                    }
+                }
+            }
             System.out.println(this + " Round Currently Running");
         }, 0, 100);
-    }
-
-    public Map<TeamImpl, ScoreCard> getScoreCards() {
-        return this.scoreCards;
     }
 
     @Override
@@ -130,25 +148,32 @@ public class Round implements GameRound {
     }
 
     @Override
-    public void handleTurn(Team team) {
-
-    }
-
-    @Override
-    public void handleTurn(UUID playerId) {
-
+    public void setTurn(Team team) {
+        if (team instanceof TeamImpl) {
+            this.currentTeamTurn = (TeamImpl) team;
+        }
     }
 
     @Override
     public boolean isTurn(Team team) {
-        return false;
+        return team.equals(this.currentTeamTurn);
     }
 
     @Override
-    public boolean isTurn(UUID playerId) {
-        return false;
+    public void nextTurn() {
+        if (this.currentTeamTurn == null || this.teams.isEmpty()) return;
+
+        int currentIndex = this.teams.indexOf(this.currentTeamTurn);
+        int nextIndex = (currentIndex + 1) % this.teams.size();
+        this.currentTeamTurn = this.teams.get(nextIndex);
     }
 
+    @Override
+    public void nextHole() {
+        this.holeIndex++;
+    }
+
+    @Override
     public boolean isRoundOver() {
         return this.roundOver;
     }
@@ -197,11 +222,16 @@ public class Round implements GameRound {
         this.dispose();
     }
 
+    public Map<TeamImpl, ScoreCard> getScoreCards() {
+        return this.scoreCards;
+    }
+
     private void dispose() {
         this.teams.clear();
         this.scoreCards.clear();
         this.gameTask.cancel();
         this.gameTask = null;
+        this.currentTeamTurn = null;
     }
 
 }
