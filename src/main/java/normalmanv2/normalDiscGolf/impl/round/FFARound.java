@@ -6,8 +6,8 @@ import org.bukkit.plugin.Plugin;
 
 public class FFARound extends RoundImpl {
 
-    public FFARound(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound) {
-        super (plugin, playerDataManager, courseImpl, isTournamentRound);
+    public FFARound(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound, String id, int maximumTeams) {
+        super (plugin, playerDataManager, courseImpl, isTournamentRound, id, maximumTeams);
     }
 
 

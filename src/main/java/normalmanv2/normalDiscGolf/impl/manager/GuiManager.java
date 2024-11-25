@@ -1,6 +1,8 @@
 package normalmanv2.normalDiscGolf.impl.manager;
 
 import normalmanv2.normalDiscGolf.api.inventory.InventoryHandler;
+import normalmanv2.normalDiscGolf.impl.gui.InventoryGUI;
+import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
@@ -25,6 +27,11 @@ public class GuiManager {
         this.inventories.remove(inventory);
     }
 
+    public void openGUI(InventoryGUI gui, Player player) {
+        this.registerInventory(gui.getInventory(), gui);
+        player.openInventory(gui.getInventory());
+    }
+
     public void handleClick(InventoryClickEvent event) {
         InventoryHandler handler = this.inventories.get(event.getInventory());
         if (handler == null) return;
@@ -43,5 +50,6 @@ public class GuiManager {
         handler.onClose(event);
         this.unregisterInventory(event.getInventory());
     }
+
 
 }

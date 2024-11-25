@@ -9,8 +9,8 @@ import java.util.UUID;
 
 public class DoublesRound extends RoundImpl {
 
-    public DoublesRound(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound) {
-        super(plugin, playerDataManager, courseImpl, isTournamentRound);
+    public DoublesRound(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound, String id, int maximumTeams) {
+        super(plugin, playerDataManager, courseImpl, isTournamentRound, id, maximumTeams);
     }
 
     @Override

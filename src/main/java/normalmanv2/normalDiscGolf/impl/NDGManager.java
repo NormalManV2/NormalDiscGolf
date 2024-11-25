@@ -10,27 +10,34 @@ import normalmanv2.normalDiscGolf.impl.course.obstacle.Tree;
 import normalmanv2.normalDiscGolf.impl.disc.Driver;
 import normalmanv2.normalDiscGolf.impl.disc.MidRange;
 import normalmanv2.normalDiscGolf.impl.disc.Putter;
+import normalmanv2.normalDiscGolf.impl.manager.TaskManager;
 import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
 import normalmanv2.normalDiscGolf.impl.service.InviteService;
 import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.manager.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.registry.ThrowTechniqueRegistry;
+import normalmanv2.normalDiscGolf.impl.service.QueueService;
 
 public class NDGManager {
     private final PlayerDataManager playerDataManager = new PlayerDataManager();
-    private final RoundHandler roundHandler = new RoundHandler();
+    private final RoundHandler roundHandler;
+    private final QueueService queueService = new QueueService();
     private final DiscRegistry discRegistry = new DiscRegistry();
     private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
     private final InviteService inviteService = new InviteService();
     private final ObstacleRegistry obstacleRegistry = new ObstacleRegistry();
     private final FileManager fileManager;
     private final ObstacleManager obstacleManager;
+    private final TaskManager taskManager;
     private static NDGManager instance;
 
     private NDGManager() {
-        this.fileManager = new FileManager(NormalDiscGolf.getPlugin(NormalDiscGolf.class));
+        NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
+        this.fileManager = new FileManager(plugin);
+        this.taskManager = new TaskManager(plugin);
         this.obstacleManager = new ObstacleManager(this.fileManager);
+        this.roundHandler = new RoundHandler(this.queueService, plugin);
         this.registerDefaultDiscs();
         this.registerDefaultObstacles();
     }
@@ -72,6 +79,10 @@ public class NDGManager {
 
     public ObstacleManager getObstacleManager() {
         return this.obstacleManager;
+    }
+
+    public QueueService getQueueService() {
+        return this.queueService;
     }
 
     private void registerDefaultDiscs() {

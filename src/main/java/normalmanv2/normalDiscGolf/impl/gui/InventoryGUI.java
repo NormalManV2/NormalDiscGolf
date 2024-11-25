@@ -13,7 +13,7 @@ import java.util.Map;
 public abstract class InventoryGUI implements InventoryHandler {
 
     private final Inventory inventory;
-    private final Map<Integer, Button> buttonMap;
+    protected final Map<Integer, Button> buttonMap;
 
     public InventoryGUI() {
         this.inventory = this.createInventory();
@@ -22,21 +22,26 @@ public abstract class InventoryGUI implements InventoryHandler {
 
     @Override
     public void onClick(InventoryClickEvent event) {
-        event.setCancelled(true);
-        int slot = event.getSlot();
+        int slot = event.getRawSlot();
         Button button = this.buttonMap.get(slot);
-        if (button == null) return;
-
+        if (button == null) {
+            return;
+        }
+        button.onClick(event);
     }
 
     @Override
     public void onOpen(InventoryOpenEvent event) {
-
+        this.populateInventory();
     }
 
     @Override
     public void onClose(InventoryCloseEvent event) {
 
+    }
+
+    public void populateInventory() {
+        this.buttonMap.forEach((slot, button) -> this.getInventory().setItem(slot, button.getItem()));
     }
 
     protected abstract Inventory createInventory();

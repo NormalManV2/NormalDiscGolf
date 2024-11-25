@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.impl.gui;
+package normalmanv2.normalDiscGolf.impl.listener;
 
 import normalmanv2.normalDiscGolf.impl.manager.GuiManager;
 import org.bukkit.event.EventHandler;

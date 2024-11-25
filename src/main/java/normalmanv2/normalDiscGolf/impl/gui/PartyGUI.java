@@ -9,4 +9,5 @@ public class PartyGUI extends InventoryGUI {
     protected Inventory createInventory() {
         return null;
     }
+
 }

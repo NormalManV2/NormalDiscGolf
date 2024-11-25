@@ -10,6 +10,8 @@ import java.util.UUID;
 
 public interface GameRound {
 
+    String getId();
+
     RoundState getRoundState();
 
     void setRoundState(RoundState roundState);

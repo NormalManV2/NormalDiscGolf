@@ -1,8 +1,11 @@
 package normalmanv2.normalDiscGolf.impl.listener;
 
+import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
+import normalmanv2.normalDiscGolf.impl.round.RoundImpl;
 import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -13,18 +16,30 @@ public class GoalScoreListener implements Listener {
 
     @EventHandler
     public void onGoalScore(GoalScoreEvent event) {
-        handleScoring((FFARound) event.getRound(), event.getPlayer().getUniqueId());
+        this.handleScoring(event.getHoleNumber(), event.getRound(), event.getPlayer().getUniqueId());
+        this.updateScoredMap(event.getPlayer().getUniqueId(), (RoundImpl) event.getRound(), event.getHoleNumber());
         System.out.println("GoalScoreEventListener Invoked");
     }
 
-    private void handleScoring(FFARound round, UUID playerId) {
+    private void handleScoring(int holeNumber, GameRound round, UUID playerId) {
 
-        for (TeamImpl team : round.getScoreCards().keySet()) {
-            if (team.getTeamMembers().contains(playerId)) {
-                ScoreCard scoreCard = round.getScoreCards().get(team);
-                scoreCard.recordHoleScore(1, scoreCard.getCurrentStrokes(), 3);
-                scoreCard.resetCurrentStrokes();
+        if (round instanceof FFARound ffaRound) {
+            for (Team team : ffaRound.getTeams()) {
+                if (team.getTeamMembers().contains(playerId)) {
+                    ScoreCard scoreCard = ffaRound.getScoreCard(team);
+                    scoreCard.recordHoleScore(holeNumber, scoreCard.getCurrentStrokes(), ffaRound.getCourse().getHolePars().get(holeNumber));
+                    scoreCard.resetCurrentStrokes();
+                }
             }
         }
     }
+
+    private void updateScoredMap(UUID playerId, RoundImpl round, int holeNumber) {
+        for (Team foundTeam : round.getTeams()) {
+            if (foundTeam.getTeamMembers().contains(playerId)) {
+                round.setTeamScored(holeNumber, foundTeam);
+            }
+        }
+    }
+
 }
