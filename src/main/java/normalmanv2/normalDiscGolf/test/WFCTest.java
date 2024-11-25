@@ -1,12 +1,14 @@
 package normalmanv2.normalDiscGolf.test;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
+import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
 import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.Tile;
 import normalmanv2.normalDiscGolf.impl.course.TileTypes;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -26,20 +28,41 @@ public class WFCTest implements CommandExecutor {
     }
 
     @Override
-    public boolean onCommand(CommandSender commandSender, Command command, String s, String[] strings) {
+    public boolean onCommand(CommandSender commandSender, Command command, String s, String[] args) {
 
-        World world = Bukkit.getWorld("Test_Course");
+        if (args.length != 2) {
+            if (commandSender instanceof Player player) {
+                player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&4Please enter a world name followed by a difficulty ( \"easy\" | \"medium\" | \"hard\" )! "));
+            }
+            return false;
+        }
+
+        String worldName = args[0];
+        String difficulty = args[1];
+        CourseDifficulty courseDifficulty;
+
+        if (!(difficulty.equalsIgnoreCase("easy") || difficulty.equalsIgnoreCase("medium") || difficulty.equalsIgnoreCase("hard"))) return false;
+
+        if (difficulty.equalsIgnoreCase("easy")) {
+            courseDifficulty = CourseDifficulty.EASY;
+        } else if (difficulty.equalsIgnoreCase("medium")) {
+            courseDifficulty = CourseDifficulty.MEDIUM;
+        } else {
+            courseDifficulty = CourseDifficulty.HARD;
+        }
+
+        World world = Bukkit.getWorld(worldName);
         if (world == null) {
-            world = Bukkit.createWorld(new EmptyWorldCreator("Test_Course"));
+            world = Bukkit.createWorld(new EmptyWorldCreator(worldName));
         }
 
         World finalWorld = world;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            List<TileTypes> tileTypes = Arrays.asList(TileTypes.FAIRWAY, TileTypes.OBSTACLE, TileTypes.WATER);
-            CourseGrid courseGrid = new CourseGrid(20, 20, tileTypes);
+            List<TileTypes> tileTypes = Arrays.asList(TileTypes.FAIRWAY, TileTypes.OBSTACLE, TileTypes.WATER, TileTypes.OUT_OF_BOUNDS);
+            CourseGrid courseGrid = new CourseGrid(8, 8, tileTypes, finalWorld);
             Location startingLocation = new Location(finalWorld, 0, 64, 0);
-            CourseImpl courseImpl = new CourseImpl(CourseDifficulty.EASY, "Test_Course", 18, startingLocation, courseGrid);
-            courseImpl.generateCourseGrid();
+            CourseImpl courseImpl = new CourseImpl(courseDifficulty, "Test_Course", 18, startingLocation, courseGrid);
+            courseImpl.generateCourseGrid(NDGManager.getInstance().getObstacleRegistry());
 
             for (int x = 0; x < courseGrid.getWidth(); x++) {
                 for (int z = 0; z < courseGrid.getDepth(); z++) {
@@ -78,6 +101,9 @@ public class WFCTest implements CommandExecutor {
 
                     case PIN ->
                         world.getBlockAt(blockLocation).setType(Material.PINK_STAINED_GLASS);
+
+                    case OUT_OF_BOUNDS ->
+                        world.getBlockAt(blockLocation).setType(Material.BLACK_STAINED_GLASS);
 
                 }
             }

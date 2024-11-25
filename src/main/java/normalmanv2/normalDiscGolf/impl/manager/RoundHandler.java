@@ -1,6 +1,7 @@
-package normalmanv2.normalDiscGolf.impl.round;
+package normalmanv2.normalDiscGolf.impl.manager;
 
 import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.impl.round.RoundState;
 
 import java.util.ArrayList;
 import java.util.HashSet;

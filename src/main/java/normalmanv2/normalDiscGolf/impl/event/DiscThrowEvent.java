@@ -15,13 +15,15 @@ public class DiscThrowEvent extends Event {
     private final int holeNumber;
     private final Player player;
     private final GameRound round;
+    private final String technique;
 
-    public DiscThrowEvent(DiscImpl thrownDiscImpl, CourseImpl currentCourseImpl, int holeNumber, Player player, GameRound round) {
+    public DiscThrowEvent(DiscImpl thrownDiscImpl, CourseImpl currentCourseImpl, int holeNumber, Player player, GameRound round, String technique) {
         this.thrownDiscImpl = thrownDiscImpl;
         this.currentCourseImpl = currentCourseImpl;
         this.holeNumber = holeNumber;
         this.player = player;
         this.round = round;
+        this.technique = technique;
     }
 
     public DiscImpl getThrownDisc() {
@@ -42,6 +44,10 @@ public class DiscThrowEvent extends Event {
 
     public GameRound getRound() {
         return this.round;
+    }
+
+    public String getTechnique() {
+        return this.technique;
     }
 
     @Override

@@ -1,4 +1,6 @@
-package normalmanv2.normalDiscGolf.impl.course;
+package normalmanv2.normalDiscGolf.impl.manager;
+
+import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 
 import java.util.Collections;
 import java.util.HashMap;

@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
-public class Round implements GameRound {
+public class RoundImpl implements GameRound {
     private RoundState roundState;
     private final List<TeamImpl> teams;
     private final Map<TeamImpl, ScoreCard> scoreCards;
@@ -39,7 +39,7 @@ public class Round implements GameRound {
     private final Random random = new Random();
     private TeamImpl currentTeamTurn;
 
-    public Round(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound) {
+    public RoundImpl(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound) {
         this.plugin = plugin;
         this.playerDataManager = playerDataManager;
         this.courseImpl = courseImpl;

@@ -8,7 +8,7 @@ import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.TileTypes;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
-import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
+import normalmanv2.normalDiscGolf.impl.manager.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -44,7 +44,7 @@ public class TestFFARound implements CommandExecutor {
 
         if (args[0].equalsIgnoreCase("start")) {
             List<TileTypes> tileTypes = Arrays.asList(TileTypes.values());
-            CourseGrid courseGrid = new CourseGrid(20, 20, tileTypes);
+            CourseGrid courseGrid = new CourseGrid(8, 8, tileTypes, Bukkit.getWorld("Test_Course"));
             round = new FFARound(plugin, NDGManager.getInstance().getPlayerDataManager(), new CourseImpl(CourseDifficulty.EASY, "Test Course", 18, player.getLocation(), courseGrid), false);
             for (Player player1 : Bukkit.getOnlinePlayers()) {
                 TeamImpl teamImpl = new TeamImpl(player1.getUniqueId());

@@ -11,9 +11,9 @@ public interface Team {
     void removePlayer(UUID playerId);
     Set<UUID> getTeamMembers();
     UUID getOwner();
-    Set<Component> getTeamComponents();
-    void addComponent(Component component);
-    void removeComponent(Component component);
-    Component getComponent(String componentId);
+    Set<Component<?>> getTeamComponents();
+    void addComponent(Component<?> component);
+    void removeComponent(Component<?> component);
+    Component<?> getComponent(String componentId);
 
 }

@@ -1,4 +1,6 @@
-package normalmanv2.normalDiscGolf.impl.invite;
+package normalmanv2.normalDiscGolf.impl.service;
+
+import normalmanv2.normalDiscGolf.common.invite.Invite;
 
 import java.time.Duration;
 import java.time.Instant;

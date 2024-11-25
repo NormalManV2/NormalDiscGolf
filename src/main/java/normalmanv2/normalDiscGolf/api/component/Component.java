@@ -4,6 +4,6 @@ public interface Component<T> {
 
     String getId();
     String getName();
-    T getComponent();
+    T get();
 
 }

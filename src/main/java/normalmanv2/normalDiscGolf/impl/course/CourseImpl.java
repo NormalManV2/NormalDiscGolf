@@ -3,6 +3,7 @@ package normalmanv2.normalDiscGolf.impl.course;
 import normalmanv2.normalDiscGolf.api.course.Course;
 import normalmanv2.normalDiscGolf.api.course.obstacle.Obstacle;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
+import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
 import org.bukkit.Location;
 
 import java.util.Collections;
@@ -52,8 +53,8 @@ public class CourseImpl implements Course {
         this.holeLocations.add(location);
     }
 
-    public void generateCourseGrid() {
-        this.grid.generate();
+    public void generateCourseGrid(ObstacleRegistry registry) {
+        this.grid.generate(registry, this.difficulty);
     }
 
     public CourseDifficulty getDifficulty() {

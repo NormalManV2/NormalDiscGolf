@@ -25,7 +25,7 @@ public class ComponentImpl<T> implements Component<T> {
     }
 
     @Override
-    public T getComponent() {
+    public T get() {
         return this.component;
     }
 }

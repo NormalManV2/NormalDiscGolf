@@ -7,7 +7,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.UUID;
 
-public class DoublesRound extends Round {
+public class DoublesRound extends RoundImpl {
 
     public DoublesRound(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound) {
         super(plugin, playerDataManager, courseImpl, isTournamentRound);

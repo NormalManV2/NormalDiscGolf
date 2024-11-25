@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.impl.invite;
+package normalmanv2.normalDiscGolf.common.invite;
 
 import java.time.Instant;
 import java.util.UUID;

@@ -1,12 +1,20 @@
 package normalmanv2.normalDiscGolf.impl;
 
+import normalmanv2.normalDiscGolf.NormalDiscGolf;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.Bush;
+import normalmanv2.normalDiscGolf.impl.manager.FileManager;
+import normalmanv2.normalDiscGolf.impl.manager.ObstacleManager;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.Pin;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.Rock;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.Tree;
 import normalmanv2.normalDiscGolf.impl.disc.Driver;
 import normalmanv2.normalDiscGolf.impl.disc.MidRange;
 import normalmanv2.normalDiscGolf.impl.disc.Putter;
-import normalmanv2.normalDiscGolf.impl.invite.InviteService;
+import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
+import normalmanv2.normalDiscGolf.impl.service.InviteService;
 import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
-import normalmanv2.normalDiscGolf.impl.round.RoundHandler;
+import normalmanv2.normalDiscGolf.impl.manager.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.registry.ThrowTechniqueRegistry;
 
 public class NDGManager {
@@ -15,10 +23,16 @@ public class NDGManager {
     private final DiscRegistry discRegistry = new DiscRegistry();
     private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
     private final InviteService inviteService = new InviteService();
+    private final ObstacleRegistry obstacleRegistry = new ObstacleRegistry();
+    private final FileManager fileManager;
+    private final ObstacleManager obstacleManager;
     private static NDGManager instance;
 
     private NDGManager() {
-        registerDefaultDiscs();
+        this.fileManager = new FileManager(NormalDiscGolf.getPlugin(NormalDiscGolf.class));
+        this.obstacleManager = new ObstacleManager(this.fileManager);
+        this.registerDefaultDiscs();
+        this.registerDefaultObstacles();
     }
 
     public static NDGManager getInstance() {
@@ -48,6 +62,18 @@ public class NDGManager {
         return this.inviteService;
     }
 
+    public ObstacleRegistry getObstacleRegistry() {
+        return this.obstacleRegistry;
+    }
+
+    public FileManager getFileManager() {
+        return this.fileManager;
+    }
+
+    public ObstacleManager getObstacleManager() {
+        return this.obstacleManager;
+    }
+
     private void registerDefaultDiscs() {
         discRegistry.registerDisc("TestDriver", new Driver(9, 5, -1, 2, "&6TestDriver", this));
         discRegistry.registerDisc("TestDriver1", new Driver(9, 5, -3, 1, "&aTestDriver1", this));
@@ -56,4 +82,12 @@ public class NDGManager {
         discRegistry.registerDisc("Putter", new Putter(2, 4, -1, 1, "&4Putter", this));
         discRegistry.registerDisc("Putter1", new Putter(2, 4, 0, 2, "&3Putter1", this));
     }
+
+    private void registerDefaultObstacles() {
+        this.obstacleRegistry.registerObstacle("tree", new Tree(null, "tree", this.obstacleManager));
+        this.obstacleRegistry.registerObstacle("bush", new Bush(null, "bush", this.obstacleManager));
+        this.obstacleRegistry.registerObstacle("rock", new Rock(null, "rock", this.obstacleManager));
+        this.obstacleRegistry.registerObstacle("pin", new Pin(null, "pin", this.obstacleManager));
+    }
+
 }
