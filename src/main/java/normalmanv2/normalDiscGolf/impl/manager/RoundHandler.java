@@ -2,8 +2,8 @@ package normalmanv2.normalDiscGolf.impl.manager;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.common.queue.RoundQueue;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
-import normalmanv2.normalDiscGolf.impl.service.QueueService;
 import org.bukkit.Bukkit;
 
 import java.util.ArrayList;
@@ -15,20 +15,20 @@ import java.util.Set;
 public class RoundHandler {
 
     private final Set<GameRound> activeRounds;
-    private final QueueService queueService;
+    private final QueueManager queueManager;
     private final NormalDiscGolf normalDiscGolf;
 
-    public RoundHandler(QueueService queueService, NormalDiscGolf normalDiscGolf) {
+    public RoundHandler(QueueManager queueManager, NormalDiscGolf normalDiscGolf) {
         this.activeRounds = new HashSet<>();
-        this.queueService = queueService;
+        this.queueManager = queueManager;
         this.normalDiscGolf = normalDiscGolf;
         this.startQueueTask();
     }
 
     private void startQueueTask() {
         Bukkit.getScheduler().runTaskTimer(normalDiscGolf, () -> {
-            for (GameRound round : this.queueService.getQueuedRounds()) {
-                this.startRound(round);
+            for (RoundQueue queue : this.queueManager.getQueuedRounds()) {
+                this.startRound(queue.round());
             }
         }, 0, 6000);
     }
@@ -51,11 +51,11 @@ public class RoundHandler {
     }
 
     public void queueRound(GameRound round) {
-        this.queueService.queueRound(round);
+        this.queueManager.queueRound(round);
     }
 
     public void dequeueRound(GameRound round) {
-        this.queueService.removeRound(round.getId());
+        this.queueManager.removeRound(round.getId());
     }
 
     private void cleanupEndedRounds() {

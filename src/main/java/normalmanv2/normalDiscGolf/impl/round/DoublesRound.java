@@ -17,4 +17,5 @@ public class DoublesRound extends RoundImpl {
     public void handleStroke(UUID playerId, String technique, DiscImpl discImpl) {
         super.handleStroke(playerId, technique, discImpl);
     }
+
 }

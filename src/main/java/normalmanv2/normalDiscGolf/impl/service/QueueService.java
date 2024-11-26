@@ -1,43 +1,46 @@
 package normalmanv2.normalDiscGolf.impl.service;
 
 import normalmanv2.normalDiscGolf.api.round.GameRound;
-import normalmanv2.normalDiscGolf.impl.round.DoublesRound;
-import normalmanv2.normalDiscGolf.impl.round.FFARound;
-import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
+import normalmanv2.normalDiscGolf.common.queue.RoundQueue;
 
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 public class QueueService {
 
-    private final Map<String, GameRound> queuedRounds;
+    private final Map<String, RoundQueue> roundQueue;
 
     public QueueService() {
-        this.queuedRounds = new HashMap<>();
+        this.roundQueue = new HashMap<>();
     }
 
-    public void queueRound(GameRound round) {
-        this.queuedRounds.put(round.getId(), round);
+    public RoundQueue createQueue(GameRound gameRound) {
+        RoundQueue round = new RoundQueue(gameRound.getId(), gameRound);
+        this.roundQueue.put(gameRound.getId(), round);
+        return round;
     }
 
-    public void removeRound(String roundId) {
-        this.queuedRounds.remove(roundId);
+    public RoundQueue getQueue(String roundId) {
+        return this.roundQueue.get(roundId);
     }
 
-    public List<GameRound> getQueuedRounds() {
-        return List.copyOf(this.queuedRounds.values());
+    public void queueRound(RoundQueue round) {
+        this.roundQueue.put(round.id(), round);
     }
 
-    public void addPlayerToRound(UUID playerId, String roundId) {
-        GameRound round = this.queuedRounds.get(roundId);
-
-        if (round instanceof FFARound) {
-            round.addTeam(new TeamImpl(playerId));
-        } else if (round instanceof DoublesRound) {
-
-        }
+    public void removeQueue(String roundId) {
+        this.roundQueue.remove(roundId);
     }
+
+    public Map<String, RoundQueue> getQueuedRounds() {
+        return Collections.unmodifiableMap(this.roundQueue);
+    }
+
+    public boolean isQueued(String roundId) {
+        return this.roundQueue.containsKey(roundId);
+    }
+
+
 
 }

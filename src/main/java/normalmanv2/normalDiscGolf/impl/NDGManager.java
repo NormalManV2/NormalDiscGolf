@@ -17,12 +17,14 @@ import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.manager.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.registry.ThrowTechniqueRegistry;
+import normalmanv2.normalDiscGolf.impl.manager.QueueManager;
 import normalmanv2.normalDiscGolf.impl.service.QueueService;
 
 public class NDGManager {
     private final PlayerDataManager playerDataManager = new PlayerDataManager();
     private final RoundHandler roundHandler;
     private final QueueService queueService = new QueueService();
+    private final QueueManager queueManager;
     private final DiscRegistry discRegistry = new DiscRegistry();
     private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
     private final InviteService inviteService = new InviteService();
@@ -36,8 +38,9 @@ public class NDGManager {
         NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
         this.fileManager = new FileManager(plugin);
         this.taskManager = new TaskManager(plugin);
+        this.queueManager = new QueueManager(this.queueService);
         this.obstacleManager = new ObstacleManager(this.fileManager);
-        this.roundHandler = new RoundHandler(this.queueService, plugin);
+        this.roundHandler = new RoundHandler(this.queueManager, plugin);
         this.registerDefaultDiscs();
         this.registerDefaultObstacles();
     }
@@ -81,8 +84,16 @@ public class NDGManager {
         return this.obstacleManager;
     }
 
+    public QueueManager getQueueManager() {
+        return this.queueManager;
+    }
+
     public QueueService getQueueService() {
         return this.queueService;
+    }
+
+    public TaskManager getTaskManager() {
+        return this.taskManager;
     }
 
     private void registerDefaultDiscs() {

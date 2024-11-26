@@ -47,7 +47,7 @@ public class TestFFARound implements CommandExecutor {
             CourseGrid courseGrid = new CourseGrid(8, 8, tileTypes, Bukkit.getWorld("Test_Course"));
             round = new FFARound(plugin, NDGManager.getInstance().getPlayerDataManager(), new CourseImpl(CourseDifficulty.EASY, "Test Course", 18, player.getLocation(), courseGrid), false, "ffa", 8);
             for (Player player1 : Bukkit.getOnlinePlayers()) {
-                TeamImpl teamImpl = new TeamImpl(player1.getUniqueId());
+                TeamImpl teamImpl = new TeamImpl(player1.getUniqueId(), 1);
                 round.addTeam(teamImpl);
             }
             roundHandler.startRound(round);

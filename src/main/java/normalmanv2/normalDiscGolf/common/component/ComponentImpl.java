@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.common;
+package normalmanv2.normalDiscGolf.common.component;
 
 import normalmanv2.normalDiscGolf.api.component.Component;
 

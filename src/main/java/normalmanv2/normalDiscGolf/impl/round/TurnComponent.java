@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
-import normalmanv2.normalDiscGolf.common.ComponentImpl;
+import normalmanv2.normalDiscGolf.common.component.ComponentImpl;
 
 public class TurnComponent extends ComponentImpl<Boolean> {
 

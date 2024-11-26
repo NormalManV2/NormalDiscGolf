@@ -14,6 +14,8 @@ public interface GameRound {
 
     RoundState getRoundState();
 
+    int getMaximumTeams();
+
     void setRoundState(RoundState roundState);
 
     void startRound();

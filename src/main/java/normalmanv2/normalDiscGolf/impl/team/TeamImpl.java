@@ -13,12 +13,24 @@ public class TeamImpl implements Team {
     private final UUID ownerId;
     private final Set<UUID> teamMembers;
     private final Set<Component<?>> teamComponents;
+    private final int maximumPlayers;
 
-    public TeamImpl(UUID ownerId) {
+    public TeamImpl(UUID ownerId, int maximumPlayers) {
         this.ownerId = ownerId;
         this.teamMembers = new HashSet<>();
         this.teamComponents = new HashSet<>();
+        this.maximumPlayers = maximumPlayers;
         this.teamMembers.add(ownerId);
+    }
+
+    @Override
+    public int getMaximumPlayers() {
+        return this.maximumPlayers;
+    }
+
+    @Override
+    public boolean isFull() {
+        return this.teamMembers.size() >= this.maximumPlayers;
     }
 
     @Override
@@ -59,7 +71,7 @@ public class TeamImpl implements Team {
     @Override
     public Component<?> getComponent(String componentId) {
 
-        for (Component component : this.teamComponents) {
+        for (Component<?> component : this.teamComponents) {
             if (!component.getId().equalsIgnoreCase(componentId)) {
                 continue;
             }

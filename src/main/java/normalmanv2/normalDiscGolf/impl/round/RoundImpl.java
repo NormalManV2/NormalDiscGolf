@@ -220,6 +220,11 @@ public class RoundImpl implements GameRound {
         return holeIndex;
     }
 
+    @Override
+    public int getMaximumTeams() {
+        return this.maximumTeams;
+    }
+
     private void handleRoundEnd() {
         this.roundOver = true;
         for (Team team : this.teams) {

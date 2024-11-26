@@ -7,6 +7,8 @@ import java.util.UUID;
 
 public interface Team {
 
+    int getMaximumPlayers();
+    boolean isFull();
     void addPlayer(UUID playerId);
     void removePlayer(UUID playerId);
     Set<UUID> getTeamMembers();
