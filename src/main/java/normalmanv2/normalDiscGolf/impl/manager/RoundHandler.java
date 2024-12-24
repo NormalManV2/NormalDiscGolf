@@ -29,8 +29,9 @@ public class RoundHandler {
         Bukkit.getScheduler().runTaskTimer(normalDiscGolf, () -> {
             for (RoundQueue queue : this.queueManager.getQueuedRounds()) {
                 this.startRound(queue.round());
+                System.out.println(queue.id() + " has been started!");
             }
-        }, 0, 6000);
+        }, 0, 1200);
     }
 
     public void startRound(GameRound round) {

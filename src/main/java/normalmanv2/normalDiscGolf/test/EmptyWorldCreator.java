@@ -13,4 +13,7 @@ public class EmptyWorldCreator extends WorldCreator {
     public ChunkGenerator generator() {
         return new EmptyChunkGenerator();
     }
+
+
+
 }

@@ -11,3 +11,5 @@ commands:
   testForeHand:
   startRound:
   wfctest:
+  roundqueuetest:
+

@@ -1,35 +1,36 @@
 package normalmanv2.normalDiscGolf.impl.event;
 
-import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.common.queue.RoundQueue;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-public class PlayerRoundQueueEvent extends Event {
+public class PlayerQueueRoundEvent extends Event {
 
     private static final HandlerList HANDLERS = new HandlerList();
     private final UUID playerId;
-    private final String roundName;
-    private final List<GameRound> roundQueue;
+    private final String roundType;
+    private final List<RoundQueue> roundQueue;
 
-    public PlayerRoundQueueEvent(UUID playerId, List<GameRound> roundQueue, String roundName) {
+    public PlayerQueueRoundEvent(UUID playerId, List<RoundQueue> roundQueue, String roundType) {
         this.playerId = playerId;
         this.roundQueue = roundQueue;
-        this.roundName = roundName;
+        this.roundType = roundType;
     }
 
     public UUID getPlayerId() {
         return this.playerId;
     }
 
-    public String getRoundName() {
-        return this.roundName;
+    public String getRoundType() {
+        return this.roundType;
     }
 
-    public List<GameRound> getRoundQueue() {
-        return this.roundQueue;
+    public List<RoundQueue> getRoundQueue() {
+        return Collections.unmodifiableList(this.roundQueue);
     }
 
     @Override

@@ -3,6 +3,7 @@ package normalmanv2.normalDiscGolf.impl;
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.Bush;
 import normalmanv2.normalDiscGolf.impl.manager.FileManager;
+import normalmanv2.normalDiscGolf.impl.manager.GuiManager;
 import normalmanv2.normalDiscGolf.impl.manager.ObstacleManager;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.Pin;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.Rock;
@@ -32,12 +33,13 @@ public class NDGManager {
     private final FileManager fileManager;
     private final ObstacleManager obstacleManager;
     private final TaskManager taskManager;
+    private final GuiManager guiManager = new GuiManager();
     private static NDGManager instance;
 
     private NDGManager() {
         NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
         this.fileManager = new FileManager(plugin);
-        this.taskManager = new TaskManager(plugin);
+        this.taskManager = new TaskManager();
         this.queueManager = new QueueManager(this.queueService);
         this.obstacleManager = new ObstacleManager(this.fileManager);
         this.roundHandler = new RoundHandler(this.queueManager, plugin);
@@ -94,6 +96,10 @@ public class NDGManager {
 
     public TaskManager getTaskManager() {
         return this.taskManager;
+    }
+
+    public GuiManager getGuiManager() {
+        return this.guiManager;
     }
 
     private void registerDefaultDiscs() {

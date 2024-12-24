@@ -6,7 +6,6 @@ import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.round.RoundImpl;
-import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
@@ -27,7 +26,7 @@ public class GoalScoreListener implements Listener {
             for (Team team : ffaRound.getTeams()) {
                 if (team.getTeamMembers().contains(playerId)) {
                     ScoreCard scoreCard = ffaRound.getScoreCard(team);
-                    scoreCard.recordHoleScore(holeNumber, scoreCard.getCurrentStrokes(), ffaRound.getCourse().getHolePars().get(holeNumber));
+                    scoreCard.recordHoleScore(holeNumber, scoreCard.getCurrentStrokes(), ffaRound.getCourse().holePars().get(holeNumber));
                     scoreCard.resetCurrentStrokes();
                 }
             }

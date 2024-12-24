@@ -19,6 +19,10 @@ public class QueueManager {
         this.queueService = queueService;
     }
 
+    public RoundQueue createQueue(GameRound round) {
+        return this.queueService.createQueue(round);
+    }
+
     public void queueRound(GameRound round) {
         this.queueService.queueRound(new RoundQueue(round.getId(), round));
     }
@@ -43,8 +47,12 @@ public class QueueManager {
                 }
                 team.addPlayer(playerId);
             }
-
         }
+    }
+
+    public void removePlayerFromRound(UUID playerId, String roundId) {
+        GameRound round = this.queueService.getQueue(roundId).round();
+        round.getTeams().forEach(team -> team.removePlayer(playerId));
     }
 
 }

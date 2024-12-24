@@ -34,7 +34,10 @@ public class GuiManager {
 
     public void handleClick(InventoryClickEvent event) {
         InventoryHandler handler = this.inventories.get(event.getInventory());
-        if (handler == null) return;
+        if (handler == null) {
+            System.out.println("Handler is null");
+            return;
+        }
         handler.onClick(event);
     }
 

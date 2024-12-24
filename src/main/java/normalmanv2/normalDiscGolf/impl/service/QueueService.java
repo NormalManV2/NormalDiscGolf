@@ -41,6 +41,4 @@ public class QueueService {
         return this.roundQueue.containsKey(roundId);
     }
 
-
-
 }

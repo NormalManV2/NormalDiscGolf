@@ -9,7 +9,6 @@ import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.player.score.PDGARating;
 import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
-import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -71,7 +70,7 @@ public class RoundImpl implements GameRound {
 
     @Override
     public void startRound() {
-        Location startingLocation = this.courseImpl.getStartingLocation();
+        Location startingLocation = this.courseImpl.startingLocation();
         this.roundOver = false;
         this.holeIndex = 0;
 
@@ -237,7 +236,7 @@ public class RoundImpl implements GameRound {
                 PlayerData playerData = playerDataManager.getDataByPlayer(playerId);
                 PDGARating rating = playerData.getRating();
                 rating.handleRoundEnd(scoreCard.getTotalScore());
-                rating.updateRating(courseImpl.getDifficulty());
+                rating.updateRating(courseImpl.difficulty());
                 System.out.println(scoreCard.getTotalStrokes());
                 System.out.println(scoreCard.getTotalScore());
                 System.out.println(rating.getRating());

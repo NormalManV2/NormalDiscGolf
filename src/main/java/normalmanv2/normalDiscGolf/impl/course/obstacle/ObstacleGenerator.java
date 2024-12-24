@@ -37,7 +37,7 @@ public class ObstacleGenerator {
         int maxObstaclesPerTile = calculateMaxObstacles(tile);
 
         int gridSize = 4;
-        double subRegionSize = 16.0 / gridSize;
+        double subRegionSize = 8.0 / gridSize;
 
         Set<String> occupiedSubRegions = new HashSet<>();
 
@@ -62,23 +62,28 @@ public class ObstacleGenerator {
 
             ObstacleImpl obstacle = selectObstacle(tile);
 
-            if (obstacle != null) {
+            if (obstacle == null) {
+                System.out.println("Obstacle is null! (ObstacleGenerator)");
+                return;
+            }
+
                 obstacle.setLocation(obstacleLocation);
 
+                if (obstacle instanceof Pin) {
+                    obstacle.generate(obstacleLocation);
+                }
+
                 if (shouldPlaceObstacle(tile, obstacle)) {
-                    if (obstacle instanceof Pin) {
-                        obstacle.generate(tile.getLocation());
-                        return;
-                    }
+
                     if (obstacle.generate(obstacleLocation)) {
-                        System.out.println("Obstacle generated at " + obstacleLocation);
+                        System.out.println("Obstacle " + obstacle + "generated at " + obstacleLocation);
                     } else {
-                        System.out.println("Obstacle unable to generate (obstacleImpl)");
+                        System.out.println("Obstacle unable to generate " + obstacle + "at " + obstacleLocation);
                     }
                 } else {
-                    System.out.println("Obstacle skipped due to density check");
+                    System.out.println("Obstacle skipped due to density check " + obstacle);
                 }
-            }
+
         }
     }
 

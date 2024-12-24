@@ -61,7 +61,7 @@ public class WFCTest implements CommandExecutor {
             List<TileTypes> tileTypes = Arrays.asList(TileTypes.FAIRWAY, TileTypes.OBSTACLE, TileTypes.WATER, TileTypes.OUT_OF_BOUNDS);
             CourseGrid courseGrid = new CourseGrid(8, 8, tileTypes, finalWorld);
             Location startingLocation = new Location(finalWorld, 0, 64, 0);
-            CourseImpl courseImpl = new CourseImpl(courseDifficulty, "Test_Course", 18, startingLocation, courseGrid);
+            CourseImpl courseImpl = new CourseImpl(courseDifficulty, "Test_Course", 18, courseGrid);
             courseImpl.generateCourseGrid(NDGManager.getInstance().getObstacleRegistry());
 
             for (int x = 0; x < courseGrid.getWidth(); x++) {

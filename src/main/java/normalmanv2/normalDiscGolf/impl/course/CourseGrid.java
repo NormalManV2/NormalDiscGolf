@@ -50,6 +50,7 @@ public class CourseGrid {
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 Location tileLocation = new Location(world, x * TILE_SIZE, y, z * TILE_SIZE);
+                world.setSpawnLocation(tileLocation);
                 grid[x][z] = new Tile(tileTypes, tileLocation);
             }
         }

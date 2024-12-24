@@ -7,11 +7,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class TaskManager {
-    private final NormalDiscGolf normalDiscGolf;
     private final Map<String, BukkitTask> activeTasks;
 
-    public TaskManager(NormalDiscGolf normalDiscGolf) {
-        this.normalDiscGolf = normalDiscGolf;
+    public TaskManager() {
         this.activeTasks = new HashMap<>();
     }
 
