@@ -25,7 +25,7 @@ public final class NormalDiscGolf extends JavaPlugin {
         getCommand("roundQueueTest").setExecutor(new RoundQueueTest(NDGManager.getInstance().getGuiManager()));
         Bukkit.getPluginManager().registerEvents(new GoalScoreListener(), this);
         Bukkit.getPluginManager().registerEvents(new PlayerJoinListener(), this);
-        Bukkit.getPluginManager().registerEvents(new PlayerRoundQueueListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new PlayerRoundQueueListener(), this);
         Bukkit.getPluginManager().registerEvents(new GuiListener(NDGManager.getInstance().getGuiManager()), this);
         Bukkit.getPluginManager().registerEvents(new DiscThrowListener(), this);
 

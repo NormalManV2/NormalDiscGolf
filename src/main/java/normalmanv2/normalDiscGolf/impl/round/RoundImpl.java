@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
+import normalmanv2.normalDiscGolf.api.division.Division;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
@@ -40,6 +41,7 @@ public class RoundImpl implements GameRound {
     private final Random random = new Random();
     private Team currentTeamTurn;
     private final Map<Integer, Map<Team, Boolean>> scoredGoals;
+    private Division division;
 
     public RoundImpl(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound, String id, int maximumTeams) {
         this.plugin = plugin;
@@ -51,6 +53,16 @@ public class RoundImpl implements GameRound {
         this.id = id;
         this.maximumTeams = maximumTeams;
         this.scoredGoals = new HashMap<>();
+    }
+
+    @Override
+    public Division getDivision() {
+        return this.division;
+    }
+
+    @Override
+    public void setDivision(Division division) {
+        this.division = division;
     }
 
     @Override
@@ -138,6 +150,11 @@ public class RoundImpl implements GameRound {
     @Override
     public void removeTeam(Team team) {
         this.teams.remove(team);
+    }
+
+    @Override
+    public boolean isFull() {
+        return this.teams.size() == this.maximumTeams;
     }
 
     @Override

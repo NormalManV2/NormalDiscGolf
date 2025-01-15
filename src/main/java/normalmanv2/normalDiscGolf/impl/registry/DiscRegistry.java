@@ -1,22 +1,15 @@
 package normalmanv2.normalDiscGolf.impl.registry;
 
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
+import org.normal.impl.FreezableRegistryImpl;
+import org.normal.impl.RegistryImpl;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class DiscRegistry {
-    private final Map<String, DiscImpl> discs;
-
-    public DiscRegistry() {
-        this.discs = new HashMap<>();
-    }
-
-    public void registerDisc(String discName, DiscImpl discImpl) {
-        this.discs.put(discName, discImpl);
-    }
+public class DiscRegistry extends FreezableRegistryImpl<String, DiscImpl> {
 
     public DiscImpl getDiscByString(String discName) throws CloneNotSupportedException {
-        return this.discs.get(discName).clone();
+        return this.get(discName).clone();
     }
 }

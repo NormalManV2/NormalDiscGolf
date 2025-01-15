@@ -13,4 +13,8 @@ public class Constants {
     public static final double POWER_ADJUSTMENT = 0.05;
     public static final double FORM_ADJUSTMENT = 0.02;
     public static final double ACCURACY_ADJUSTMENT = 0.5;
+    public static final int FFA_ROUND_MAX_PLAYERS = 8;
+    public static final int DOUBLES_ROUND_MAX_TEAMS = 4;
+    public static final int COURSE_GENERATION_WIDTH = 16;
+    public static final int COURSE_GENERATION_DEPTH = 16;
 }

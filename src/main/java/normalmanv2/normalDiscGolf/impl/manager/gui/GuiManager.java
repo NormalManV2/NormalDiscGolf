@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.impl.manager;
+package normalmanv2.normalDiscGolf.impl.manager.gui;
 
 import normalmanv2.normalDiscGolf.api.inventory.InventoryHandler;
 import normalmanv2.normalDiscGolf.impl.gui.InventoryGUI;

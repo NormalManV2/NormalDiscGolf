@@ -1,13 +1,18 @@
 package normalmanv2.normalDiscGolf.impl.course.obstacle;
 
+import normalmanv2.normalDiscGolf.api.division.Division;
+import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
 import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.Tile;
 import normalmanv2.normalDiscGolf.impl.course.TileTypes;
 import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
 import org.bukkit.Location;
+import org.normal.impl.RegistryImpl;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
@@ -15,14 +20,16 @@ public class ObstacleGenerator {
 
     private final CourseGrid courseGrid;
     private final Random random;
-    private final ObstacleRegistry registry;
-    private final CourseDifficulty density;
+    private final RegistryImpl<String, ObstacleImpl> registry;
+    private final Division division;
+    private final Map<Division, CourseDifficulty> divisionCourseDifficulty;
 
-    public ObstacleGenerator(CourseGrid courseGrid, ObstacleRegistry registry, CourseDifficulty density) {
+    public ObstacleGenerator(CourseGrid courseGrid, RegistryImpl<String, ObstacleImpl> registry, Division division) {
         this.courseGrid = courseGrid;
         this.random = new Random();
         this.registry = registry;
-        this.density = density;
+        this.division = division;
+        this.divisionCourseDifficulty = NDGManager.getInstance().getDivisionCourseRegistry().getBackingMap();
     }
 
     public void generateObstacles() {
@@ -88,7 +95,7 @@ public class ObstacleGenerator {
     }
 
     private int calculateMaxObstacles(Tile tile) {
-        double baseFactor = density.getDensityFactor();
+        double baseFactor = this.divisionCourseDifficulty.get(this.division).getDensityFactor();
 
         return switch (tile.getCollapsedState()) {
             case OBSTACLE -> (int) Math.ceil(baseFactor * 8);
@@ -109,18 +116,18 @@ public class ObstacleGenerator {
 
         double chance = random.nextDouble();
 
-        return chance <= density.getDensityFactor();
+        return chance <= this.divisionCourseDifficulty.get(this.division).getDensityFactor();
     }
 
     private ObstacleImpl selectObstacle(Tile tile) {
         return switch (tile.getCollapsedState()) {
             case OBSTACLE -> random.nextDouble() < 0.5
-                    ? this.registry.getObstacle("tree")
-                    : this.registry.getObstacle("bush");
+                    ? this.registry.get("tree")
+                    : this.registry.get("bush");
             case FAIRWAY -> random.nextDouble() < 0.5
-                    ? this.registry.getObstacle("rock")
-                    : this.registry.getObstacle("bush");
-            case PIN -> this.registry.getObstacle("pin");
+                    ? this.registry.get("rock")
+                    : this.registry.get("bush");
+            case PIN -> this.registry.get("pin");
             default -> null;
         };
 

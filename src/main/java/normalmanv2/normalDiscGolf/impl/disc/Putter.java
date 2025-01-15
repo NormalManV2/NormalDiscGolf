@@ -76,7 +76,7 @@ public class Putter extends DiscImpl {
         Vector currentVelocity = initialVelocity.clone();
         final int[] tickCount = {0};
 
-        final ThrowTechnique throwTechnique = api.getThrowTechniqueRegistry().getTechnique(technique);
+        final ThrowTechnique throwTechnique = api.getThrowTechniqueRegistry().get(technique);
         this.discTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
 
             Location currentLocation = discDisplay.getLocation();

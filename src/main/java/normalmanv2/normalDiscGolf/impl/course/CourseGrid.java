@@ -1,9 +1,12 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
+import normalmanv2.normalDiscGolf.api.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleGenerator;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
 import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.normal.impl.RegistryImpl;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -41,7 +44,6 @@ public class CourseGrid {
                                         " ");
             }
             System.out.println();
-
         }
     }
 
@@ -56,7 +58,7 @@ public class CourseGrid {
         }
     }
 
-    public void generate(ObstacleRegistry obstacleRegistry, CourseDifficulty difficulty) {
+    public void generate(RegistryImpl<String, ObstacleImpl> obstacleRegistry, Division division) {
         generateFairwayPath();
 
         while (!isFullyCollapsed()) {
@@ -65,7 +67,7 @@ public class CourseGrid {
             propagateConstraints(tileToCollapse);
         }
 
-        ObstacleGenerator obstacleGenerator = new ObstacleGenerator(this, obstacleRegistry, difficulty);
+        ObstacleGenerator obstacleGenerator = new ObstacleGenerator(this, obstacleRegistry, division);
         obstacleGenerator.generateObstacles();
     }
 

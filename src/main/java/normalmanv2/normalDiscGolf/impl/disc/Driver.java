@@ -75,7 +75,7 @@ public class Driver extends DiscImpl {
         Vector currentVelocity = initialVelocity.clone();
         final int[] tickCount = {0};
 
-        final ThrowTechnique throwTechnique = manager.getThrowTechniqueRegistry().getTechnique(technique);
+        final ThrowTechnique throwTechnique = manager.getThrowTechniqueRegistry().get(technique);
         this.discTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
 
             Location currentLocation = discDisplay.getLocation();

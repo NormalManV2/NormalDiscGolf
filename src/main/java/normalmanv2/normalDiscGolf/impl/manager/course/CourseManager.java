@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.impl.manager;
+package normalmanv2.normalDiscGolf.impl.manager.course;
 
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 

@@ -1,6 +1,5 @@
-package normalmanv2.normalDiscGolf.impl.manager;
+package normalmanv2.normalDiscGolf.impl.manager.task;
 
-import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;

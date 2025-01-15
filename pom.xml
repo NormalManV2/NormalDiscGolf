@@ -35,6 +35,27 @@
                 <executions>
                     <execution>
                         <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <filters>
+                                <filter>
+                                    <artifact>org.NormalMan:NormalAPI</artifact>
+                                </filter>
+                                <filter>
+                                    <artifact>spigot-api</artifact>
+                                    <artifact>worldedit-core</artifact>
+                                    <artifact>worldedit-bukkit</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <createDependencyReducedPom>true</createDependencyReducedPom>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -60,6 +81,11 @@
             <id>enginehub-repo</id>
             <url>https://maven.enginehub.org/repo/</url>
         </repository>
+        <repository>
+            <id>rad-repo-public</id>
+            <name>rad's maven</name>
+            <url>https://maven.radsteve.net/public</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -78,6 +104,16 @@
             <groupId>com.sk89q.worldedit</groupId>
             <artifactId>worldedit-bukkit</artifactId>
             <version>7.3.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.NormalMan</groupId>
+            <artifactId>NormalAPI</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>net.radstevee.packed</groupId>
+            <artifactId>packed-core</artifactId>
+            <version>1.0.0-SNAPSHOT.1</version>
         </dependency>
     </dependencies>
 </project>

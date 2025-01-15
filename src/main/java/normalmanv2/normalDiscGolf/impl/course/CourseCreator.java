@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
+import normalmanv2.normalDiscGolf.api.division.Division;
+import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Location;
 import org.bukkit.World;
 
@@ -16,6 +18,20 @@ public class CourseCreator {
     private Map<Integer, Location> teeLocations;
     private Set<Location> holeLocations;
     private Map<Integer, Integer> holePars;
+
+    public CourseImpl create(Division division, World world) {
+
+        return new CourseImpl(
+                this.difficulty,
+                this.name,
+                this.holes,
+                this.createGrid(
+                        Constants.COURSE_GENERATION_WIDTH,
+                        Constants.COURSE_GENERATION_DEPTH,
+                        List.of(TileTypes.values()),
+                        world),
+                world.getSpawnLocation());
+    }
 
     public CourseCreator setDifficulty(CourseDifficulty difficulty) {
         this.difficulty = difficulty;

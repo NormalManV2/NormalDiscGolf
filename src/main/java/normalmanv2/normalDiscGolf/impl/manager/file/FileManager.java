@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.impl.manager;
+package normalmanv2.normalDiscGolf.impl.manager.file;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 

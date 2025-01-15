@@ -1,50 +1,61 @@
 package normalmanv2.normalDiscGolf.impl;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
+import normalmanv2.normalDiscGolf.api.division.Division;
+import normalmanv2.normalDiscGolf.impl.course.CourseCreator;
+import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.Bush;
-import normalmanv2.normalDiscGolf.impl.manager.FileManager;
-import normalmanv2.normalDiscGolf.impl.manager.GuiManager;
-import normalmanv2.normalDiscGolf.impl.manager.ObstacleManager;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
+import normalmanv2.normalDiscGolf.impl.manager.file.FileManager;
+import normalmanv2.normalDiscGolf.impl.manager.gui.GuiManager;
+import normalmanv2.normalDiscGolf.impl.manager.course.ObstacleManager;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.Pin;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.Rock;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.Tree;
 import normalmanv2.normalDiscGolf.impl.disc.Driver;
 import normalmanv2.normalDiscGolf.impl.disc.MidRange;
 import normalmanv2.normalDiscGolf.impl.disc.Putter;
-import normalmanv2.normalDiscGolf.impl.manager.TaskManager;
+import normalmanv2.normalDiscGolf.impl.manager.task.TaskManager;
+import normalmanv2.normalDiscGolf.impl.registry.CourseDivisionRegistry;
 import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
 import normalmanv2.normalDiscGolf.impl.service.InviteService;
 import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
-import normalmanv2.normalDiscGolf.impl.manager.RoundHandler;
+import normalmanv2.normalDiscGolf.impl.manager.round.lifecycle.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.registry.ThrowTechniqueRegistry;
-import normalmanv2.normalDiscGolf.impl.manager.QueueManager;
-import normalmanv2.normalDiscGolf.impl.service.QueueService;
+import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
+import org.normal.NormalAPI;
+import org.normal.impl.RegistryImpl;
+
+import java.util.Arrays;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class NDGManager {
     private final PlayerDataManager playerDataManager = new PlayerDataManager();
     private final RoundHandler roundHandler;
-    private final QueueService queueService = new QueueService();
-    private final QueueManager queueManager;
     private final DiscRegistry discRegistry = new DiscRegistry();
     private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
     private final InviteService inviteService = new InviteService();
-    private final ObstacleRegistry obstacleRegistry = new ObstacleRegistry();
+    private final RegistryImpl<String, ObstacleImpl> obstacleRegistry = NormalAPI.getInstance().createRegistry();
     private final FileManager fileManager;
     private final ObstacleManager obstacleManager;
     private final TaskManager taskManager;
     private final GuiManager guiManager = new GuiManager();
+    private final RoundQueueManager roundQueueManager;
+    private final CourseDivisionRegistry divisionCourseRegistry = new CourseDivisionRegistry();
     private static NDGManager instance;
 
     private NDGManager() {
         NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
         this.fileManager = new FileManager(plugin);
         this.taskManager = new TaskManager();
-        this.queueManager = new QueueManager(this.queueService);
         this.obstacleManager = new ObstacleManager(this.fileManager);
-        this.roundHandler = new RoundHandler(this.queueManager, plugin);
+        this.roundQueueManager = new RoundQueueManager();
+        this.roundHandler = new RoundHandler(plugin);
         this.registerDefaultDiscs();
         this.registerDefaultObstacles();
+        this.registerDefaultCourseDifficulty();
     }
 
     public static NDGManager getInstance() {
@@ -52,6 +63,14 @@ public class NDGManager {
             instance = new NDGManager();
         }
         return instance;
+    }
+
+    public CourseCreator courseCreator() {
+        return new CourseCreator();
+    }
+
+    public CourseDivisionRegistry getDivisionCourseRegistry() {
+        return this.divisionCourseRegistry;
     }
 
     public PlayerDataManager getPlayerDataManager() {
@@ -74,7 +93,7 @@ public class NDGManager {
         return this.inviteService;
     }
 
-    public ObstacleRegistry getObstacleRegistry() {
+    public RegistryImpl<String, ObstacleImpl> getObstacleRegistry() {
         return this.obstacleRegistry;
     }
 
@@ -86,14 +105,6 @@ public class NDGManager {
         return this.obstacleManager;
     }
 
-    public QueueManager getQueueManager() {
-        return this.queueManager;
-    }
-
-    public QueueService getQueueService() {
-        return this.queueService;
-    }
-
     public TaskManager getTaskManager() {
         return this.taskManager;
     }
@@ -102,20 +113,34 @@ public class NDGManager {
         return this.guiManager;
     }
 
+    public RoundQueueManager getRoundQueueManager() {
+        return this.roundQueueManager;
+    }
+
     private void registerDefaultDiscs() {
-        discRegistry.registerDisc("TestDriver", new Driver(9, 5, -1, 2, "&6TestDriver", this));
-        discRegistry.registerDisc("TestDriver1", new Driver(9, 5, -3, 1, "&aTestDriver1", this));
-        discRegistry.registerDisc("Midrange", new MidRange(5, 6, -1, 1, "&7Midrange", this));
-        discRegistry.registerDisc("Midrange1", new MidRange(5, 6, -3, 1, "&cMidrange1", this));
-        discRegistry.registerDisc("Putter", new Putter(2, 4, -1, 1, "&4Putter", this));
-        discRegistry.registerDisc("Putter1", new Putter(2, 4, 0, 2, "&3Putter1", this));
+        discRegistry.register("TestDriver", new Driver(9, 5, -1, 2, "&6TestDriver", this));
+        discRegistry.register("TestDriver1", new Driver(9, 5, -3, 1, "&aTestDriver1", this));
+        discRegistry.register("Midrange", new MidRange(5, 6, -1, 1, "&7Midrange", this));
+        discRegistry.register("Midrange1", new MidRange(5, 6, -3, 1, "&cMidrange1", this));
+        discRegistry.register("Putter", new Putter(2, 4, -1, 1, "&4Putter", this));
+        discRegistry.register("Putter1", new Putter(2, 4, 0, 2, "&3Putter1", this));
     }
 
     private void registerDefaultObstacles() {
-        this.obstacleRegistry.registerObstacle("tree", new Tree(null, "tree", this.obstacleManager));
-        this.obstacleRegistry.registerObstacle("bush", new Bush(null, "bush", this.obstacleManager));
-        this.obstacleRegistry.registerObstacle("rock", new Rock(null, "rock", this.obstacleManager));
-        this.obstacleRegistry.registerObstacle("pin", new Pin(null, "pin", this.obstacleManager));
+        this.obstacleRegistry.register("tree", new Tree(null, "tree", this.obstacleManager));
+        this.obstacleRegistry.register("bush", new Bush(null, "bush", this.obstacleManager));
+        this.obstacleRegistry.register("rock", new Rock(null, "rock", this.obstacleManager));
+        this.obstacleRegistry.register("pin", new Pin(null, "pin", this.obstacleManager));
+    }
+
+    private void registerDefaultCourseDifficulty() {
+        Map<Division, CourseDifficulty> defaultMapping = Arrays.stream(Division.values())
+                .collect(Collectors.toMap(
+                        division -> division,
+                        Division::getDifficulty
+                ));
+
+        this.divisionCourseRegistry.set(defaultMapping);
     }
 
 }

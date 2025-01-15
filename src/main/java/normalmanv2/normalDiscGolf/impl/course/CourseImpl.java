@@ -1,29 +1,43 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
 import normalmanv2.normalDiscGolf.api.course.Course;
+import normalmanv2.normalDiscGolf.api.division.Division;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
 import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
 import org.bukkit.Location;
+import org.normal.impl.RegistryImpl;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
-public record CourseImpl(CourseDifficulty difficulty,
-                         String name,
-                         int holes,
-                         CourseGrid grid,
-                         Location startingLocation,
-                         Map<Integer, Location> teeLocations,
-                         Set<Location> holeLocations,
-                         Map<Integer, Integer> holePars) implements Course {
+public class CourseImpl implements Course {
 
-    public void clearAndSetHoleLocations(Set<Location> locations) {
-        this.holeLocations.clear();
-        this.holeLocations.addAll(locations);
+    private final Division division;
+    private final CourseGrid grid;
+
+    public CourseImpl(Division division, CourseGrid grid) {
+        this.division = division;
+        this.grid = grid;
     }
 
-    public void generateCourseGrid(ObstacleRegistry registry) {
-        this.grid.generate(registry, this.difficulty);
+    public void generateCourseGrid(RegistryImpl<String, ObstacleImpl> registry) {
+        this.grid.generate(registry, this.division);
+    }
+
+    @Override
+    public String name() {
+        return "";
+    }
+
+    @Override
+    public int holes() {
+        return 0;
+    }
+
+    @Override
+    public Location startingLocation() {
+        return null;
     }
 
     @Override

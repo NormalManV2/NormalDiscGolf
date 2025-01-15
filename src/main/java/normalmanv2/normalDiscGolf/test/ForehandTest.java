@@ -4,7 +4,7 @@ import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
-import normalmanv2.normalDiscGolf.impl.manager.RoundHandler;
+import normalmanv2.normalDiscGolf.impl.manager.round.lifecycle.RoundHandler;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;

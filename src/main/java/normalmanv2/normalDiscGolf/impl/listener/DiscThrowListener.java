@@ -12,13 +12,14 @@ public class DiscThrowListener implements Listener {
 
     @EventHandler
     public void onThrow(DiscThrowEvent event) {
+
         RoundImpl roundImpl = (RoundImpl) event.getRound();
-        for (Team team : roundImpl.getTeams()) {
-            if (!roundImpl.isTurn(team)) {
-                event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', "&4It is not your turn!"));
-                return;
-            }
+
+        if (!event.isTurn()) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', "&4It is not your turn!"));
         }
+
         roundImpl.handleStroke(event.getPlayer().getUniqueId(), event.getTechnique(), event.getThrownDisc());
 
         if (roundImpl instanceof FFARound) {

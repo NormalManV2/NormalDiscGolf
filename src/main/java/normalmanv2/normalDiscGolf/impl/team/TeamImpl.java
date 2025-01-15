@@ -24,6 +24,11 @@ public class TeamImpl implements Team {
     }
 
     @Override
+    public boolean contains(UUID playerId) {
+        return this.teamMembers.contains(playerId);
+    }
+
+    @Override
     public int getMaximumPlayers() {
         return this.maximumPlayers;
     }

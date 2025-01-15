@@ -14,7 +14,7 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.session.ClipboardHolder;
 import com.sk89q.worldedit.world.World;
 import normalmanv2.normalDiscGolf.api.course.obstacle.Obstacle;
-import normalmanv2.normalDiscGolf.impl.manager.ObstacleManager;
+import normalmanv2.normalDiscGolf.impl.manager.course.ObstacleManager;
 import org.bukkit.Location;
 
 import javax.annotation.Nonnull;
