@@ -23,14 +23,14 @@ public class RoundQueueManager {
     private final Map<Division, Map<UUID, String>> playerQueue;
     private final PlayerDataManager playerDataManager;
 
-    public RoundQueueManager() {
-        this.roundHandler = NDGManager.getInstance().getRoundHandler();
+    public RoundQueueManager(RoundHandler roundHandler, PlayerDataManager playerDataManager) {
+        this.roundHandler = roundHandler;
+        this.playerDataManager = playerDataManager;
         this.queuedRounds = new HashSet<>();
         this.playerQueue = new HashMap<>();
         for (Division division : Division.values()) {
             this.playerQueue.put(division, new HashMap<>());
         }
-        this.playerDataManager = NDGManager.getInstance().getPlayerDataManager();
     }
 
     public void addPlayerToQueue(UUID player, String roundType) {

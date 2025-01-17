@@ -1,7 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
 import normalmanv2.normalDiscGolf.api.division.Division;
-import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Location;
 import org.bukkit.World;
 
@@ -20,7 +19,7 @@ public class CourseCreator {
     private Map<Integer, Integer> holePars;
 
     public CourseImpl create(Division division, World world) {
-
+/*
         return new CourseImpl(
                 this.difficulty,
                 this.name,
@@ -31,6 +30,8 @@ public class CourseCreator {
                         List.of(TileTypes.values()),
                         world),
                 world.getSpawnLocation());
+ */
+        return null;
     }
 
     public CourseCreator setDifficulty(CourseDifficulty difficulty) {
@@ -69,11 +70,13 @@ public class CourseCreator {
     }
 
     public CourseGrid createGrid(int width, int depth, List<TileTypes> tileTypes, World world) {
-        return new CourseGrid(width, depth, tileTypes, world);
+       // return new CourseGrid(width, depth, tileTypes, world);
+        return null;
     }
 
     public CourseImpl build(CourseGrid courseGrid) {
-        return new CourseImpl(difficulty, name, holes, courseGrid, startingLocation, teeLocations, holeLocations, holePars);
+        // return new CourseImpl(difficulty, name, holes, courseGrid, startingLocation, teeLocations, holeLocations, holePars);
+        return null;
     }
 
 }

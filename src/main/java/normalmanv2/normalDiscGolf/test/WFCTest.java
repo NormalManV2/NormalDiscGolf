@@ -30,7 +30,7 @@ public class WFCTest implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender commandSender, Command command, String s, String[] args) {
-
+        /*
         if (args.length != 2) {
             if (commandSender instanceof Player player) {
                 player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&4Please enter a world name followed by a difficulty ( \"easy\" | \"medium\" | \"hard\" )! "));
@@ -62,7 +62,15 @@ public class WFCTest implements CommandExecutor {
             List<TileTypes> tileTypes = Arrays.asList(TileTypes.FAIRWAY, TileTypes.OBSTACLE, TileTypes.WATER, TileTypes.OUT_OF_BOUNDS);
             CourseGrid courseGrid = new CourseGrid(8, 8, tileTypes, finalWorld);
             Location startingLocation = new Location(finalWorld, 0, 64, 0);
-            CourseImpl courseImpl = new CourseImpl(courseDifficulty, "Test_Course", 18, courseGrid, finalWorld.getSpawnLocation(), Collections.emptyMap(), Collections.emptySet(), Collections.emptyMap());
+            CourseImpl courseImpl = new CourseImpl(
+                    courseDifficulty,
+                    "Test_Course",
+                    18,
+                    courseGrid,
+                    finalWorld.getSpawnLocation(),
+                    Collections.emptyMap(),
+                    Collections.emptySet(),
+                    Collections.emptyMap());
             courseImpl.generateCourseGrid(NDGManager.getInstance().getObstacleRegistry());
 
             for (int x = 0; x < courseGrid.getWidth(); x++) {
@@ -109,5 +117,9 @@ public class WFCTest implements CommandExecutor {
                 }
             }
         }
+    }
+
+         */
+    return false;
     }
 }

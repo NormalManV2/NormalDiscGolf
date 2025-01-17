@@ -24,17 +24,14 @@ public class RoundHandler {
 
     private final Set<GameRound> activeRounds;
     private final NormalDiscGolf plugin;
-    private final NDGManager manager = NDGManager.getInstance();
-    private final RoundQueueManager queueManager;
+
 
     public RoundHandler(NormalDiscGolf normalDiscGolf) {
         this.activeRounds = new HashSet<>();
         this.plugin = normalDiscGolf;
-        this.queueManager = manager.getRoundQueueManager();
-        this.startQueueTask();
     }
 
-    private void startQueueTask() {
+    public void startQueueTask(RoundQueueManager queueManager) {
         Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             queueManager.tickPlayerQueue();
             queueManager.tickRoundQueue();
@@ -73,8 +70,8 @@ public class RoundHandler {
     private GameRound createFFARound(boolean isTournamentRound, Division division, World world) {
         return new FFARound(
                 plugin,
-                manager.getPlayerDataManager(),
-                manager.courseCreator().create(division, world),
+                NDGManager.getInstance().getPlayerDataManager(),
+                NDGManager.getInstance().courseCreator().create(division, world),
                 isTournamentRound,
                 "FFA_ROUND." + UUID.randomUUID(),
                 Constants.FFA_ROUND_MAX_PLAYERS);
@@ -83,8 +80,8 @@ public class RoundHandler {
     private GameRound createDoublesRound(boolean isTournamentRound, Division division, World world) {
         return new DoublesRound(
                 plugin,
-                manager.getPlayerDataManager(),
-                manager.courseCreator().create(division, world),
+                NDGManager.getInstance().getPlayerDataManager(),
+                NDGManager.getInstance().courseCreator().create(division, world),
                 isTournamentRound,
                 "DOUBLES_ROUND." + UUID.randomUUID(),
                 Constants.DOUBLES_ROUND_MAX_TEAMS);

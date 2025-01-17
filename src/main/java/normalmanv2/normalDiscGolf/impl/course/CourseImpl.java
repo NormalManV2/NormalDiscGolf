@@ -15,19 +15,28 @@ public class CourseImpl implements Course {
 
     private final Division division;
     private final CourseGrid grid;
+    private final String courseName;
+    private Map<Integer, Location> teeLocations;
+    private Map<Integer, Location> holeLocations;
+    private Map<Integer, Integer> holePars;
 
-    public CourseImpl(Division division, CourseGrid grid) {
+    public CourseImpl(Division division, CourseGrid grid, String courseName) {
         this.division = division;
         this.grid = grid;
+        this.courseName = courseName;
     }
 
     public void generateCourseGrid(RegistryImpl<String, ObstacleImpl> registry) {
         this.grid.generate(registry, this.division);
+        this.teeLocations = this.grid.getTeeLocations();
+        this.holeLocations = this.grid.getHoleLocations();
+        this.holePars = this.grid.getHolePars();
     }
 
     @Override
     public String name() {
-        return "";
+        if (this.courseName == null) throw new IllegalStateException("Course name not set!");
+        return this.courseName;
     }
 
     @Override
@@ -46,8 +55,8 @@ public class CourseImpl implements Course {
     }
 
     @Override
-    public Set<Location> holeLocations() {
-        return Collections.unmodifiableSet(this.holeLocations);
+    public Map<Integer, Location> holeLocations() {
+        return Collections.unmodifiableMap(this.holeLocations);
     }
 
     @Override

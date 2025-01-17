@@ -6,7 +6,9 @@ import normalmanv2.normalDiscGolf.impl.listener.GoalScoreListener;
 import normalmanv2.normalDiscGolf.impl.listener.GuiListener;
 import normalmanv2.normalDiscGolf.impl.listener.PlayerJoinListener;
 import normalmanv2.normalDiscGolf.impl.listener.PlayerRoundQueueListener;
+import normalmanv2.normalDiscGolf.packed.PackedIntegration;
 import normalmanv2.normalDiscGolf.test.BackHandTest;
+import normalmanv2.normalDiscGolf.test.DynamicCourseGeneratorTest;
 import normalmanv2.normalDiscGolf.test.ForehandTest;
 import normalmanv2.normalDiscGolf.test.RoundQueueTest;
 import normalmanv2.normalDiscGolf.test.TestFFARound;
@@ -18,17 +20,27 @@ public final class NormalDiscGolf extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        this.registerCommands();
+        this.registerListeners();
+        PackedIntegration integration = new PackedIntegration(this);
+        integration.savePack();
+    }
+
+    private void registerCommands() {
         getCommand("testBackHand").setExecutor(new BackHandTest(NDGManager.getInstance()));
         getCommand("testForeHand").setExecutor(new ForehandTest(NDGManager.getInstance()));
         getCommand("startRound").setExecutor(new TestFFARound(NDGManager.getInstance(), this));
         getCommand("wfctest").setExecutor(new WFCTest(this));
         getCommand("roundQueueTest").setExecutor(new RoundQueueTest(NDGManager.getInstance().getGuiManager()));
+        new DynamicCourseGeneratorTest(this.getLogger());
+    }
+
+    private void registerListeners() {
         Bukkit.getPluginManager().registerEvents(new GoalScoreListener(), this);
         Bukkit.getPluginManager().registerEvents(new PlayerJoinListener(), this);
         Bukkit.getPluginManager().registerEvents(new PlayerRoundQueueListener(), this);
         Bukkit.getPluginManager().registerEvents(new GuiListener(NDGManager.getInstance().getGuiManager()), this);
         Bukkit.getPluginManager().registerEvents(new DiscThrowListener(), this);
-
     }
 
     @Override

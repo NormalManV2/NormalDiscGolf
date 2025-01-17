@@ -33,7 +33,7 @@ public class TestFFARound implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender commandSender, Command command, String s, String[] args) {
-
+        /*
         final GameRound round;
 
         if (!(commandSender instanceof Player player)) {
@@ -63,5 +63,8 @@ public class TestFFARound implements CommandExecutor {
         }
 
         return true;
+    }
+         */
+    return false;
     }
 }

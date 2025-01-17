@@ -11,7 +11,7 @@ public interface Course {
     int holes();
     Location startingLocation();
     Map<Integer, Location> teeLocations();
-    Set<Location> holeLocations();
+    Map<Integer, Location> holeLocations();
     Map<Integer, Integer> holePars();
 
 }

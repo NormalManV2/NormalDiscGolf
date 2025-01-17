@@ -3,13 +3,15 @@ package normalmanv2.normalDiscGolf.impl.course;
 import normalmanv2.normalDiscGolf.api.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleGenerator;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
-import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.normal.impl.RegistryImpl;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
 
@@ -19,15 +21,23 @@ public class CourseGrid {
     private final int width, depth;
     private final List<TileTypes> tileTypes;
     private final Random random;
+    private final int numHoles;
+    private final Map<Integer, Location> teeLocations;
+    private final Map<Integer, Location> holeLocations;
+    private final Map<Integer, Integer> holePars;
 
     private static final int TILE_SIZE = 16;
 
-    public CourseGrid(int width, int depth, List<TileTypes> tileTypes, World world) {
+    public CourseGrid(int width, int depth, List<TileTypes> tileTypes, World world, int numHoles) {
         this.width = width;
         this.depth = depth;
         this.tileTypes = tileTypes;
         this.grid = new Tile[width][depth];
         this.random = new Random();
+        this.numHoles = numHoles;
+        this.teeLocations = new HashMap<>();
+        this.holeLocations = new HashMap<>();
+        this.holePars = new HashMap<>();
 
         initializeSuperposition(world);
     }
@@ -166,17 +176,7 @@ public class CourseGrid {
         }
     }
 
-    public int getWidth() {
-        return this.width;
-    }
 
-    public int getDepth() {
-        return this.depth;
-    }
-
-    public Tile getTile(int x, int z) {
-        return this.grid[x][z];
-    }
 
     private boolean isFullyCollapsed() {
         for (int x = 0; x < width; x++) {
@@ -245,4 +245,32 @@ public class CourseGrid {
     private static final int[][] DIRECTIONS = {
             {0, 1}, {1, 0}, {0, -1}, {-1, 0}
     };
+
+    public Map<Integer, Location> getTeeLocations() {
+        return Collections.unmodifiableMap(this.teeLocations);
+    }
+
+    public Map<Integer, Location> getHoleLocations() {
+        return Collections.unmodifiableMap(this.holeLocations);
+    }
+
+    public Map<Integer, Integer> getHolePars() {
+        return Collections.unmodifiableMap(this.holePars);
+    }
+
+    public int getWidth() {
+        return this.width;
+    }
+
+    public int getDepth() {
+        return this.depth;
+    }
+
+    public int getNumHoles() {
+        return this.numHoles;
+    }
+
+    public Tile getTile(int x, int z) {
+        return this.grid[x][z];
+    }
 }

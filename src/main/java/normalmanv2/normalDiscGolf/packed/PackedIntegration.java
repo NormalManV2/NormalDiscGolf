@@ -14,7 +14,7 @@ public class PackedIntegration {
 
     private final ResourcePack pack;
 
-    protected PackedIntegration(NormalDiscGolf plugin) {
+    public PackedIntegration(NormalDiscGolf plugin) {
         this.pack = ResourcePackBuilder.Companion.resourcePack((builder) -> {
             builder.meta((meta) -> {
                 meta.setDescription("NDG Pack");
@@ -31,13 +31,11 @@ public class PackedIntegration {
     }
 
     public void savePack() {
-
-        this.pack.addItemModel(new Key("ndg", "disc1"), (model) -> {
-
-
-        });
         this.pack.save(true);
+    }
 
+    public ResourcePack getResourcePack() {
+        return this.pack;
     }
 
 }
