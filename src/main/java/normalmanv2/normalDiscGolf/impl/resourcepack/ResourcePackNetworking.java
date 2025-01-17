@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.resourcepack;
+package normalmanv2.normalDiscGolf.impl.resourcepack;
 
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.NotNull;

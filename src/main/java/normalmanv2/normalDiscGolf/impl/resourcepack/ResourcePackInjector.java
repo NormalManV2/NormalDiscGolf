@@ -1,9 +1,7 @@
-package normalmanv2.normalDiscGolf.resourcepack;
+package normalmanv2.normalDiscGolf.impl.resourcepack;
 
 import io.netty.channel.ChannelHandlerContext;
-import net.mcbrawls.inject.api.Injector;
 import net.mcbrawls.inject.api.InjectorContext;
-import net.mcbrawls.inject.api.PacketDirection;
 import net.mcbrawls.inject.http.HttpByteBuf;
 import net.mcbrawls.inject.http.HttpInjector;
 import net.mcbrawls.inject.http.HttpRequest;

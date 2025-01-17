@@ -24,8 +24,8 @@ import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.manager.round.lifecycle.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.registry.ThrowTechniqueRegistry;
 import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
-import normalmanv2.normalDiscGolf.resourcepack.PackedIntegration;
-import normalmanv2.normalDiscGolf.resourcepack.ResourcePackInjector;
+import normalmanv2.normalDiscGolf.impl.resourcepack.PackedIntegration;
+import normalmanv2.normalDiscGolf.impl.resourcepack.ResourcePackInjector;
 import org.normal.NormalAPI;
 import org.normal.impl.RegistryImpl;
 

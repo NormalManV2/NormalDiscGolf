@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.resourcepack;
+package normalmanv2.normalDiscGolf.impl.resourcepack;
 
 import kotlin.Unit;
 import net.radstevee.packed.core.asset.impl.ResourceAssetResolutionStrategy;
