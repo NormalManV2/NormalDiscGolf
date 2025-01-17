@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl;
 
+import net.mcbrawls.inject.spigot.InjectSpigot;
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.api.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.CourseCreator;
@@ -17,16 +18,18 @@ import normalmanv2.normalDiscGolf.impl.disc.MidRange;
 import normalmanv2.normalDiscGolf.impl.disc.Putter;
 import normalmanv2.normalDiscGolf.impl.manager.task.TaskManager;
 import normalmanv2.normalDiscGolf.impl.registry.CourseDivisionRegistry;
-import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
 import normalmanv2.normalDiscGolf.impl.service.InviteService;
 import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.manager.round.lifecycle.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.registry.ThrowTechniqueRegistry;
 import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
+import normalmanv2.normalDiscGolf.resourcepack.PackedIntegration;
+import normalmanv2.normalDiscGolf.resourcepack.ResourcePackInjector;
 import org.normal.NormalAPI;
 import org.normal.impl.RegistryImpl;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -44,6 +47,7 @@ public class NDGManager {
     private final GuiManager guiManager = new GuiManager();
     private final RoundQueueManager roundQueueManager;
     private final CourseDivisionRegistry divisionCourseRegistry = new CourseDivisionRegistry();
+    private final PackedIntegration packedIntegration;
     private static NDGManager instance;
 
     private NDGManager() {
@@ -53,9 +57,15 @@ public class NDGManager {
         this.obstacleManager = new ObstacleManager(this.fileManager);
         this.roundQueueManager = new RoundQueueManager();
         this.roundHandler = new RoundHandler(plugin);
+        try {
+            this.packedIntegration = new PackedIntegration(plugin);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         this.registerDefaultDiscs();
         this.registerDefaultObstacles();
         this.registerDefaultCourseDifficulty();
+        this.registerInjectors();
     }
 
     public static NDGManager getInstance() {
@@ -117,6 +127,10 @@ public class NDGManager {
         return this.roundQueueManager;
     }
 
+    public PackedIntegration getPackedIntegration() {
+        return this.packedIntegration;
+    }
+
     private void registerDefaultDiscs() {
         discRegistry.register("TestDriver", new Driver(9, 5, -1, 2, "&6TestDriver", this));
         discRegistry.register("TestDriver1", new Driver(9, 5, -3, 1, "&aTestDriver1", this));
@@ -141,6 +155,10 @@ public class NDGManager {
                 ));
 
         this.divisionCourseRegistry.set(defaultMapping);
+    }
+
+    private void registerInjectors() {
+        InjectSpigot.INSTANCE.registerInjector(new ResourcePackInjector(this.packedIntegration));
     }
 
 }
