@@ -13,5 +13,6 @@ public class PlayerJoinListener implements Listener {
         Player player = event.getPlayer();
         PlayerData playerData = new PlayerData();
         NDGManager.getInstance().getPlayerDataManager().registerPlayerData(player.getUniqueId(), playerData);
+        NDGManager.getInstance().getPackedIntegration().send(player);
     }
 }

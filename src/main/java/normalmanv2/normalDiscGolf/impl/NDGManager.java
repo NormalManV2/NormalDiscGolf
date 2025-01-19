@@ -32,44 +32,27 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class NDGManager {
-    private final PlayerDataManager playerDataManager;
+    private final PlayerDataManager playerDataManager = new PlayerDataManager();
     private final RoundHandler roundHandler;
-    private final DiscRegistry discRegistry;
-    private final ThrowTechniqueRegistry throwTechniqueRegistry;
-    private final InviteService inviteService;
-    private final ObstacleRegistry obstacleRegistry;
+    private final DiscRegistry discRegistry = new DiscRegistry();
+    private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
+    private final InviteService inviteService = new InviteService();
+    private final RegistryImpl<String, ObstacleImpl> obstacleRegistry = NormalAPI.getInstance().createRegistry();
     private final FileManager fileManager;
     private final ObstacleManager obstacleManager;
     private final TaskManager taskManager;
-    private final GuiManager guiManager;
+    private final GuiManager guiManager = new GuiManager();
     private final RoundQueueManager roundQueueManager;
-    private final CourseDivisionRegistry divisionCourseRegistry;
+    private final CourseDivisionRegistry divisionCourseRegistry = new CourseDivisionRegistry();
     private static NDGManager instance;
 
     private NDGManager() {
         NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
-        this.roundHandler = new RoundHandler(plugin);
         this.fileManager = new FileManager(plugin);
-        this.obstacleManager = new ObstacleManager(this.fileManager);
         this.taskManager = new TaskManager();
-        this.playerDataManager = new PlayerDataManager();
-        this.roundQueueManager = new RoundQueueManager(this.roundHandler, this.playerDataManager);
-        this.discRegistry = new DiscRegistry();
-        this.throwTechniqueRegistry = new ThrowTechniqueRegistry();
-        this.inviteService = new InviteService();
-        this.obstacleRegistry = new ObstacleRegistry();
-        this.guiManager = new GuiManager();
-        this.divisionCourseRegistry = new CourseDivisionRegistry();
-
-        this.registerDefaults();
-        this.initRoundHandlerTask(this.roundQueueManager);
-    }
-
-    private void initRoundHandlerTask(RoundQueueManager roundQueueManager) {
-        this.roundHandler.startQueueTask(roundQueueManager);
-    }
-
-    private void registerDefaults() {
+        this.obstacleManager = new ObstacleManager(this.fileManager);
+        this.roundQueueManager = new RoundQueueManager();
+        this.roundHandler = new RoundHandler(plugin);
         this.registerDefaultDiscs();
         this.registerDefaultObstacles();
         this.registerDefaultCourseDifficulty();
@@ -110,7 +93,7 @@ public class NDGManager {
         return this.inviteService;
     }
 
-    public ObstacleRegistry getObstacleRegistry() {
+    public RegistryImpl<String, ObstacleImpl> getObstacleRegistry() {
         return this.obstacleRegistry;
     }
 
@@ -141,7 +124,6 @@ public class NDGManager {
         discRegistry.register("Midrange1", new MidRange(5, 6, -3, 1, "&cMidrange1", this));
         discRegistry.register("Putter", new Putter(2, 4, -1, 1, "&4Putter", this));
         discRegistry.register("Putter1", new Putter(2, 4, 0, 2, "&3Putter1", this));
-        discRegistry.freeze();
     }
 
     private void registerDefaultObstacles() {
@@ -149,7 +131,6 @@ public class NDGManager {
         this.obstacleRegistry.register("bush", new Bush(null, "bush", this.obstacleManager));
         this.obstacleRegistry.register("rock", new Rock(null, "rock", this.obstacleManager));
         this.obstacleRegistry.register("pin", new Pin(null, "pin", this.obstacleManager));
-        this.obstacleRegistry.freeze();
     }
 
     private void registerDefaultCourseDifficulty() {
@@ -160,7 +141,6 @@ public class NDGManager {
                 ));
 
         this.divisionCourseRegistry.set(defaultMapping);
-        this.divisionCourseRegistry.freeze();
     }
 
 }
