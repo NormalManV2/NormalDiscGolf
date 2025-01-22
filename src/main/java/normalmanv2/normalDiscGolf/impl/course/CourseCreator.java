@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
-import normalmanv2.normalDiscGolf.api.division.Division;
+import normalmanv2.normalDiscGolf.common.division.Division;
 import org.bukkit.Location;
 import org.bukkit.World;
 

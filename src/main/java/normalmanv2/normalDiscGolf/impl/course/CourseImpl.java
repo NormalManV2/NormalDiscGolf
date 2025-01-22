@@ -1,15 +1,14 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
 import normalmanv2.normalDiscGolf.api.course.Course;
-import normalmanv2.normalDiscGolf.api.division.Division;
+import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
-import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
 import org.bukkit.Location;
-import org.normal.impl.RegistryImpl;
+import org.normal.impl.registry.RegistryImpl;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
+
 
 public class CourseImpl implements Course {
 
@@ -62,6 +61,14 @@ public class CourseImpl implements Course {
     @Override
     public Map<Integer, Integer> holePars() {
         return Collections.unmodifiableMap(this.holePars);
+    }
+
+    public Division division() {
+        return this.division;
+    }
+
+    public CourseDifficulty difficulty() {
+        return this.division.getDifficulty();
     }
 
 }

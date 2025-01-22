@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.api.division;
+package normalmanv2.normalDiscGolf.common.division;
 
 import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
 
@@ -13,7 +13,6 @@ public enum Division {
     MASTER(800, CourseDifficulty.HARD),
     GRANDMASTER(850, CourseDifficulty.HARD),
     LEGEND(900, CourseDifficulty.HARD);
-
 
     private final int ratingThreshold;
     private final CourseDifficulty difficulty;

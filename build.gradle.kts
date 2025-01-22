@@ -42,6 +42,10 @@ tasks {
             expand(props)
         }
     }
+    assemble {
+        dependsOn(shadowJar)
+        dependsOn(processResources)
+    }
 
     shadowJar {
         fun relocate(packageName: String) = relocate(packageName, "normalmanv2.normalDiscGolf.shaded.$packageName")
@@ -50,4 +54,11 @@ tasks {
         relocate("net.mcbrawls.inject")
         relocate("net.radstevee.packed")
     }
+
+    register("copyJars", Copy::class) {
+        dependsOn(shadowJar)
+        from(shadowJar)
+        into("C:\\Users\\ronan\\OneDrive\\Desktop\\Test Server\\plugins")
+    }
+
 }

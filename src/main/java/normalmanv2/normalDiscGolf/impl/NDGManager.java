@@ -1,7 +1,8 @@
 package normalmanv2.normalDiscGolf.impl;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
-import normalmanv2.normalDiscGolf.api.division.Division;
+import normalmanv2.normalDiscGolf.common.division.Division;
+import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.course.CourseCreator;
 import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.Bush;
@@ -18,15 +19,17 @@ import normalmanv2.normalDiscGolf.impl.disc.Putter;
 import normalmanv2.normalDiscGolf.impl.manager.task.TaskManager;
 import normalmanv2.normalDiscGolf.impl.registry.CourseDivisionRegistry;
 import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
+import normalmanv2.normalDiscGolf.impl.resourcepack.PackedIntegration;
 import normalmanv2.normalDiscGolf.impl.service.InviteService;
 import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.manager.round.lifecycle.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.registry.ThrowTechniqueRegistry;
 import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
-import org.normal.NormalAPI;
-import org.normal.impl.RegistryImpl;
 
+import org.normal.impl.registry.RegistryImpl;
+
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -34,25 +37,28 @@ import java.util.stream.Collectors;
 public class NDGManager {
     private final PlayerDataManager playerDataManager = new PlayerDataManager();
     private final RoundHandler roundHandler;
-    private final DiscRegistry discRegistry = new DiscRegistry();
+    private final RegistryImpl<String, DiscImpl> discRegistry = new DiscRegistry();
     private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
     private final InviteService inviteService = new InviteService();
-    private final RegistryImpl<String, ObstacleImpl> obstacleRegistry = NormalAPI.getInstance().createRegistry();
+    private final RegistryImpl<String, ObstacleImpl> obstacleRegistry = new ObstacleRegistry();
     private final FileManager fileManager;
     private final ObstacleManager obstacleManager;
     private final TaskManager taskManager;
     private final GuiManager guiManager = new GuiManager();
     private final RoundQueueManager roundQueueManager;
-    private final CourseDivisionRegistry divisionCourseRegistry = new CourseDivisionRegistry();
+    private final RegistryImpl<Division, CourseDifficulty> divisionCourseRegistry = new CourseDivisionRegistry();
+    private PackedIntegration packed;
+    private final NormalDiscGolf plugin;
     private static NDGManager instance;
 
     private NDGManager() {
-        NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
+        this.plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
         this.fileManager = new FileManager(plugin);
         this.taskManager = new TaskManager();
         this.obstacleManager = new ObstacleManager(this.fileManager);
-        this.roundQueueManager = new RoundQueueManager();
         this.roundHandler = new RoundHandler(plugin);
+        this.roundQueueManager = new RoundQueueManager(this.roundHandler, this.playerDataManager);
+
         this.registerDefaultDiscs();
         this.registerDefaultObstacles();
         this.registerDefaultCourseDifficulty();
@@ -65,11 +71,20 @@ public class NDGManager {
         return instance;
     }
 
+    public PackedIntegration getPacked() throws IOException {
+
+        if (packed == null) {
+            packed = new PackedIntegration(this.plugin);
+        }
+
+        return packed;
+    }
+
     public CourseCreator courseCreator() {
         return new CourseCreator();
     }
 
-    public CourseDivisionRegistry getDivisionCourseRegistry() {
+    public RegistryImpl<Division, CourseDifficulty> getDivisionCourseRegistry() {
         return this.divisionCourseRegistry;
     }
 
@@ -85,7 +100,7 @@ public class NDGManager {
         return this.throwTechniqueRegistry;
     }
 
-    public DiscRegistry getDiscRegistry() {
+    public RegistryImpl<String, DiscImpl> getDiscRegistry() {
         return this.discRegistry;
     }
 
@@ -142,5 +157,4 @@ public class NDGManager {
 
         this.divisionCourseRegistry.set(defaultMapping);
     }
-
 }

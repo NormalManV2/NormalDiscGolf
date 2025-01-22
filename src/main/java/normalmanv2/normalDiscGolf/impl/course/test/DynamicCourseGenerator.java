@@ -1,8 +1,14 @@
 package normalmanv2.normalDiscGolf.impl.course.test;
 
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.block.data.BlockData;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.logging.Logger;
 
@@ -20,27 +26,30 @@ public class DynamicCourseGenerator {
     private final List<Coordinate> globalFairways = new ArrayList<>();
     private Terrain[][] terrainGrid;
 
-    public DynamicCourseGenerator(int numHoles) {
+    private final Location superPosition;
+
+    public DynamicCourseGenerator(int numHoles, World world) {
         this.numHoles = numHoles;
+        this.superPosition = world.getSpawnLocation();
     }
 
     public CourseTest generateCourse() {
-        int gridSize = calculateDynamicGridSize(this.numHoles);
+        int gridSize = this.calculateDynamicGridSize(this.numHoles);
         this.terrainGrid = new Terrain[gridSize][gridSize];
-        initializeTerrain(terrainGrid);
+        this.initializeTerrain(this.terrainGrid);
 
         for (int i = 0; i < this.numHoles; i++) {
-            Hole hole = generateHole(i, terrainGrid);
+            Hole hole = this.generateHole(i, this.terrainGrid);
             this.holes.add(hole);
-            updateTerrainForHole(hole, terrainGrid);
+            this.updateTerrainForHole(hole, this.terrainGrid);
         }
 
-        addObstaclesAndWater(terrainGrid, globalFairways);
-        return new CourseTest(this.holes, terrainGrid);
+        this.addObstaclesAndWater(this.terrainGrid, this.globalFairways);
+        return new CourseTest(this.holes, this.terrainGrid);
     }
 
     private int calculateDynamicGridSize(int numHoles) {
-        return (int) Math.sqrt(numHoles) * 10;
+        return (int) Math.sqrt(numHoles) * 5;
     }
 
     private void initializeTerrain(Terrain[][] terrainGrid) {
@@ -54,7 +63,7 @@ public class DynamicCourseGenerator {
         Coordinate pin = placePin(terrainGrid, tee);
         List<Coordinate> fairway = generateFairway(tee, pin, terrainGrid);
 
-        globalFairways.addAll(fairway);
+        this.globalFairways.addAll(fairway);
         int par = calculatePar(tee, pin, fairway, terrainGrid);
         return new Hole(holeIndex + 1, tee, pin, fairway, par);
     }
@@ -161,6 +170,9 @@ public class DynamicCourseGenerator {
         terrainGrid[hole.pin().x()][hole.pin().z()] = Terrain.PIN;
 
         for (Coordinate coordinate : hole.fairway()) {
+            if (terrainGrid[coordinate.x()][coordinate.z()] == Terrain.TEE || terrainGrid[coordinate.x()][coordinate.z()] == Terrain.PIN) {
+                return;
+            }
             terrainGrid[coordinate.x()][coordinate.z()] = Terrain.FAIRWAY;
         }
     }
@@ -196,7 +208,7 @@ public class DynamicCourseGenerator {
         if (fairways.isEmpty()) return null;
 
         Coordinate fairwayPoint = fairways.get(random.nextInt(fairways.size()));
-        int offset = random.nextInt(3) + 2;
+        int offset = random.nextInt(2) + 2;
         for (int i = 0; i < 10; i++) {
             int dx = random.nextBoolean() ? offset : -offset;
             int dz = random.nextBoolean() ? offset : -offset;
@@ -237,7 +249,7 @@ public class DynamicCourseGenerator {
     }
 
     private boolean isNearSpecialTerrain(int x, int z, Terrain[][] terrainGrid) {
-        int radius = 2;
+        int radius = 1;
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 int nx = Math.max(0, Math.min(terrainGrid.length - 1, x + dx));
@@ -250,7 +262,7 @@ public class DynamicCourseGenerator {
         return false;
     }
 
-    public void printGrid(Logger logger) {
+    public void printGrid() {
         if (this.terrainGrid == null) {
             System.out.println("The course has not been generated yet!");
             return;
@@ -267,17 +279,66 @@ public class DynamicCourseGenerator {
                     case OBSTACLE -> "O";
                     case WATER -> "W";
                 });
-                logger.info(switch (terrain) {
-                    case NATURAL -> "N";
-                    case FAIRWAY -> "F";
-                    case TEE -> "T";
-                    case PIN -> "P";
-                    case OBSTACLE -> "O";
-                    case WATER -> "W";
-                });
-
             }
             System.out.println();
         }
     }
+
+    private final Map<Terrain, Material> terrainToBlocks = Map.of(
+            Terrain.NATURAL, Material.GRASS_BLOCK,
+            Terrain.FAIRWAY, Material.GREEN_STAINED_GLASS,
+            Terrain.OBSTACLE, Material.OAK_WOOD,
+            Terrain.WATER, Material.WATER,
+            Terrain.TEE, Material.STONE,
+            Terrain.PIN, Material.GOLD_BLOCK
+    );
+
+
+    public void createTileMesh(World world) {
+        boolean[][] visited = new boolean[terrainGrid.length][terrainGrid[0].length];
+        int tileSize = 8;
+
+        for (int x = 0; x < terrainGrid.length; x++) {
+            for (int z = 0; z < terrainGrid[0].length; z++) {
+                if (!visited[x][z]) {
+                    Terrain terrain = terrainGrid[x][z];
+                    List<Coordinate> region = new ArrayList<>();
+                    floodFill(x, z, terrain, visited, region);
+
+                    createRegion(world, region, terrain, tileSize);
+                }
+            }
+        }
+    }
+
+    private void floodFill(int x, int z, Terrain terrain, boolean[][] visited, List<Coordinate> region) {
+        if (x < 0 || z < 0 || x >= terrainGrid.length || z >= terrainGrid[0].length) return;
+        if (visited[x][z] || terrainGrid[x][z] != terrain) return;
+
+        visited[x][z] = true;
+        region.add(new Coordinate(x, z));
+
+        floodFill(x + 1, z, terrain, visited, region);
+        floodFill(x - 1, z, terrain, visited, region);
+        floodFill(x, z + 1, terrain, visited, region);
+        floodFill(x, z - 1, terrain, visited, region);
+    }
+
+    private void createRegion(World world, List<Coordinate> region, Terrain terrain, int tileSize) {
+        Material material = terrainToBlocks.get(terrain);
+        for (Coordinate coordinate : region) {
+            int baseX = superPosition.getBlockX() + coordinate.x() * tileSize;
+            int baseZ = superPosition.getBlockZ() + coordinate.z() * tileSize;
+
+            for (int bx = 0; bx < tileSize; bx++) {
+                for (int bz = 0; bz < tileSize; bz++) {
+                    int worldX = baseX + bx;
+                    int worldZ = baseZ + bz;
+                    int worldY = 64;
+                    world.getBlockAt(worldX, worldY, worldZ).setType(material);
+                }
+            }
+        }
+    }
+
 }

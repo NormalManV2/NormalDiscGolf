@@ -19,7 +19,7 @@ public class BackHandTest implements CommandExecutor {
     private GameRound round;
 
     public BackHandTest(NDGManager ndgManager) {
-        this.discRegistry = ndgManager.getDiscRegistry();
+        this.discRegistry = (DiscRegistry) ndgManager.getDiscRegistry();
         this.roundHandler = ndgManager.getRoundHandler();
     }
 

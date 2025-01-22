@@ -1,16 +1,14 @@
 package normalmanv2.normalDiscGolf.impl.course.obstacle;
 
-import normalmanv2.normalDiscGolf.api.division.Division;
+import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
 import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.Tile;
 import normalmanv2.normalDiscGolf.impl.course.TileTypes;
-import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
 import org.bukkit.Location;
-import org.normal.impl.RegistryImpl;
+import org.normal.impl.registry.RegistryImpl;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Random;

@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
-import normalmanv2.normalDiscGolf.api.division.Division;
+import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
@@ -253,7 +253,7 @@ public class RoundImpl implements GameRound {
                 PlayerData playerData = playerDataManager.getDataByPlayer(playerId);
                 PDGARating rating = playerData.getRating();
                 rating.handleRoundEnd(scoreCard.getTotalScore());
-                //rating.updateRating(courseImpl.difficulty());
+                rating.updateRating(courseImpl.difficulty());
                 System.out.println(scoreCard.getTotalStrokes());
                 System.out.println(scoreCard.getTotalScore());
                 System.out.println(rating.getRating());

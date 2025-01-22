@@ -1,11 +1,11 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
-import normalmanv2.normalDiscGolf.api.division.Division;
+import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleGenerator;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.normal.impl.RegistryImpl;
+import org.normal.impl.registry.RegistryImpl;
 
 import java.util.Collections;
 import java.util.HashMap;

@@ -19,7 +19,7 @@ public class ForehandTest implements CommandExecutor {
     private GameRound round;
 
     public ForehandTest(NDGManager ndgManager) {
-        this.discRegistry = ndgManager.getDiscRegistry();
+        this.discRegistry = (DiscRegistry) ndgManager.getDiscRegistry();
         this.roundHandler = ndgManager.getRoundHandler();
     }
 

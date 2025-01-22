@@ -77,9 +77,9 @@ final class ResourcePackNetworking {
     static @NotNull String getPackUrl() {
         String url;
         if (isExternalAddressAccessible()) {
-            url = getServerUri(localhost, "pack");
-        } else {
             url = getServerUri("pack");
+        } else {
+            url = getServerUri(localhost, "pack");
         }
 
         return url;

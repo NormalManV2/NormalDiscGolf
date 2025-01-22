@@ -7,12 +7,14 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 
+import java.io.IOException;
+
 public class PlayerJoinListener implements Listener {
     @EventHandler
-    public void onJoin(PlayerJoinEvent event) {
+    public void onJoin(PlayerJoinEvent event) throws IOException {
         Player player = event.getPlayer();
         PlayerData playerData = new PlayerData();
         NDGManager.getInstance().getPlayerDataManager().registerPlayerData(player.getUniqueId(), playerData);
-        NDGManager.getInstance().getPackedIntegration().send(player);
+       // NDGManager.getInstance().getPacked().send(player);
     }
 }

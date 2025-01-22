@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.manager.round.lifecycle;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolf;
-import normalmanv2.normalDiscGolf.api.division.Division;
+import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
