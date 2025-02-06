@@ -1,13 +1,12 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
-import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.team.Team;
-import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
+import normalmanv2.normalDiscGolf.common.division.Division;
+import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
-import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.player.score.PDGARating;
 import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
 import org.bukkit.Bukkit;
@@ -165,7 +164,6 @@ public class RoundImpl implements GameRound {
         }
 
         PlayerData playerData = playerDataManager.getDataByPlayer(playerId);
-        PlayerSkills skills = playerData.getSkills();
 
         if (this instanceof FFARound) {
             for (Team team : this.teams) {
@@ -174,7 +172,7 @@ public class RoundImpl implements GameRound {
             }
         }
 
-        discImpl.handleThrow(player, skills, technique, player.getFacing());
+        discImpl.handleThrow(player, playerData.getAttributes(), technique, player.getFacing());
     }
 
     @Override

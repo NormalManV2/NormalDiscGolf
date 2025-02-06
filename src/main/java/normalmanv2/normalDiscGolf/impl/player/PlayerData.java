@@ -4,16 +4,16 @@ import normalmanv2.normalDiscGolf.impl.player.score.PDGARating;
 
 public class PlayerData {
 
-    private final PlayerSkills skills;
+    private final PlayerAttributes attributes;
     private final PDGARating rating;
 
     public PlayerData() {
-        this.skills = new PlayerSkills(1, 5);
+        this.attributes = new PlayerAttributes();
         this.rating = new PDGARating();
     }
 
-    public PlayerSkills getSkills() {
-        return this.skills;
+    public PlayerAttributes getAttributes() {
+        return attributes;
     }
 
     public PDGARating getRating() {

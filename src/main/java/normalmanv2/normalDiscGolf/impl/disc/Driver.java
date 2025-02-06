@@ -1,12 +1,12 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
+import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
-import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
-import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
-import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil;
+import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
+import normalmanv2.normalDiscGolf.impl.player.PlayerAttributes;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.technique.ThrowTechnique;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
@@ -36,7 +36,7 @@ public class Driver extends DiscImpl {
     }
 
     @Override
-    public void handleThrow(Player player, PlayerSkills skills, String technique, BlockFace faceDirection) {
+    public void handleThrow(Player player, PlayerAttributes attributes, String technique, BlockFace faceDirection) {
 
         World world = player.getWorld();
         Vector direction = player.getEyeLocation().getDirection().normalize();
@@ -53,17 +53,13 @@ public class Driver extends DiscImpl {
         display.setCustomName(ChatColor.translateAlternateColorCodes('&', this.getName()));
         display.setCustomNameVisible(true);
 
-        int accuracyLevel = skills.getAccuracy().getLevel();
-        int formLevel = skills.getForm().getLevel();
-        int powerLevel = skills.getPower().getLevel();
-
         double discBaseSpeed = Constants.DRIVER_BASE_SPEED;
-        double baseVelocity = discBaseSpeed * (1 + (powerLevel * Constants.POWER_ADJUSTMENT));
-        double finalVelocity = baseVelocity * (1 + (formLevel * Constants.FORM_ADJUSTMENT));
+        double baseVelocity = discBaseSpeed * (1 + (attributes.getPower() * Constants.POWER_ADJUSTMENT));
+        double finalVelocity = baseVelocity * (1 + (attributes.getForm() * Constants.FORM_ADJUSTMENT));
 
         Vector velocity = direction.multiply(finalVelocity);
 
-        double maxSpread = 0.05 - (accuracyLevel * Constants.ACCURACY_ADJUSTMENT);
+        double maxSpread = 0.05 - (attributes.getAccuracy() * Constants.ACCURACY_ADJUSTMENT);
         velocity.setX(velocity.getX() + (Math.random() * maxSpread - maxSpread / 2));
         velocity.setZ(velocity.getZ() + (Math.random() * maxSpread - maxSpread / 2));
 
