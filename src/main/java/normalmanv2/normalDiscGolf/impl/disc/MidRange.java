@@ -43,16 +43,17 @@ public class MidRange extends DiscImpl {
         Vector direction = player.getEyeLocation().getDirection().normalize();
         Location throwLoc = player.getEyeLocation().add(direction.multiply(2));
 
-        ItemDisplay display = world.spawn(throwLoc, ItemDisplay.class);
-        display.setItemStack(new ItemStack(Material.POPPED_CHORUS_FRUIT));
-        ItemMeta displayMeta = display.getItemStack().getItemMeta();
+        ItemDisplay textDisplay = world.spawn(throwLoc, ItemDisplay.class, display -> {
+            display.setItemStack(new ItemStack(Material.POPPED_CHORUS_FRUIT));
+            ItemMeta displayMeta = display.getItemStack().getItemMeta();
 
-        displayMeta.setCustomModelData(1);
-        display.getItemStack().setItemMeta(displayMeta);
+            displayMeta.setCustomModelData(1);
+            display.getItemStack().setItemMeta(displayMeta);
 
-        display.setBillboard(Display.Billboard.CENTER);
-        display.setCustomName(ChatColor.translateAlternateColorCodes('&', this.getName()));
-        display.setCustomNameVisible(true);
+            display.setBillboard(Display.Billboard.CENTER);
+            display.setCustomName(ChatColor.translateAlternateColorCodes('&', this.getName()));
+            display.setCustomNameVisible(true);
+        });
 
         int accuracyLevel = skills.getAccuracy().getLevel();
         int formLevel = skills.getForm().getLevel();
@@ -68,7 +69,7 @@ public class MidRange extends DiscImpl {
         velocity.setX(velocity.getX() + (Math.random() * maxSpread - maxSpread / 2));
         velocity.setZ(velocity.getZ() + (Math.random() * maxSpread - maxSpread / 2));
 
-        applyDiscPhysics(player, display, velocity, 80, technique, faceDirection);
+        applyDiscPhysics(player, textDisplay, velocity, 80, technique, faceDirection);
     }
 
     @Override

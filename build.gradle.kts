@@ -25,7 +25,7 @@ dependencies {
 
     implementation("org.NormalMan:NormalAPI:1.0-SNAPSHOT")
 
-    implementation("net.radstevee.packed:packed-core:1.0.0-SNAPSHOT.1")
+    implementation("net.radstevee.packed:packed-core:1.0.0")
 
     implementation("net.mcbrawls.inject:api:3.1.2")
     implementation("net.mcbrawls.inject:spigot:3.1.2")
@@ -49,10 +49,14 @@ tasks {
 
     shadowJar {
         fun relocate(packageName: String) = relocate(packageName, "normalmanv2.normalDiscGolf.shaded.$packageName")
-
         relocate("org.normal")
         relocate("net.mcbrawls.inject")
         relocate("net.radstevee.packed")
+
+        dependencies {
+            exclude(dependency("it.unimi.dsi:fastutil"))
+            exclude(dependency("com.mojang:datafixerupper"))
+        }
     }
 
     register("copyJars", Copy::class) {

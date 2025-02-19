@@ -14,6 +14,7 @@ import normalmanv2.normalDiscGolf.test.RoundQueueTest;
 import normalmanv2.normalDiscGolf.test.TestFFARound;
 import normalmanv2.normalDiscGolf.test.WFCTest;
 import org.bukkit.Bukkit;
+import org.bukkit.generator.WorldInfo;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
@@ -46,11 +47,11 @@ public final class NormalDiscGolf extends JavaPlugin {
     }
 
     private void registerAbstractCommands() {
-        System.out.println("Registering abstract commands!");
         new DynamicCourseGeneratorTest(this);
     }
 
     private void registerListeners() {
+
         Bukkit.getPluginManager().registerEvents(new GoalScoreListener(), this);
         Bukkit.getPluginManager().registerEvents(new PlayerJoinListener(), this);
         Bukkit.getPluginManager().registerEvents(new PlayerRoundQueueListener(), this);

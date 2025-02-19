@@ -61,8 +61,6 @@ public class DiscThrowEvent extends Event implements Cancellable {
         return false;
     }
 
-
-
     @Override
     public HandlerList getHandlers() {
         return HANDLERS;

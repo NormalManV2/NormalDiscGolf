@@ -12,4 +12,8 @@ public class CourseTest {
         this.terrainGrid = terrainGrid;
     }
 
+    public Terrain[][] getTerrainGrid() {
+        return this.terrainGrid;
+    }
+
 }

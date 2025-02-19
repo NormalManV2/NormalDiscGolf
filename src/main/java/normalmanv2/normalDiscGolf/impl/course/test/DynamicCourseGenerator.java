@@ -171,7 +171,7 @@ public class DynamicCourseGenerator {
 
         for (Coordinate coordinate : hole.fairway()) {
             if (terrainGrid[coordinate.x()][coordinate.z()] == Terrain.TEE || terrainGrid[coordinate.x()][coordinate.z()] == Terrain.PIN) {
-                return;
+                continue;
             }
             terrainGrid[coordinate.x()][coordinate.z()] = Terrain.FAIRWAY;
         }
@@ -339,6 +339,10 @@ public class DynamicCourseGenerator {
                 }
             }
         }
+    }
+
+    public Location getSuperPosition() {
+        return this.superPosition;
     }
 
 }

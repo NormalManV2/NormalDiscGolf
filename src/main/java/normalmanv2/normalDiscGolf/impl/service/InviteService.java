@@ -22,7 +22,7 @@ public class InviteService {
         Instant expiryTime = Instant.now().plus(duration);
         Invite invite = new Invite(inviter, invitee, expiryTime);
 
-        this.invites.computeIfAbsent(invitee, uuid ->
+        this.invites.computeIfAbsent(invitee, _ ->
                 ConcurrentHashMap.newKeySet()).add(invite);
     }
 
