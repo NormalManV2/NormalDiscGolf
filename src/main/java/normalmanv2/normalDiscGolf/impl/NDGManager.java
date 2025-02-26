@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl;
 
-import normalmanv2.normalDiscGolf.NormalDiscGolf;
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.course.CourseCreator;
@@ -48,18 +48,18 @@ public class NDGManager {
     private final RoundQueueManager roundQueueManager;
     private final RegistryImpl<Division, CourseDifficulty> divisionCourseRegistry = new CourseDivisionRegistry();
     private PackedIntegration packed;
-    private final NormalDiscGolf plugin;
+    private final NormalDiscGolfPlugin plugin;
     private static NDGManager instance;
 
     private NDGManager() {
-        this.plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
+        this.plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
         this.fileManager = new FileManager(plugin);
         this.taskManager = new TaskManager();
         this.obstacleManager = new ObstacleManager(this.fileManager);
         this.roundHandler = new RoundHandler(plugin);
         this.roundQueueManager = new RoundQueueManager(this.roundHandler, this.playerDataManager);
 
-        this.registerDefaultDiscs();
+        //this.registerDefaultDiscs();
         this.registerDefaultObstacles();
         this.registerDefaultCourseDifficulty();
     }
@@ -72,7 +72,6 @@ public class NDGManager {
     }
 
     public PackedIntegration getPacked() throws IOException {
-
         if (packed == null) {
             packed = new PackedIntegration(this.plugin);
         }

@@ -1,27 +1,10 @@
 package normalmanv2.normalDiscGolf.impl.listener;
 
-import normalmanv2.normalDiscGolf.NormalDiscGolf;
-import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
-import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
-import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
-import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
-import normalmanv2.normalDiscGolf.impl.course.Tile;
-import normalmanv2.normalDiscGolf.impl.course.TileTypes;
 import normalmanv2.normalDiscGolf.impl.event.PlayerQueueRoundEvent;
 import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
-import normalmanv2.normalDiscGolf.impl.round.DoublesRound;
-import normalmanv2.normalDiscGolf.impl.round.FFARound;
-import normalmanv2.normalDiscGolf.test.EmptyWorldCreator;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-
-import java.util.Collections;
-import java.util.List;
 
 public class PlayerRoundQueueListener implements Listener {
 

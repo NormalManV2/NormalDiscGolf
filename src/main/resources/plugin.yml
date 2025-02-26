@@ -1,6 +1,6 @@
 name: NormalDiscGolf
 version: 1.0
-main: normalmanv2.normalDiscGolf.NormalDiscGolf
+main: normalmanv2.normalDiscGolf.NormalDiscGolfPlugin
 api-version: '1.21'
 prefix: NormalDiscGolf
 load: STARTUP

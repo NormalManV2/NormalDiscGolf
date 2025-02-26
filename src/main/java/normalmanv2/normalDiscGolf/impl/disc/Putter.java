@@ -1,9 +1,11 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
+import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
+import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
 import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
-import normalmanv2.normalDiscGolf.NormalDiscGolf;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
@@ -27,7 +29,7 @@ import org.bukkit.util.Vector;
 
 public class Putter extends DiscImpl {
 
-    private final NormalDiscGolf plugin = NormalDiscGolf.getPlugin(NormalDiscGolf.class);
+    private final NormalDiscGolfPlugin plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
     private final NDGManager api;
     private BukkitTask discTask;
 
@@ -37,10 +39,11 @@ public class Putter extends DiscImpl {
     }
 
     @Override
-    public void handleThrow(Player player, PlayerSkills skills, String technique, BlockFace faceDirection) {
+    public void handleThrow(Player player, PlayerSkills skills, String technique, BlockFace faceDirection, ThrowMechanic throwMechanic) {
         World world = player.getWorld();
         Vector direction = player.getEyeLocation().getDirection().normalize();
         Location throwLoc = player.getEyeLocation().add(direction.multiply(2));
+        ThrowMechanicImpl tm = (ThrowMechanicImpl) throwMechanic;
 
         ItemDisplay textDisplay = world.spawn(throwLoc, ItemDisplay.class, display -> {
             display.setItemStack(new ItemStack(Material.POPPED_CHORUS_FRUIT));
@@ -55,12 +58,12 @@ public class Putter extends DiscImpl {
             display.setPersistent(false);
         });
 
-
         int accuracyLevel = skills.getAccuracy().getLevel();
         int formLevel = skills.getForm().getLevel();
         int powerLevel = skills.getPower().getLevel();
 
-        double discBaseSpeed = Constants.PUTTER_BASE_SPEED;
+        double intentionalPower = tm.getPower().get();
+        double discBaseSpeed = Constants.PUTTER_BASE_SPEED + intentionalPower;
         double baseVelocity = discBaseSpeed * (1 + (powerLevel * Constants.POWER_ADJUSTMENT));
         double finalVelocity = baseVelocity * (1 + (formLevel * Constants.FORM_ADJUSTMENT));
 

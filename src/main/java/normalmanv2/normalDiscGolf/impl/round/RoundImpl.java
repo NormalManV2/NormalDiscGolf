@@ -1,8 +1,10 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
+import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.team.Team;
+import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
@@ -99,7 +101,7 @@ public class RoundImpl implements GameRound {
                     }
                     continue;
                 }
-                player.teleport(startingLocation);
+                //player.teleport(startingLocation);
             }
 
             this.currentTeamTurn = this.teams.get(random.nextInt(this.teams.size()));
@@ -158,23 +160,28 @@ public class RoundImpl implements GameRound {
     }
 
     @Override
-    public void handleStroke(UUID playerId, String technique, DiscImpl discImpl) {
-        Player player = Bukkit.getPlayer(playerId);
+    public void handleStroke(ThrowMechanic throwMechanic) {
+        Player player = Bukkit.getPlayer(throwMechanic.getPlayerId());
         if (player == null) {
             return;
         }
 
-        PlayerData playerData = playerDataManager.getDataByPlayer(playerId);
+        PlayerData playerData = playerDataManager.getDataByPlayer(throwMechanic.getPlayerId());
         PlayerSkills skills = playerData.getSkills();
 
+        /*
         if (this instanceof FFARound) {
             for (Team team : this.teams) {
+                if (!team.contains(throwMechanic.getPlayerId())) continue;
                 ScoreCard scoreCard = this.scoreCards.get(team);
                 scoreCard.trackStroke();
+                return;
             }
         }
+        */
+        DiscImpl disc = (DiscImpl) throwMechanic.getDisc();
 
-        discImpl.handleThrow(player, skills, technique, player.getFacing());
+        disc.handleThrow(player, skills, throwMechanic.getThrowTechnique(), player.getFacing(), throwMechanic);
     }
 
     @Override

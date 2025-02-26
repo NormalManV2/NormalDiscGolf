@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.api.round;
 
+import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
@@ -29,7 +30,7 @@ public interface GameRound {
 
     void removeTeam(Team teamImpl);
 
-    void handleStroke(UUID playerId, String technique, DiscImpl discImpl);
+    void handleStroke(ThrowMechanic mechanic);
 
     void setTurn(Team team);
 

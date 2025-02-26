@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.manager.round.lifecycle;
 
-import normalmanv2.normalDiscGolf.NormalDiscGolf;
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
@@ -23,12 +23,12 @@ import java.util.function.Supplier;
 public class RoundHandler {
 
     private final Set<GameRound> activeRounds;
-    private final NormalDiscGolf plugin;
+    private final NormalDiscGolfPlugin plugin;
 
 
-    public RoundHandler(NormalDiscGolf normalDiscGolf) {
+    public RoundHandler(NormalDiscGolfPlugin normalDiscGolfPlugin) {
         this.activeRounds = new HashSet<>();
-        this.plugin = normalDiscGolf;
+        this.plugin = normalDiscGolfPlugin;
     }
 
     public void startQueueTask(RoundQueueManager queueManager) {

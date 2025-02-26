@@ -2,9 +2,13 @@ package normalmanv2.normalDiscGolf.impl.team;
 
 import normalmanv2.normalDiscGolf.api.component.Component;
 import normalmanv2.normalDiscGolf.api.team.Team;
+import org.normal.NormalAPI;
+import org.normal.api.context.Context;
+import org.normal.api.context.ContextType;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -14,6 +18,7 @@ public class TeamImpl implements Team {
     private final Set<UUID> teamMembers;
     private final Set<Component<?>> teamComponents;
     private final int maximumPlayers;
+    private final Context<ContextType> turnIndex = NormalAPI.getContext().createGenericContext(ContextType.createType("Turn"));
 
     public TeamImpl(UUID ownerId, int maximumPlayers) {
         this.ownerId = ownerId;
@@ -84,5 +89,20 @@ public class TeamImpl implements Team {
         }
 
         return null;
+    }
+
+    @Override
+    public Context<ContextType> setTurnIndexContext(int turn) {
+        this.turnIndex.putData("turn", turn);
+        return this.turnIndex;
+    }
+
+    @Override
+    public int getTurnIndexContext() {
+        Optional<Integer> turn = this.turnIndex.getData("turn", Integer.class);
+
+        if (turn.isEmpty()) throw new RuntimeException("Turn index is null! Cannot proceed with throw operation!");
+
+        return turn.get();
     }
 }

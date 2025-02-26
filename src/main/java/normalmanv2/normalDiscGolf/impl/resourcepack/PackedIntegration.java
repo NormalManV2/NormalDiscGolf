@@ -5,7 +5,7 @@ import net.radstevee.packed.core.asset.impl.ResourceAssetResolutionStrategy;
 import net.radstevee.packed.core.pack.PackFormat;
 import net.radstevee.packed.core.pack.ResourcePack;
 import net.radstevee.packed.core.pack.ResourcePackBuilder;
-import normalmanv2.normalDiscGolf.NormalDiscGolf;
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
@@ -21,11 +21,11 @@ public class PackedIntegration {
     private static final UUID PACK_UUID = UUID.fromString("454c9909-7092-4e6b-bd65-f799099b1ab1");
 
     private final ResourcePack pack;
-    private final NormalDiscGolf plugin;
+    private final NormalDiscGolfPlugin plugin;
     private byte[] packBytes;
     private byte[] packHash;
 
-    public PackedIntegration(NormalDiscGolf plugin) throws IOException {
+    public PackedIntegration(NormalDiscGolfPlugin plugin) throws IOException {
         this.plugin = plugin;
         this.pack = ResourcePackBuilder.Companion.resourcePack((builder) -> {
             builder.meta((meta) -> {

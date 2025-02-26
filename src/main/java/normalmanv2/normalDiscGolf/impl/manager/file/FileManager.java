@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.manager.file;
 
-import normalmanv2.normalDiscGolf.NormalDiscGolf;
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -13,8 +13,8 @@ public class FileManager {
 
     private final Path obstacleFolder;
 
-    public FileManager(NormalDiscGolf normalDiscGolf) {
-        this.obstacleFolder = Paths.get(normalDiscGolf.getDataFolder().getPath(), "obstacles");
+    public FileManager(NormalDiscGolfPlugin normalDiscGolfPlugin) {
+        this.obstacleFolder = Paths.get(normalDiscGolfPlugin.getDataFolder().getPath(), "obstacles");
         try {
             if (Files.notExists(this.obstacleFolder)) {
                 Files.createDirectories(this.obstacleFolder);

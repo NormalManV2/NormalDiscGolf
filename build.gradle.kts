@@ -23,7 +23,7 @@ dependencies {
     compileOnly("com.sk89q.worldedit:worldedit-bukkit:7.3.4")
     compileOnly("io.netty:netty-all:4.1.97.Final")
 
-    implementation("org.NormalMan:NormalAPI:1.0-SNAPSHOT")
+    implementation("org.NormalMan:NormalAPI:1.1")
 
     implementation("net.radstevee.packed:packed-core:1.0.0")
 

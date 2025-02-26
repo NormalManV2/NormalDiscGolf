@@ -1,6 +1,8 @@
 package normalmanv2.normalDiscGolf.api.team;
 
 import normalmanv2.normalDiscGolf.api.component.Component;
+import org.normal.api.context.Context;
+import org.normal.api.context.ContextType;
 
 import java.util.Set;
 import java.util.UUID;
@@ -18,5 +20,6 @@ public interface Team {
     void addComponent(Component<?> component);
     void removeComponent(Component<?> component);
     Component<?> getComponent(String componentId);
-
+    Context<? extends ContextType> setTurnIndexContext(int turn);
+    int getTurnIndexContext();
 }

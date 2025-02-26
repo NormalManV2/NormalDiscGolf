@@ -1,24 +1,21 @@
 package normalmanv2.normalDiscGolf.test;
 
-import normalmanv2.normalDiscGolf.NormalDiscGolf;
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.command.AbstractCommand;
 import normalmanv2.normalDiscGolf.impl.course.test.DynamicCourseGenerator;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.List;
-import java.util.logging.Logger;
 
 public class DynamicCourseGeneratorTest extends AbstractCommand {
 
-    private final NormalDiscGolf plugin;
+    private final NormalDiscGolfPlugin plugin;
 
-    public DynamicCourseGeneratorTest(NormalDiscGolf plugin) {
+    public DynamicCourseGeneratorTest(NormalDiscGolfPlugin plugin) {
         super("dynamictest", new String[]{"dt", "ndgdt", "dtest"}, "Usage: [ dynamictest | dt | ndgdt | dtest ]", "ndg.commands.admin.test");
         this.plugin = plugin;
     }

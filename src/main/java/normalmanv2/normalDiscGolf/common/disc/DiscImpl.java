@@ -2,6 +2,7 @@ package normalmanv2.normalDiscGolf.common.disc;
 
 import normalmanv2.normalDiscGolf.api.disc.Disc;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
+import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.ItemDisplay;
@@ -60,7 +61,7 @@ public abstract class DiscImpl implements Disc {
         return (DiscImpl) super.clone();
     }
 
-    public abstract void handleThrow(Player player, PlayerSkills skills, String technique, BlockFace direction);
+    public abstract void handleThrow(Player player, PlayerSkills skills, String technique, BlockFace direction, ThrowMechanic throwMechanic);
 
     public abstract void applyDiscPhysics(Player player, ItemDisplay discDisplay, Vector initialVelocity, int maxTicks, String technique, BlockFace direction);
 

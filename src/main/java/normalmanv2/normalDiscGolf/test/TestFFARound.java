@@ -1,32 +1,18 @@
 package normalmanv2.normalDiscGolf.test;
 
-import normalmanv2.normalDiscGolf.NormalDiscGolf;
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
-import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
-import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
-import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
-import normalmanv2.normalDiscGolf.impl.course.TileTypes;
-import normalmanv2.normalDiscGolf.impl.round.FFARound;
-import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.manager.round.lifecycle.RoundHandler;
-import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
-import org.bukkit.Bukkit;
-import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 public class TestFFARound implements CommandExecutor {
 
-    private final NormalDiscGolf plugin;
+    private final NormalDiscGolfPlugin plugin;
     private final RoundHandler roundHandler;
 
-    public TestFFARound(NDGManager ndgManager, NormalDiscGolf plugin) {
+    public TestFFARound(NDGManager ndgManager, NormalDiscGolfPlugin plugin) {
         this.roundHandler = ndgManager.getRoundHandler();
         this.plugin = plugin;
     }
