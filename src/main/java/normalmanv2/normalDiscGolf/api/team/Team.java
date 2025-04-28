@@ -10,16 +10,27 @@ import java.util.UUID;
 public interface Team {
 
     int getMaximumPlayers();
+
     boolean isFull();
+
     void addPlayer(UUID playerId);
+
     void removePlayer(UUID playerId);
+
     Set<UUID> getTeamMembers();
+
     UUID getOwner();
+
     Set<Component<?>> getTeamComponents();
+
     boolean contains(UUID playerId);
+
     void addComponent(Component<?> component);
+
     void removeComponent(Component<?> component);
+
     Component<?> getComponent(String componentId);
-    Context<? extends ContextType> setTurnIndexContext(int turn);
+
+    Context<? extends ContextType> setTurnIndex(int turn);
     int getTurnIndexContext();
 }

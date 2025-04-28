@@ -43,7 +43,7 @@ public class TestThrowMechanic extends AbstractCommand {
 
         round.addTeam(new TeamImpl(player.getUniqueId(), 1));
 
-        Driver driver = new Driver(9, 6, -2, 1, "TestDriver", NDGManager.getInstance());
+        Driver driver = new Driver(9, 6, -2, 1, "TestDriver");
 
         round.startRound();
 

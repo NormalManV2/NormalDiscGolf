@@ -92,7 +92,7 @@ public class TeamImpl implements Team {
     }
 
     @Override
-    public Context<ContextType> setTurnIndexContext(int turn) {
+    public Context<ContextType> setTurnIndex(int turn) {
         this.turnIndex.putData("turn", turn);
         return this.turnIndex;
     }

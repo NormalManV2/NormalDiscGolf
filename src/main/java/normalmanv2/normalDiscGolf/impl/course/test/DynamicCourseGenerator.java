@@ -284,6 +284,19 @@ public class DynamicCourseGenerator {
         }
     }
 
+    public void printFairways() {
+        if (this.terrainGrid == null) {
+            System.out.println("The course has not been generated yet!");
+        }
+        for (Terrain[] row : this.terrainGrid) {
+            for (Terrain terrain : row) {
+                if (terrain == null) throw new RuntimeException("Terrain is null!");
+                if (terrain != Terrain.FAIRWAY) continue;
+                System.out.println("F");
+            }
+        }
+    }
+
     private final Map<Terrain, Material> terrainToBlocks = Map.of(
             Terrain.NATURAL, Material.GRASS_BLOCK,
             Terrain.FAIRWAY, Material.GREEN_STAINED_GLASS,
@@ -305,7 +318,7 @@ public class DynamicCourseGenerator {
                     List<Coordinate> region = new ArrayList<>();
                     floodFill(x, z, terrain, visited, region);
 
-                    createRegion(world, region, terrain, tileSize);
+                    pasteTileRegion(world, region, terrain, tileSize);
                 }
             }
         }
@@ -324,7 +337,7 @@ public class DynamicCourseGenerator {
         floodFill(x, z - 1, terrain, visited, region);
     }
 
-    private void createRegion(World world, List<Coordinate> region, Terrain terrain, int tileSize) {
+    private void pasteTileRegion(World world, List<Coordinate> region, Terrain terrain, int tileSize) {
         Material material = terrainToBlocks.get(terrain);
         for (Coordinate coordinate : region) {
             int baseX = superPosition.getBlockX() + coordinate.x() * tileSize;

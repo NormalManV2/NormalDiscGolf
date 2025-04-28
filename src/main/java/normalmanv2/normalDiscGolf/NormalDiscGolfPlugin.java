@@ -55,7 +55,4 @@ public final class NormalDiscGolfPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
     }
-
-
-
 }

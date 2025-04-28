@@ -132,12 +132,12 @@ public class NDGManager {
     }
 
     private void registerDefaultDiscs() {
-        discRegistry.register("TestDriver", new Driver(9, 5, -1, 2, "&6TestDriver", this));
-        discRegistry.register("TestDriver1", new Driver(9, 5, -3, 1, "&aTestDriver1", this));
-        discRegistry.register("Midrange", new MidRange(5, 6, -1, 1, "&7Midrange", this));
-        discRegistry.register("Midrange1", new MidRange(5, 6, -3, 1, "&cMidrange1", this));
-        discRegistry.register("Putter", new Putter(2, 4, -1, 1, "&4Putter", this));
-        discRegistry.register("Putter1", new Putter(2, 4, 0, 2, "&3Putter1", this));
+        discRegistry.register("TestDriver", new Driver(9, 5, -1, 2, "&6TestDriver"));
+        discRegistry.register("TestDriver1", new Driver(9, 5, -3, 1, "&aTestDriver1"));
+        discRegistry.register("Midrange", new MidRange(5, 6, -1, 1, "&7Midrange"));
+        discRegistry.register("Midrange1", new MidRange(5, 6, -3, 1, "&cMidrange1"));
+        discRegistry.register("Putter", new Putter(2, 4, -1, 1, "&4Putter"));
+        discRegistry.register("Putter1", new Putter(2, 4, 0, 2, "&3Putter1"));
     }
 
     private void registerDefaultObstacles() {

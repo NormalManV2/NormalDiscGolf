@@ -156,7 +156,7 @@ public class RoundImpl implements GameRound {
 
     @Override
     public boolean isFull() {
-        return this.teams.size() == this.maximumTeams;
+        return this.teams.size() >= this.maximumTeams;
     }
 
     @Override

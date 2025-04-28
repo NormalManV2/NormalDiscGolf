@@ -2,7 +2,6 @@ package normalmanv2.normalDiscGolf.test;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.impl.course.test.CourseTest;
-import normalmanv2.normalDiscGolf.impl.course.test.DiscGolfChunkGenerator;
 import normalmanv2.normalDiscGolf.impl.course.test.DynamicCourseGenerator;
 import normalmanv2.normalDiscGolf.impl.course.test.Terrain;
 import org.bukkit.Bukkit;
@@ -30,9 +29,8 @@ public class WFCTest implements CommandExecutor {
         Location courseOrigin = courseGenerator.getSuperPosition();
         int tileSize = 8;
 
-        // Create a new world for the disc golf course.
         WorldCreator worldCreator = new WorldCreator("discGolfWorld");
-        worldCreator.generator(new DiscGolfChunkGenerator(terrainGrid, courseOrigin, tileSize));
+        //worldCreator.generator(new DiscGolfChunkGenerator(terrainGrid, courseOrigin, tileSize));
         World discGolfWorld = worldCreator.createWorld();
         Player player = (Player) commandSender;
 

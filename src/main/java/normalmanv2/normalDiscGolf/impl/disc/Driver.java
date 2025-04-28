@@ -29,12 +29,11 @@ import org.bukkit.util.Vector;
 
 public class Driver extends DiscImpl {
     private final NormalDiscGolfPlugin plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
-    private final NDGManager manager;
     private BukkitTask discTask;
 
-    public Driver(int speed, int glide, int turn, int fade, String discName, NDGManager api) {
+    public Driver(int speed, int glide, int turn, int fade, String discName) {
         super(speed, glide, turn, fade, discName, DiscType.DRIVER);
-        this.manager = api;
+        NDGManager.getInstance().getDiscRegistry().register(discName, this);
     }
 
     @Override
@@ -62,7 +61,7 @@ public class Driver extends DiscImpl {
         int powerLevel = skills.getPower().getLevel();
 
         double intentionalPower = tm.getPower().get();
-        double discBaseSpeed = Constants.DRIVER_BASE_SPEED + intentionalPower;
+        double discBaseSpeed = Constants.DRIVER_BASE_SPEED * intentionalPower;
         double baseVelocity = discBaseSpeed * (1 + (powerLevel * Constants.POWER_ADJUSTMENT));
         double finalVelocity = baseVelocity * (1 + (formLevel * Constants.FORM_ADJUSTMENT));
 
@@ -80,7 +79,7 @@ public class Driver extends DiscImpl {
         Vector currentVelocity = initialVelocity.clone();
         final int[] tickCount = {0};
 
-        final ThrowTechnique throwTechnique = manager.getThrowTechniqueRegistry().get(technique);
+        final ThrowTechnique throwTechnique = NDGManager.getInstance().getThrowTechniqueRegistry().get(technique);
         this.discTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
 
             Location currentLocation = discDisplay.getLocation();
@@ -95,7 +94,7 @@ public class Driver extends DiscImpl {
 
                 player.teleport(teleportLocation);
 
-                FFARound round = (FFARound) manager.getRoundHandler().getActiveRounds().get(0);
+                FFARound round = (FFARound) NDGManager.getInstance().getRoundHandler().getActiveRounds().get(0);
                 Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, 1, round));
                 if (this.discTask == null) {
                     discDisplay.remove();

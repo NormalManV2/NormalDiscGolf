@@ -9,6 +9,4 @@ public class FFARound extends RoundImpl {
     public FFARound(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound, String id, int maximumTeams) {
         super (plugin, playerDataManager, courseImpl, isTournamentRound, id, maximumTeams);
     }
-
-
 }
