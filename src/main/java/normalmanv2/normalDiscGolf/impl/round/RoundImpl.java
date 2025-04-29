@@ -28,6 +28,7 @@ import java.util.Random;
 import java.util.UUID;
 
 public class RoundImpl implements GameRound {
+
     private final String id;
     private final int maximumTeams;
     private RoundState roundState;
@@ -44,8 +45,9 @@ public class RoundImpl implements GameRound {
     private Team currentTeamTurn;
     private final Map<Integer, Map<Team, Boolean>> scoredGoals;
     private Division division;
+    private final boolean isPrivate;
 
-    public RoundImpl(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound, String id, int maximumTeams) {
+    public RoundImpl(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound, String id, int maximumTeams, boolean isPrivate) {
         this.plugin = plugin;
         this.playerDataManager = playerDataManager;
         this.courseImpl = courseImpl;
@@ -55,6 +57,7 @@ public class RoundImpl implements GameRound {
         this.id = id;
         this.maximumTeams = maximumTeams;
         this.scoredGoals = new HashMap<>();
+        this.isPrivate = isPrivate;
     }
 
     @Override
@@ -83,7 +86,7 @@ public class RoundImpl implements GameRound {
     }
 
     @Override
-    public void startRound() {
+    public void start() {
         Location startingLocation = this.courseImpl.startingLocation();
         this.roundOver = false;
         this.holeIndex = 0;
@@ -120,7 +123,7 @@ public class RoundImpl implements GameRound {
                     }
                 }
             }
-            System.out.println(this + " Round Currently Running");
+            System.out.println(this.id + " Round Currently Running");
         }, 0, 100);
     }
 
@@ -246,6 +249,11 @@ public class RoundImpl implements GameRound {
     @Override
     public int getMaximumTeams() {
         return this.maximumTeams;
+    }
+
+    @Override
+    public boolean isPrivate() {
+        return this.isPrivate;
     }
 
     private void handleRoundEnd() {

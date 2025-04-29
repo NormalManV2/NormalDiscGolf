@@ -34,6 +34,7 @@ public class MidRange extends DiscImpl {
 
     public MidRange(int speed, int glide, int turn, int fade, String discName) {
         super(speed, glide, turn, fade, discName, DiscType.MID_RANGE);
+        NDGManager.getInstance().getDiscRegistry().register(discName, this);
     }
 
     @Override

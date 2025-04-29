@@ -30,7 +30,4 @@ public interface Team {
     void removeComponent(Component<?> component);
 
     Component<?> getComponent(String componentId);
-
-    Context<? extends ContextType> setTurnIndex(int turn);
-    int getTurnIndexContext();
 }

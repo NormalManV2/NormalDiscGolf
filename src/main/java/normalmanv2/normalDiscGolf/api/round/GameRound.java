@@ -20,7 +20,7 @@ public interface GameRound {
 
     void setRoundState(RoundState roundState);
 
-    void startRound();
+    void start();
 
     void endRound();
 
@@ -55,4 +55,6 @@ public interface GameRound {
     Division getDivision();
 
     boolean isFull();
+
+    boolean isPrivate();
 }

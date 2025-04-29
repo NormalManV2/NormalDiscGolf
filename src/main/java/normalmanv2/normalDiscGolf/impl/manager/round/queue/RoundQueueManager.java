@@ -84,7 +84,7 @@ public class RoundQueueManager {
             while (iterator.hasNext()) {
                 UUID player = iterator.next();
                 String roundType = divisionQueue.get(player);
-                GameRound round = findOrCreateRoundForDivision(division, roundType, false);
+                GameRound round = findOrCreateRoundForDivision(division, roundType, false, true);
 
                 if (round == null)
                     throw new RuntimeException("Error ticking player queue: No suitable round could be found!");
@@ -103,19 +103,24 @@ public class RoundQueueManager {
 
     public void tickRoundQueue() {
         for (GameRound round : this.queuedRounds) {
+
+            if (round.isPrivate()) {
+                round.start();
+            }
+
             if (round.getTeams().stream().allMatch(Team::isFull) && round.isFull()) {
-                round.startRound();
+                round.start();
                 this.queuedRounds.remove(round);
             }
         }
     }
 
-    private GameRound findOrCreateRoundForDivision(Division division, String roundType, boolean isTournamentRound) {
+    private GameRound findOrCreateRoundForDivision(Division division, String roundType, boolean isTournamentRound, boolean isPrivate) {
         return this.queuedRounds.stream()
                 .filter(round -> round.getDivision() == division && round.getId().equalsIgnoreCase(roundType) && round.isTournamentRound() == isTournamentRound)
                 .findFirst()
                 .orElseGet(() -> {
-                    GameRound newRound = roundHandler.createRound(division, roundType, isTournamentRound);
+                    GameRound newRound = roundHandler.createRound(division, roundType, isTournamentRound, isPrivate);
                     this.addRoundToQueue(newRound);
                     return newRound;
                 });

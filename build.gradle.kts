@@ -25,7 +25,7 @@ dependencies {
 
     implementation("org.NormalMan:NormalAPI:1.1")
 
-    implementation("net.radstevee.packed:packed-core:1.0.0")
+    implementation("net.radstevee.packed:packed-core:1.1.2")
 
     implementation("net.mcbrawls.inject:api:3.1.2")
     implementation("net.mcbrawls.inject:spigot:3.1.2")

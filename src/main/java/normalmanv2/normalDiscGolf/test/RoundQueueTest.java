@@ -1,8 +1,8 @@
 package normalmanv2.normalDiscGolf.test;
 
 import normalmanv2.normalDiscGolf.impl.gui.InventoryGUI;
-import normalmanv2.normalDiscGolf.impl.gui.RoundPickerGUI;
-import normalmanv2.normalDiscGolf.impl.gui.button.FFAButton;
+import normalmanv2.normalDiscGolf.impl.gui.round.RoundPickerGUI;
+import normalmanv2.normalDiscGolf.impl.gui.round.button.FFAButton;
 import normalmanv2.normalDiscGolf.impl.manager.gui.GuiManager;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;

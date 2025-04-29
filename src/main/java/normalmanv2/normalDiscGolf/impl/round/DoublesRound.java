@@ -10,8 +10,8 @@ import java.util.UUID;
 
 public class DoublesRound extends RoundImpl {
 
-    public DoublesRound(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound, String id, int maximumTeams) {
-        super(plugin, playerDataManager, courseImpl, isTournamentRound, id, maximumTeams);
+    public DoublesRound(Plugin plugin, PlayerDataManager playerDataManager, CourseImpl courseImpl, boolean isTournamentRound, String id, int maximumTeams, boolean isPrivate) {
+        super(plugin, playerDataManager, courseImpl, isTournamentRound, id, maximumTeams, isPrivate);
     }
 
     @Override

@@ -40,7 +40,7 @@ public abstract class InventoryGUI implements InventoryHandler {
 
     }
 
-    public void populateInventory() {
+    protected void populateInventory() {
         this.buttonMap.forEach((slot, button) -> this.getInventory().setItem(slot, button.getItem()));
     }
 

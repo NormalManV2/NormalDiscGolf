@@ -1,6 +1,7 @@
-package normalmanv2.normalDiscGolf.impl.gui;
+package normalmanv2.normalDiscGolf.impl.gui.round;
 
 import normalmanv2.normalDiscGolf.common.button.Button;
+import normalmanv2.normalDiscGolf.impl.gui.InventoryGUI;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.event.inventory.InventoryClickEvent;

@@ -60,6 +60,7 @@ public class Driver extends DiscImpl {
         int formLevel = skills.getForm().getLevel();
         int powerLevel = skills.getPower().getLevel();
 
+        // Initial disc velocity calcs
         double intentionalPower = tm.getPower().get();
         double discBaseSpeed = Constants.DRIVER_BASE_SPEED * intentionalPower;
         double baseVelocity = discBaseSpeed * (1 + (powerLevel * Constants.POWER_ADJUSTMENT));
@@ -67,6 +68,7 @@ public class Driver extends DiscImpl {
 
         Vector velocity = direction.multiply(finalVelocity);
 
+        // Randomized spread factor to induce a sense of randomness to every throw
         double maxSpread = 0.05 - (accuracyLevel * Constants.ACCURACY_ADJUSTMENT);
         velocity.setX(velocity.getX() + (Math.random() * maxSpread - maxSpread / 2));
         velocity.setZ(velocity.getZ() + (Math.random() * maxSpread - maxSpread / 2));
@@ -88,6 +90,7 @@ public class Driver extends DiscImpl {
             discDisplay.teleport(currentLocation);
             player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, currentLocation, 5);
 
+            // Goal collision / flight end
             if (MathUtil.detectGoalCollision(player.getWorld(), discDisplay.getLocation(), currentVelocity) || tickCount[0] > maxTicks) {
                 Vector throwDirection = initialVelocity.clone().normalize();
                 Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));
@@ -106,6 +109,7 @@ public class Driver extends DiscImpl {
                 return;
             }
 
+            // Solid block collisions
             if (MathUtil.detectCollision(player.getWorld(), discDisplay.getLocation(), currentVelocity) || tickCount[0] > maxTicks) {
                 Vector throwDirection = initialVelocity.clone().normalize();
                 Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));

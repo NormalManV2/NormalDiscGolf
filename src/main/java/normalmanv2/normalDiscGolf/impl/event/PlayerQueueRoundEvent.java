@@ -20,6 +20,7 @@ public class PlayerQueueRoundEvent extends Event {
         this.playerId = playerId;
         this.roundQueue = roundQueue;
         this.roundType = roundType;
+        System.out.println("PlayerQueueRoundEvent: " + playerId + " roundQueue " + roundQueue + " roundType " + roundType);
     }
 
     public UUID getPlayerId() {

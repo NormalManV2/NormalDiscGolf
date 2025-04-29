@@ -34,6 +34,7 @@ public class Putter extends DiscImpl {
 
     public Putter(int speed, int glide, int turn, int fade, String discName) {
         super(speed, glide, turn, fade, discName, DiscType.PUTTER);
+        NDGManager.getInstance().getDiscRegistry().register(discName, this);
     }
 
     @Override

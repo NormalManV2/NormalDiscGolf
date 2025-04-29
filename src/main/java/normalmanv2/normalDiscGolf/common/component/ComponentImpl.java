@@ -2,17 +2,7 @@ package normalmanv2.normalDiscGolf.common.component;
 
 import normalmanv2.normalDiscGolf.api.component.Component;
 
-public class ComponentImpl<T> implements Component<T> {
-
-    private final String id;
-    private final String name;
-    private final T component;
-
-    public ComponentImpl(String id, String name, T component) {
-        this.id = id;
-        this.name = name;
-        this.component = component;
-    }
+public record ComponentImpl<T>(String id, String name, T component) implements Component<T> {
 
     @Override
     public String getId() {

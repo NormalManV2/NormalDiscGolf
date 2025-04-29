@@ -91,13 +91,11 @@ public class TeamImpl implements Team {
         return null;
     }
 
-    @Override
     public Context<ContextType> setTurnIndex(int turn) {
         this.turnIndex.putData("turn", turn);
         return this.turnIndex;
     }
 
-    @Override
     public int getTurnIndexContext() {
         Optional<Integer> turn = this.turnIndex.getData("turn", Integer.class);
 

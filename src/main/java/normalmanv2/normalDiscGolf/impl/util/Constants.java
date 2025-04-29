@@ -17,4 +17,5 @@ public class Constants {
     public static final int DOUBLES_ROUND_MAX_TEAMS = 4;
     public static final int COURSE_GENERATION_WIDTH = 16;
     public static final int COURSE_GENERATION_DEPTH = 16;
+    public static final int MAXIMUM_PARTY_MEMBERS = 4;
 }

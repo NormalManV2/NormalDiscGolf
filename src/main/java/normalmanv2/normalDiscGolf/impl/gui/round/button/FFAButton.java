@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.impl.gui.button;
+package normalmanv2.normalDiscGolf.impl.gui.round.button;
 
 import normalmanv2.normalDiscGolf.common.button.Button;
 import normalmanv2.normalDiscGolf.impl.NDGManager;

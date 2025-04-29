@@ -16,6 +16,7 @@ import normalmanv2.normalDiscGolf.impl.course.obstacle.Tree;
 import normalmanv2.normalDiscGolf.impl.disc.Driver;
 import normalmanv2.normalDiscGolf.impl.disc.MidRange;
 import normalmanv2.normalDiscGolf.impl.disc.Putter;
+import normalmanv2.normalDiscGolf.impl.manager.party.PartyManager;
 import normalmanv2.normalDiscGolf.impl.manager.task.TaskManager;
 import normalmanv2.normalDiscGolf.impl.registry.CourseDivisionRegistry;
 import normalmanv2.normalDiscGolf.impl.registry.ObstacleRegistry;
@@ -47,6 +48,7 @@ public class NDGManager {
     private final GuiManager guiManager = new GuiManager();
     private final RoundQueueManager roundQueueManager;
     private final RegistryImpl<Division, CourseDifficulty> divisionCourseRegistry = new CourseDivisionRegistry();
+    private final PartyManager partyManager = new PartyManager();
     private PackedIntegration packed;
     private final NormalDiscGolfPlugin plugin;
     private static NDGManager instance;
@@ -77,6 +79,10 @@ public class NDGManager {
         }
 
         return packed;
+    }
+
+    public PartyManager getPartyManager() {
+        return this.partyManager;
     }
 
     public CourseCreator courseCreator() {
@@ -129,15 +135,6 @@ public class NDGManager {
 
     public RoundQueueManager getRoundQueueManager() {
         return this.roundQueueManager;
-    }
-
-    private void registerDefaultDiscs() {
-        discRegistry.register("TestDriver", new Driver(9, 5, -1, 2, "&6TestDriver"));
-        discRegistry.register("TestDriver1", new Driver(9, 5, -3, 1, "&aTestDriver1"));
-        discRegistry.register("Midrange", new MidRange(5, 6, -1, 1, "&7Midrange"));
-        discRegistry.register("Midrange1", new MidRange(5, 6, -3, 1, "&cMidrange1"));
-        discRegistry.register("Putter", new Putter(2, 4, -1, 1, "&4Putter"));
-        discRegistry.register("Putter1", new Putter(2, 4, 0, 2, "&3Putter1"));
     }
 
     private void registerDefaultObstacles() {

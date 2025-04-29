@@ -39,13 +39,13 @@ public class TestThrowMechanic extends AbstractCommand {
         //testWorld.setSpawnLocation(new Location(testWorld, 0, 0, 0));
         CourseGrid grid = new CourseGrid(16, 16, List.of(TileTypes.values()), world, 18);
         CourseImpl course = new CourseImpl(Division.RECREATIONAL, grid, "TestCourse");
-        FFARound round = new FFARound(this.plugin, NDGManager.getInstance().getPlayerDataManager(), course, false, "TestRound", 1);
+        FFARound round = new FFARound(this.plugin, NDGManager.getInstance().getPlayerDataManager(), course, false, "TestRound", 1, true);
 
         round.addTeam(new TeamImpl(player.getUniqueId(), 1));
 
         Driver driver = new Driver(9, 6, -2, 1, "TestDriver");
 
-        round.startRound();
+        round.start();
 
         new ThrowMechanicImpl(player.getUniqueId(), plugin, driver, round, "backhand");
     }

@@ -81,6 +81,7 @@ public class ThrowMechanicImpl implements ThrowMechanic {
         return this.power;
     }
 
+    // Intentional power algo
     protected void use() {
         Player player = Bukkit.getPlayer(playerId);
         if (player == null) return;
@@ -113,7 +114,7 @@ public class ThrowMechanicImpl implements ThrowMechanic {
 
         }, 0, 8);
 
-        player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&4Right click to lock in your power!"));
+        player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&Click to lock in your power!"));
 
         TaskManager.registerTask(task, playerId);
         Bukkit.getPluginManager().callEvent(new ThrowMechanicEvent(ThrowState.POWER, player, this));
