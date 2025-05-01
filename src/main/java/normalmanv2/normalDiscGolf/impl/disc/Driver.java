@@ -3,6 +3,7 @@ package normalmanv2.normalDiscGolf.impl.disc;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
+import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
 import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
@@ -89,45 +90,36 @@ public class Driver extends DiscImpl {
             throwTechnique.applyPhysics(this, currentVelocity, tickCount[0], maxTicks, direction);
             discDisplay.teleport(currentLocation);
             player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, currentLocation, 5);
+            boolean goalScored = MathUtil.detectGoalCollision(player.getWorld(), discDisplay.getLocation(), currentVelocity);
 
-            // Goal collision / flight end
-            if (MathUtil.detectGoalCollision(player.getWorld(), discDisplay.getLocation(), currentVelocity) || tickCount[0] > maxTicks) {
-                Vector throwDirection = initialVelocity.clone().normalize();
-                Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));
+            for (GameRound round : NDGManager.getInstance().getRoundHandler().getActiveRounds()) {
+                if (!round.containsPlayer(player.getUniqueId())) continue;
+                if (goalScored) this.handleGoalScore(player, round);
 
-                player.teleport(teleportLocation);
+                if (MathUtil.detectCollision(player.getWorld(), discDisplay.getLocation(), currentVelocity) || tickCount[0] >= maxTicks) {
+                    Vector throwDirection = initialVelocity.clone().normalize();
+                    Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));
 
-                FFARound round = (FFARound) NDGManager.getInstance().getRoundHandler().getActiveRounds().get(0);
-                Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, 1, round));
-                if (this.discTask == null) {
-                    discDisplay.remove();
-                    return;
+                    player.teleport(teleportLocation);
+
+                    if (this.discTask == null) {
+                        discDisplay.remove();
+                        return;
+                    }
+                    this.discTask.cancel();
+                    this.discTask = null;
+                    Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100);
                 }
-                this.discTask.cancel();
-                this.discTask = null;
-                Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100);
-                return;
-            }
-
-            // Solid block collisions
-            if (MathUtil.detectCollision(player.getWorld(), discDisplay.getLocation(), currentVelocity) || tickCount[0] > maxTicks) {
-                Vector throwDirection = initialVelocity.clone().normalize();
-                Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));
-
-                player.teleport(teleportLocation);
-
-                if (this.discTask == null) {
-                    discDisplay.remove();
-                    return;
-                }
-
-                this.discTask.cancel();
-                this.discTask = null;
-                Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100);
-                return;
             }
 
             tickCount[0]++;
         }, 0, 1);
     }
+
+    private void handleGoalScore(Player player, GameRound round) {
+        Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, round.getCurrentHoleNumber(), round));
+
+        // player.teleport(round.getNextTeeLocation());
+    }
+
 }

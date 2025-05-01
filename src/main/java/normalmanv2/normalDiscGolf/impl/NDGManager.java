@@ -4,18 +4,15 @@ import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.course.CourseCreator;
-import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
-import normalmanv2.normalDiscGolf.impl.course.obstacle.Bush;
+import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.obstacles.Bush;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
 import normalmanv2.normalDiscGolf.impl.manager.file.FileManager;
 import normalmanv2.normalDiscGolf.impl.manager.gui.GuiManager;
 import normalmanv2.normalDiscGolf.impl.manager.course.ObstacleManager;
-import normalmanv2.normalDiscGolf.impl.course.obstacle.Pin;
-import normalmanv2.normalDiscGolf.impl.course.obstacle.Rock;
-import normalmanv2.normalDiscGolf.impl.course.obstacle.Tree;
-import normalmanv2.normalDiscGolf.impl.disc.Driver;
-import normalmanv2.normalDiscGolf.impl.disc.MidRange;
-import normalmanv2.normalDiscGolf.impl.disc.Putter;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.obstacles.Pin;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.obstacles.Rock;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.obstacles.Tree;
 import normalmanv2.normalDiscGolf.impl.manager.party.PartyManager;
 import normalmanv2.normalDiscGolf.impl.manager.task.TaskManager;
 import normalmanv2.normalDiscGolf.impl.registry.CourseDivisionRegistry;
@@ -138,10 +135,10 @@ public class NDGManager {
     }
 
     private void registerDefaultObstacles() {
-        this.obstacleRegistry.register("tree", new Tree(null, "tree", this.obstacleManager));
-        this.obstacleRegistry.register("bush", new Bush(null, "bush", this.obstacleManager));
-        this.obstacleRegistry.register("rock", new Rock(null, "rock", this.obstacleManager));
-        this.obstacleRegistry.register("pin", new Pin(null, "pin", this.obstacleManager));
+        this.obstacleRegistry.register("tree", new Tree(null, "tree"));
+        this.obstacleRegistry.register("bush", new Bush(null, "bush"));
+        this.obstacleRegistry.register("rock", new Rock(null, "rock"));
+        this.obstacleRegistry.register("pin", new Pin(null, "pin"));
     }
 
     private void registerDefaultCourseDifficulty() {

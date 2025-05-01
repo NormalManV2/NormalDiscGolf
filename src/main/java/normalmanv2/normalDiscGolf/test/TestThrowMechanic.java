@@ -4,14 +4,12 @@ import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.command.AbstractCommand;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
-import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
-import normalmanv2.normalDiscGolf.impl.course.TileTypes;
+import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 import normalmanv2.normalDiscGolf.impl.disc.Driver;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
-import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -33,13 +31,10 @@ public class TestThrowMechanic extends AbstractCommand {
 
         if (player == null) return;
 
-        World world = player.getWorld();
-
-
         //testWorld.setSpawnLocation(new Location(testWorld, 0, 0, 0));
-        CourseGrid grid = new CourseGrid(16, 16, List.of(TileTypes.values()), world, 18);
+        CourseGrid grid = new CourseGrid(16, 16, List.of(TileTypes.values()), 18);
         CourseImpl course = new CourseImpl(Division.RECREATIONAL, grid, "TestCourse");
-        FFARound round = new FFARound(this.plugin, NDGManager.getInstance().getPlayerDataManager(), course, false, "TestRound", 1, true);
+        FFARound round = new FFARound(this.plugin, course, false, "TestRound", 1, true);
 
         round.addTeam(new TeamImpl(player.getUniqueId(), 1));
 

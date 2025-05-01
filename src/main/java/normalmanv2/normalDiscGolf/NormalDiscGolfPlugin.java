@@ -7,7 +7,6 @@ import normalmanv2.normalDiscGolf.impl.listener.GuiListener;
 import normalmanv2.normalDiscGolf.impl.listener.PlayerJoinListener;
 import normalmanv2.normalDiscGolf.impl.listener.PlayerRoundQueueListener;
 import normalmanv2.normalDiscGolf.impl.listener.ThrowMechanicListener;
-import normalmanv2.normalDiscGolf.test.DynamicCourseGeneratorTest;
 import normalmanv2.normalDiscGolf.test.RoundQueueTest;
 import normalmanv2.normalDiscGolf.test.TestFFARound;
 import normalmanv2.normalDiscGolf.test.TestThrowMechanic;
@@ -33,13 +32,12 @@ public final class NormalDiscGolfPlugin extends JavaPlugin {
     private void registerCommands() {
         getCommand("startRound").setExecutor(new TestFFARound(NDGManager.getInstance(), this));
         getCommand("wfctest").setExecutor(new WFCTest(this));
-        getCommand("roundQueueTest").setExecutor(new RoundQueueTest(NDGManager.getInstance().getGuiManager()));
+        getCommand("roundQueueTest").setExecutor(new RoundQueueTest());
 
         this.registerAbstractCommands();
     }
 
     private void registerAbstractCommands() {
-        new DynamicCourseGeneratorTest(this);
         new TestThrowMechanic(this);
     }
 

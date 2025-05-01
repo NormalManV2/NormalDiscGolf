@@ -1,19 +1,15 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
 import normalmanv2.normalDiscGolf.common.division.Division;
-import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleGenerator;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.generator.ObstacleGenerator;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
+import normalmanv2.normalDiscGolf.impl.course.tile.Tile;
+import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.normal.impl.registry.RegistryImpl;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Random;
+import java.util.*;
 
 public class CourseGrid {
 
@@ -26,9 +22,11 @@ public class CourseGrid {
     private final Map<Integer, Location> holeLocations;
     private final Map<Integer, Integer> holePars;
 
+    private ObstacleGenerator obstacleGenerator;
+
     private static final int TILE_SIZE = 16;
 
-    public CourseGrid(int width, int depth, List<TileTypes> tileTypes, World world, int numHoles) {
+    public CourseGrid(int width, int depth, List<TileTypes> tileTypes, int numHoles) {
         this.width = width;
         this.depth = depth;
         this.tileTypes = tileTypes;
@@ -38,38 +36,22 @@ public class CourseGrid {
         this.teeLocations = new HashMap<>();
         this.holeLocations = new HashMap<>();
         this.holePars = new HashMap<>();
-
-        initializeSuperposition(world);
     }
 
-    public void printCourse() {
-        for (int z = 0; z < depth; z++) {
-            for (int x = 0; x < width; x++) {
-                System.out.print(grid[x][z].getCollapsedState() == TileTypes.FAIRWAY ? "F" :
-                        grid[x][z].getCollapsedState() == TileTypes.OBSTACLE ? "O" :
-                                grid[x][z].getCollapsedState() == TileTypes.WATER ? "W" :
-                                        grid[x][z].getCollapsedState() == TileTypes.PIN ? "P" :
-                                                grid[x][z].getCollapsedState() == TileTypes.TEE ? "T" :
-                                                        grid[x][z].getCollapsedState() == TileTypes.OUT_OF_BOUNDS ? "X" :
-                                        " ");
-            }
-            System.out.println();
-        }
-    }
-
-    private void initializeSuperposition(World world) {
+    private void initializeSuperposition() {
         int y = 64;
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
-                Location tileLocation = new Location(world, x * TILE_SIZE, y, z * TILE_SIZE);
-                world.setSpawnLocation(tileLocation);
+                Location tileLocation = new Location(null, x * TILE_SIZE, y, z * TILE_SIZE);
                 grid[x][z] = new Tile(tileTypes, tileLocation);
             }
         }
     }
 
     public void generate(RegistryImpl<String, ObstacleImpl> obstacleRegistry, Division division) {
-        generateFairwayPath();
+        this.initializeSuperposition();
+        generateFairways();
+        generateObstaclesOutsideFairways();
 
         while (!isFullyCollapsed()) {
             Tile tileToCollapse = selectTileWithLowestEntropy();
@@ -77,69 +59,128 @@ public class CourseGrid {
             propagateConstraints(tileToCollapse);
         }
 
-        ObstacleGenerator obstacleGenerator = new ObstacleGenerator(this, obstacleRegistry, division);
-        obstacleGenerator.generateObstacles();
+        this.obstacleGenerator = new ObstacleGenerator(this, obstacleRegistry, division);
     }
 
-    private void generateFairwayPath() {
-        // Start at a random spot on the top row
-        int x = random.nextInt(width);
-        int z = 0;
+    public void generateObstacles(World world) {
+        this.obstacleGenerator.generateObstacles(world);
+    }
 
-        // Set the starting tile to TEE
-        Tile teeTile = grid[x][z];
-        teeTile.collapseTo(TileTypes.TEE);
+    private void generateFairways() {
+        int attempts = 0;
+        int maxAttempts = 1000;
 
-        // Randomly select an x coordinate for the PIN tile along the bottom row
-        int pinX = random.nextInt(width);
-        int pinZ = depth - 1;
+        for (int holeId = 0; holeId < numHoles; holeId++) {
+            boolean success = false;
 
-        // Set the ending tile to PIN
-        Tile pinTile = grid[pinX][pinZ];
-        pinTile.collapseTo(TileTypes.PIN);
+            while (!success && attempts++ < maxAttempts) {
+                int teeX = random.nextInt(width);
+                int teeZ = 0;
 
-        // Create the fairway path from TEE to PIN
-        int currentX = x;
-        int currentZ = z;
+                int pinX = random.nextInt(width);
+                int pinZ = depth - 1;
 
-        while (currentZ < depth - 1) {
-            // Move one step forward in the z direction
-            currentZ++;
+                if (!isValidStartEnd(teeX, teeZ, pinX, pinZ)) continue;
 
-            // Ensure the PIN tile is not overwritten
-            if (currentX == pinX && currentZ == pinZ) {
-                break;
-            }
+                Tile teeTile = grid[teeX][teeZ];
+                Tile pinTile = grid[pinX][pinZ];
 
-            // Randomly change the fairway pathing direction
-            int directionOffset = random.nextInt(3) - 1; // Move left (-1), straight (0), or right (+1)
+                List<Tile> path = findAStarPath(teeTile, pinTile);
+                if (path == null || path.isEmpty()) continue;
 
-            // Smoother curvature by adding influence from the previous direction
-            if (random.nextInt(100) < 40) { // 40% chance to continue in the same direction
-                directionOffset += (Integer.compare(pinX, currentX));
-            }
+                teeTile.collapseTo(TileTypes.TEE);
+                teeLocations.put(holeId, teeTile.getLocation());
 
-            // Clamp directionOffset to -1, 0, or 1
-            directionOffset = Math.max(-1, Math.min(1, directionOffset));
-            currentX += directionOffset;
+                pinTile.collapseTo(TileTypes.PIN);
+                holeLocations.put(holeId, pinTile.getLocation());
 
-            // Clamp x to be within bounds
-            currentX = Math.max(0, Math.min(width - 1, currentX));
+                for (Tile tile : path) {
+                    if (!tile.isCollapsed()) {
+                        tile.collapseTo(TileTypes.FAIRWAY);
+                    }
+                }
 
-            // Collapse the tile to fairway if it's not TEE or PIN
-            Tile currentTile = grid[currentX][currentZ];
-            if (currentTile.getCollapsedState() != TileTypes.TEE && currentTile.getCollapsedState() != TileTypes.PIN) {
-                currentTile.collapseTo(TileTypes.FAIRWAY);
-            }
-
-            // Random chance to generate water or obstacles near the fairway
-            if (random.nextInt(10) < 0.5) { // 5% chance
-                setObstacleOrWaterNearby(currentX, currentZ);
+                success = true;
             }
         }
 
-        // Propagate constraints along the generated path
         propagateFairwayConstraints();
+    }
+
+    private List<Tile> findAStarPath(Tile start, Tile goal) {
+        class Node {
+            final Tile tile;
+            final Node parent;
+            final int g;
+            final int h;
+
+            Node(Tile tile, Node parent, int g, int h) {
+                this.tile = tile;
+                this.parent = parent;
+                this.g = g;
+                this.h = h;
+            }
+
+            int f() {
+                return g + h;
+            }
+        }
+
+        Comparator<Node> comparator = Comparator.comparingInt(Node::f);
+        PriorityQueue<Node> openSet = new PriorityQueue<>(comparator);
+        Set<Tile> closedSet = new HashSet<>();
+
+        Node startNode = new Node(start, null, 0, heuristic(start, goal));
+        openSet.add(startNode);
+
+        while (!openSet.isEmpty()) {
+            Node current = openSet.poll();
+            if (current.tile == goal) {
+                List<Tile> path = new ArrayList<>();
+                while (current != null) {
+                    path.add(current.tile);
+                    current = current.parent;
+                }
+                Collections.reverse(path);
+                return path;
+            }
+
+            closedSet.add(current.tile);
+
+            int x = (int) (current.tile.getLocation().getX() / TILE_SIZE);
+            int z = (int) (current.tile.getLocation().getZ() / TILE_SIZE);
+
+            for (int[] dir : DIRECTIONS) {
+                int nx = x + dir[0];
+                int nz = z + dir[1];
+                if (!isInBounds(nx, nz)) continue;
+
+                Tile neighbor = grid[nx][nz];
+                if (closedSet.contains(neighbor)) continue;
+
+                int cost = current.g + 1;
+                int heuristic = heuristic(neighbor, goal);
+                Node neighborNode = new Node(neighbor, current, cost, heuristic);
+                openSet.add(neighborNode);
+            }
+        }
+
+        return null;
+    }
+
+    private int heuristic(Tile a, Tile b) {
+        int ax = (int) (a.getLocation().getX() / TILE_SIZE);
+        int az = (int) (a.getLocation().getZ() / TILE_SIZE);
+        int bx = (int) (b.getLocation().getX() / TILE_SIZE);
+        int bz = (int) (b.getLocation().getZ() / TILE_SIZE);
+        return Math.abs(ax - bx) + Math.abs(az - bz);
+    }
+
+    private boolean isValidStartEnd(int teeX, int teeZ, int pinX, int pinZ) {
+        Tile tee = grid[teeX][teeZ];
+        Tile pin = grid[pinX][pinZ];
+
+        return !tee.isCollapsed() && !pin.isCollapsed() && !tee.equals(pin);
     }
 
     private void propagateFairwayConstraints() {
@@ -153,24 +194,17 @@ public class CourseGrid {
         }
     }
 
-    private void setObstacleOrWaterNearby(int x, int z) {
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                if (dx == 0 && dz == 0) continue;
+    private void generateObstaclesOutsideFairways() {
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                Tile tile = grid[x][z];
+                if (tile.isCollapsed()) continue;
 
-                int nx = x + dx;
-                int nz = z + dz;
-
-                if (isInBounds(nx, nz)) {
-                    Tile tile = grid[nx][nz];
-                    if (tile.isCollapsed() && (tile.getCollapsedState() == TileTypes.TEE || tile.getCollapsedState() == TileTypes.PIN || tile.getCollapsedState() == TileTypes.OUT_OF_BOUNDS)) {
-                        continue;
-                    }
-
-                    if (!tile.isCollapsed()) {
-                        TileTypes surroundingType = random.nextBoolean() ? TileTypes.OBSTACLE : TileTypes.WATER;
-                        tile.collapseTo(surroundingType);
-                    }
+                if (random.nextDouble() < 0.25) {
+                    TileTypes type = random.nextBoolean() ? TileTypes.OBSTACLE : TileTypes.WATER;
+                    tile.collapseTo(type);
+                } else {
+                    tile.collapseTo(TileTypes.OUT_OF_BOUNDS);
                 }
             }
         }
@@ -236,7 +270,7 @@ public class CourseGrid {
         }
     }
 
-    public boolean isInBounds(int x, int z) {
+    private boolean isInBounds(int x, int z) {
         return x >= 0 && x < width && z >= 0 && z < depth;
     }
 

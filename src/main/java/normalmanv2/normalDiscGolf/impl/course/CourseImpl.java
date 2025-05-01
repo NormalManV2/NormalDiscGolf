@@ -2,9 +2,8 @@ package normalmanv2.normalDiscGolf.impl.course;
 
 import normalmanv2.normalDiscGolf.api.course.Course;
 import normalmanv2.normalDiscGolf.common.division.Division;
-import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
+import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
 import org.bukkit.Location;
-import org.normal.impl.registry.RegistryImpl;
 
 import java.util.Collections;
 import java.util.Map;
@@ -13,23 +12,19 @@ import java.util.Map;
 public class CourseImpl implements Course {
 
     private final Division division;
-    private final CourseGrid grid;
     private final String courseName;
-    private Map<Integer, Location> teeLocations;
-    private Map<Integer, Location> holeLocations;
-    private Map<Integer, Integer> holePars;
+    private final CourseGrid grid;
+    private final Map<Integer, Location> teeLocations;
+    private final Map<Integer, Location> holeLocations;
+    private final Map<Integer, Integer> holePars;
 
     public CourseImpl(Division division, CourseGrid grid, String courseName) {
         this.division = division;
-        this.grid = grid;
         this.courseName = courseName;
-    }
-
-    public void generateCourseGrid(RegistryImpl<String, ObstacleImpl> registry) {
-        this.grid.generate(registry, this.division);
-        this.teeLocations = this.grid.getTeeLocations();
-        this.holeLocations = this.grid.getHoleLocations();
-        this.holePars = this.grid.getHolePars();
+        this.grid = grid;
+        this.teeLocations = grid.getTeeLocations();
+        this.holeLocations = grid.getHoleLocations();
+        this.holePars = grid.getHolePars();
     }
 
     @Override
@@ -40,12 +35,12 @@ public class CourseImpl implements Course {
 
     @Override
     public int holes() {
-        return 0;
+        return this.grid.getNumHoles();
     }
 
     @Override
     public Location startingLocation() {
-        return null;
+        return this.teeLocations.get(0);
     }
 
     @Override
@@ -69,6 +64,10 @@ public class CourseImpl implements Course {
 
     public CourseDifficulty difficulty() {
         return this.division.getDifficulty();
+    }
+
+    public CourseGrid grid() {
+        return this.grid;
     }
 
 }

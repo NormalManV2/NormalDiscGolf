@@ -14,6 +14,7 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.session.ClipboardHolder;
 import com.sk89q.worldedit.world.World;
 import normalmanv2.normalDiscGolf.api.course.obstacle.Obstacle;
+import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.manager.course.ObstacleManager;
 import org.bukkit.Location;
 
@@ -28,12 +29,11 @@ public class ObstacleImpl implements Obstacle, Cloneable {
 
     private Location location;
     private final String schematicName;
-    private final ObstacleManager obstacleManager;
+    private final ObstacleManager obstacleManager = NDGManager.getInstance().getObstacleManager();
 
-    public ObstacleImpl(@Nullable Location location, String schematicName, ObstacleManager obstacleManager) {
+    public ObstacleImpl(@Nullable Location location, String schematicName) {
         this.location = location;
         this.schematicName = schematicName;
-        this.obstacleManager = obstacleManager;
     }
 
     @Override
@@ -53,22 +53,21 @@ public class ObstacleImpl implements Obstacle, Cloneable {
     }
 
     @Override
-    public boolean generate(Location location) {
-        Optional<Path> schemFile = obstacleManager.getFile(this);
+    public void generate(Location location) {
+        Optional<Path> schemFile = this.obstacleManager.getFile(this);
 
-        if (schemFile.isEmpty()) return false;
+        if (schemFile.isEmpty()) throw new RuntimeException("Could not find schematic file");
 
         ClipboardFormat format = ClipboardFormats.findByFile(schemFile.get().toFile());
         if (format == null) {
-            System.err.println("Unsupported schematic format: " + schemFile.get());
-            return false;
+            throw new RuntimeException("Unsupported schematic format: " + schemFile.get());
         }
 
         try (ClipboardReader reader = format.getReader(Files.newInputStream(schemFile.get()))) {
             Clipboard clipboard = reader.read();
 
             if (location.getWorld() == null)
-                throw new RuntimeException("Error generating obstacle " + this + " World is null!");
+                throw new RuntimeException("Error generating obstacle " + this + ". World is null!");
 
             World adaptedWorld = BukkitAdapter.adapt(location.getWorld());
             Location locationOffset = location.clone().add(0, 1, 0);
@@ -86,19 +85,16 @@ public class ObstacleImpl implements Obstacle, Cloneable {
                 Operations.complete(operation);
 
                 System.out.println(location.getWorld().getName());
-            } catch (WorldEditException e) {
-                throw new RuntimeException(e);
+            } catch (WorldEditException exception) {
+                throw new RuntimeException(exception);
             }
-
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
+        } catch (IOException exception) {
+            throw new RuntimeException(exception);
         }
     }
 
-    public boolean generate() {
-        return this.generate(this.location);
+    public void generate() {
+        this.generate(this.location);
     }
 
     @Override

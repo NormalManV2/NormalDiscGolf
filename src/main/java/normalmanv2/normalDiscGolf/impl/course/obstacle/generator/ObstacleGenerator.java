@@ -1,12 +1,16 @@
-package normalmanv2.normalDiscGolf.impl.course.obstacle;
+package normalmanv2.normalDiscGolf.impl.course.obstacle.generator;
 
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
-import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
+import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
 import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
-import normalmanv2.normalDiscGolf.impl.course.Tile;
-import normalmanv2.normalDiscGolf.impl.course.TileTypes;
+import normalmanv2.normalDiscGolf.impl.course.tile.Tile;
+import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.obstacles.Pin;
+import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.normal.impl.registry.RegistryImpl;
 
 import java.util.HashSet;
@@ -30,19 +34,19 @@ public class ObstacleGenerator {
         this.divisionCourseDifficulty = NDGManager.getInstance().getDivisionCourseRegistry().getBackingMap();
     }
 
-    public void generateObstacles() {
+    public void generateObstacles(World world) {
         for (int x = 0; x < courseGrid.getWidth(); x++) {
             for (int z = 0; z < courseGrid.getDepth(); z++) {
-                placeObstacle(courseGrid.getTile(x, z));
+                placeObstacle(courseGrid.getTile(x, z), world);
             }
         }
     }
 
-    private void placeObstacle(Tile tile) {
+    private void placeObstacle(Tile tile, World world) {
         int maxObstaclesPerTile = calculateMaxObstacles(tile);
 
-        int gridSize = 4;
-        double subRegionSize = 8.0 / gridSize;
+        int gridSize = Constants.DEFAULT_TILE_SIZE / 4;
+        double subRegionSize = Constants.DEFAULT_TILE_SIZE / 8.0;
 
         Set<String> occupiedSubRegions = new HashSet<>();
 
@@ -59,7 +63,7 @@ public class ObstacleGenerator {
             double offsetX = random.nextDouble() * subRegionSize + gridX * subRegionSize;
             double offsetZ = random.nextDouble() * subRegionSize + gridZ * subRegionSize;
 
-            Location obstacleLocation = new Location(tile.getLocation().getWorld(),
+            Location obstacleLocation = new Location(world,
                     tile.getLocation().getX() + offsetX,
                     tile.getLocation().getY(),
                     tile.getLocation().getZ() + offsetZ
@@ -68,27 +72,14 @@ public class ObstacleGenerator {
             ObstacleImpl obstacle = selectObstacle(tile);
 
             if (obstacle == null) {
-                System.out.println("Obstacle is null! (ObstacleGenerator)");
-                return;
+                throw new RuntimeException("Obstacle is null! This is a major issue, please report!");
             }
 
-                obstacle.setLocation(obstacleLocation);
+            obstacle.setLocation(obstacleLocation);
 
-                if (obstacle instanceof Pin) {
-                    obstacle.generate(obstacleLocation);
-                }
-
-                if (shouldPlaceObstacle(tile, obstacle)) {
-
-                    if (obstacle.generate(obstacleLocation)) {
-                        System.out.println("Obstacle " + obstacle + "generated at " + obstacleLocation);
-                    } else {
-                        System.out.println("Obstacle unable to generate " + obstacle + "at " + obstacleLocation);
-                    }
-                } else {
-                    System.out.println("Obstacle skipped due to density check " + obstacle);
-                }
-
+            if (shouldPlaceObstacle(tile, obstacle)) {
+                obstacle.generate();
+            }
         }
     }
 
@@ -96,19 +87,18 @@ public class ObstacleGenerator {
         double baseFactor = this.divisionCourseDifficulty.get(this.division).getDensityFactor();
 
         return switch (tile.getCollapsedState()) {
-            case OBSTACLE -> (int) Math.ceil(baseFactor * 8);
-            case FAIRWAY -> (int) Math.ceil(baseFactor * 5);
+            case OBSTACLE -> (int) Math.ceil(baseFactor * Constants.DEFAULT_OBSTACLE_TILE_OBSTACLES_LIMIT);
+            case FAIRWAY -> (int) Math.ceil(baseFactor * Constants.DEFAULT_FAIRWAY_TILE_OBSTACLES_LIMIT);
             case PIN -> 1;
-            default -> (int) Math.ceil(baseFactor * 4);
+            default -> (int) Math.ceil(baseFactor * Constants.DEFAULT_TILE_OBSTACLES_LIMIT);
         };
     }
 
     private boolean shouldPlaceObstacle(Tile tile, ObstacleImpl obstacle) {
 
-        if (obstacle instanceof Pin) return true;
+        if (obstacle instanceof Pin && tile.getCollapsedState() == TileTypes.PIN) return true;
 
         if (tile.getCollapsedState() == TileTypes.WATER || tile.getCollapsedState() == TileTypes.TEE) {
-            System.out.println("Obstacle cannot be placed in water or tee tiles!");
             return false;
         }
 
@@ -124,7 +114,7 @@ public class ObstacleGenerator {
                     : this.registry.get("bush");
             case FAIRWAY -> random.nextDouble() < 0.5
                     ? this.registry.get("rock")
-                    : this.registry.get("bush");
+                    : this.registry.get("tree");
             case PIN -> this.registry.get("pin");
             default -> null;
         };

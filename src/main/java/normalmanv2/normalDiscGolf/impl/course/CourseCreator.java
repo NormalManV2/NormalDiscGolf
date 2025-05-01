@@ -1,41 +1,39 @@
 package normalmanv2.normalDiscGolf.impl.course;
 
 import normalmanv2.normalDiscGolf.common.division.Division;
-import org.bukkit.Location;
-import org.bukkit.World;
+import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
+import normalmanv2.normalDiscGolf.impl.util.Constants;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 public class CourseCreator {
 
-    private CourseDifficulty difficulty;
+    private Division division;
     private String name;
     private int holes;
-    private Location startingLocation;
-    private Map<Integer, Location> teeLocations;
-    private Set<Location> holeLocations;
-    private Map<Integer, Integer> holePars;
+    private int size;
 
-    public CourseImpl create(Division division, World world) {
-/*
-        return new CourseImpl(
-                this.difficulty,
-                this.name,
-                this.holes,
-                this.createGrid(
-                        Constants.COURSE_GENERATION_WIDTH,
-                        Constants.COURSE_GENERATION_DEPTH,
-                        List.of(TileTypes.values()),
-                        world),
-                world.getSpawnLocation());
- */
-        return null;
+    public CourseImpl create(Division division, CourseGrid grid, String courseName) {
+        return new CourseImpl(division, grid, courseName);
     }
 
-    public CourseCreator setDifficulty(CourseDifficulty difficulty) {
-        this.difficulty = difficulty;
+    public CourseImpl create(int size, int numHoles, String name) {
+        CourseGrid grid = new CourseGrid(size, size, List.of(TileTypes.values()), numHoles);
+        return new CourseImpl(Constants.DEFAULT_FFA_COURSE_DIVISION, grid, name);
+    }
+
+    public CourseImpl create() {
+
+        if (this.size == 0) throw new IllegalStateException("Course size must be set");
+        if (this.holes == 0) throw new IllegalStateException("Course holes must be set");
+        if (this.division == null || this.name == null) throw new IllegalStateException("Course division and name must be set");
+
+        CourseGrid grid = new CourseGrid(this.size, this.size, List.of(TileTypes.values()), this.holes);
+        return new CourseImpl(this.division, grid, this.name);
+    }
+
+    public CourseCreator setDivision(Division division) {
+        this.division = division;
         return this;
     }
 
@@ -49,34 +47,8 @@ public class CourseCreator {
         return this;
     }
 
-    public CourseCreator setStartingLocation(Location startingLocation) {
-        this.startingLocation = startingLocation;
+    public CourseCreator setSize(int size) {
+        this.size = size;
         return this;
     }
-
-    public CourseCreator setTeeLocations(Map<Integer, Location> teeLocations) {
-        this.teeLocations = teeLocations;
-        return this;
-    }
-
-    public CourseCreator setHoleLocations(Set<Location> holeLocations) {
-        this.holeLocations = holeLocations;
-        return this;
-    }
-
-    public CourseCreator setHolePars(Map<Integer, Integer> holePars) {
-        this.holePars = holePars;
-        return this;
-    }
-
-    public CourseGrid createGrid(int width, int depth, List<TileTypes> tileTypes, World world) {
-       // return new CourseGrid(width, depth, tileTypes, world);
-        return null;
-    }
-
-    public CourseImpl build(CourseGrid courseGrid) {
-        // return new CourseImpl(difficulty, name, holes, courseGrid, startingLocation, teeLocations, holeLocations, holePars);
-        return null;
-    }
-
 }

@@ -1,6 +1,6 @@
 package normalmanv2.normalDiscGolf.common.division;
 
-import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
+import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
 
 public enum Division {
 

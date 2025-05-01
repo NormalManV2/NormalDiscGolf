@@ -25,7 +25,7 @@ public class GoalScoreListener implements Listener {
         if (round instanceof FFARound ffaRound) {
             for (Team team : ffaRound.getTeams()) {
                 if (team.getTeamMembers().contains(playerId)) {
-                    ScoreCard scoreCard = ffaRound.getScoreCard(team);
+                    ScoreCard scoreCard = ffaRound.getScoreCardByTeam(team);
                     scoreCard.recordHoleScore(holeNumber, scoreCard.getCurrentStrokes(), ffaRound.getCourse().holePars().get(holeNumber));
                     scoreCard.resetCurrentStrokes();
                 }
@@ -37,6 +37,7 @@ public class GoalScoreListener implements Listener {
         for (Team foundTeam : round.getTeams()) {
             if (foundTeam.getTeamMembers().contains(playerId)) {
                 round.setTeamScored(holeNumber, foundTeam);
+
             }
         }
     }

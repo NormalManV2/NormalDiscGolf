@@ -28,12 +28,7 @@ public class DiscThrowListener implements Listener {
                 TaskManager.unregisterTask(foundTask);
             }
         }
-
         roundImpl.handleStroke(event.getThrowMechanic());
         roundImpl.nextTurn();
-
-        if (roundImpl instanceof FFARound) {
-            roundImpl.nextTurn();
-        }
     }
 }

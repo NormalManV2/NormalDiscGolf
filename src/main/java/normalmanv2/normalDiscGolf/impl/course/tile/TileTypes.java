@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.impl.course;
+package normalmanv2.normalDiscGolf.impl.course.tile;
 
 public enum TileTypes {
 

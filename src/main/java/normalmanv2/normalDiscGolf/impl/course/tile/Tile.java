@@ -1,7 +1,5 @@
-package normalmanv2.normalDiscGolf.impl.course;
+package normalmanv2.normalDiscGolf.impl.course.tile;
 
-import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 
 import java.util.ArrayList;
@@ -18,14 +16,6 @@ public class Tile {
         this.possibleStates = new ArrayList<>(initialStates);
         this.isCollapsed = false;
         this.location = location;
-    }
-
-    public boolean isCollapsed() {
-        return isCollapsed;
-    }
-
-    public int getEntropy() {
-        return possibleStates.size();
     }
 
     public TileTypes collapse(Random random) {
@@ -66,6 +56,7 @@ public class Tile {
         return switch (state) {
             case WATER -> List.of(TileTypes.WATER, TileTypes.FAIRWAY);
             case OUT_OF_BOUNDS -> List.of(TileTypes.OBSTACLE, TileTypes.WATER);
+            case PIN -> List.of(TileTypes.FAIRWAY, TileTypes.WATER, TileTypes.OBSTACLE, TileTypes.OUT_OF_BOUNDS);
             default -> List.of(TileTypes.FAIRWAY);
         };
     }
@@ -76,5 +67,13 @@ public class Tile {
 
     public Location getLocation() {
         return this.location;
+    }
+
+    public boolean isCollapsed() {
+        return isCollapsed;
+    }
+
+    public int getEntropy() {
+        return possibleStates.size();
     }
 }

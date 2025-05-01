@@ -62,7 +62,7 @@ tasks {
     register("copyJars", Copy::class) {
         dependsOn(shadowJar)
         from(shadowJar)
-        into("C:\\Users\\ronan\\OneDrive\\Desktop\\Test Server\\plugins")
+        into("C:\\Users\\ronan\\Desktop\\localhost\\plugins")
     }
 
 }

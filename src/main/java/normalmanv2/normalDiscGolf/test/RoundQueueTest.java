@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.test;
 
+import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.gui.InventoryGUI;
 import normalmanv2.normalDiscGolf.impl.gui.round.RoundPickerGUI;
 import normalmanv2.normalDiscGolf.impl.gui.round.button.FFAButton;
@@ -15,23 +16,13 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 public class RoundQueueTest implements CommandExecutor {
 
-    private final GuiManager guiManager;
-    private static final ItemStack FFA_BUTTON = new ItemStack(Material.EMERALD);
-
-    public RoundQueueTest(GuiManager guiManager) {
-        this.guiManager = guiManager;
-    }
+    private final GuiManager guiManager = NDGManager.getInstance().getGuiManager();
 
     @Override
     public boolean onCommand(CommandSender commandSender, Command command, String s, String[] strings) {
         if (!(commandSender instanceof Player player)) return false;
 
-        ItemMeta itemMeta = FFA_BUTTON.getItemMeta();
-        itemMeta.setDisplayName(ChatColor.translateAlternateColorCodes('&', "&4FFA ROUND"));
-        FFA_BUTTON.setItemMeta(itemMeta);
-
         InventoryGUI gui = new RoundPickerGUI();
-        gui.addButton(11, new FFAButton(FFA_BUTTON));
 
         this.guiManager.openGUI(gui, player);
 

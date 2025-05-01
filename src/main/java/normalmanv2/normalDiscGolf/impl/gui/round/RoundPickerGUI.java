@@ -2,12 +2,21 @@ package normalmanv2.normalDiscGolf.impl.gui.round;
 
 import normalmanv2.normalDiscGolf.common.button.Button;
 import normalmanv2.normalDiscGolf.impl.gui.InventoryGUI;
+import normalmanv2.normalDiscGolf.impl.gui.round.button.FFAButton;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
 public class RoundPickerGUI extends InventoryGUI {
+
+    public RoundPickerGUI() {
+        super();
+        this.addButton(11, new FFAButton(new ItemStack(Material.EMERALD)));
+        System.out.println("RoundPickerGUI");
+    }
 
     @Override
     protected Inventory createInventory() {

@@ -7,6 +7,10 @@ import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.manager.round.lifecycle.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
+import normalmanv2.normalDiscGolf.impl.round.FFARound;
+import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -77,23 +81,33 @@ public class RoundQueueManager {
     public void tickPlayerQueue() {
         for (Division division : Division.values()) {
             Map<UUID, String> divisionQueue = this.playerQueue.get(division);
-            if (divisionQueue.keySet().isEmpty()) continue;
+            if (divisionQueue.isEmpty()) continue;
 
             Iterator<UUID> iterator = divisionQueue.keySet().iterator();
 
             while (iterator.hasNext()) {
-                UUID player = iterator.next();
-                String roundType = divisionQueue.get(player);
-                GameRound round = findOrCreateRoundForDivision(division, roundType, false, true);
+                UUID playerId = iterator.next();
+                Player player = Bukkit.getPlayer(playerId);
+
+                if (player == null) continue;
+
+                String roundType = divisionQueue.get(playerId);
+                GameRound round = findOrCreateRoundForDivision(division, roundType, false, true, player.getDisplayName() + "." + roundType );
 
                 if (round == null)
                     throw new RuntimeException("Error ticking player queue: No suitable round could be found!");
                 if (this.roundHandler.getActiveRounds().contains(round)) continue;
 
+                if (round instanceof FFARound) {
+                    Team team = new TeamImpl(playerId, 1);
+                    round.addTeam(team);
+                    iterator.remove();
+                    return;
+                }
+
                 for (Team team : round.getTeams()) {
                     if (team.isFull()) continue;
-
-                    team.addPlayer(player);
+                    team.addPlayer(playerId);
                     iterator.remove();
                 }
             }
@@ -106,21 +120,24 @@ public class RoundQueueManager {
 
             if (round.isPrivate()) {
                 round.start();
+                this.queuedRounds.remove(round);
+                return;
             }
 
             if (round.getTeams().stream().allMatch(Team::isFull) && round.isFull()) {
                 round.start();
                 this.queuedRounds.remove(round);
+                return;
             }
         }
     }
 
-    private GameRound findOrCreateRoundForDivision(Division division, String roundType, boolean isTournamentRound, boolean isPrivate) {
+    private GameRound findOrCreateRoundForDivision(Division division, String roundType, boolean isTournamentRound, boolean isPrivate, String courseName) {
         return this.queuedRounds.stream()
                 .filter(round -> round.getDivision() == division && round.getId().equalsIgnoreCase(roundType) && round.isTournamentRound() == isTournamentRound)
                 .findFirst()
                 .orElseGet(() -> {
-                    GameRound newRound = roundHandler.createRound(division, roundType, isTournamentRound, isPrivate);
+                    GameRound newRound = roundHandler.createRound(division, roundType, isTournamentRound, isPrivate, courseName);
                     this.addRoundToQueue(newRound);
                     return newRound;
                 });

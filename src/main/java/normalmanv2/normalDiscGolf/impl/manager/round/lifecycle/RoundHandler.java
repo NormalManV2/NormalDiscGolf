@@ -4,11 +4,12 @@ import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
-import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
+import normalmanv2.normalDiscGolf.impl.course.CourseCreator;
 import normalmanv2.normalDiscGolf.impl.round.DoublesRound;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
+import normalmanv2.normalDiscGolf.impl.course.world.CourseGridWorldCreator;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 
@@ -20,6 +21,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+import static normalmanv2.normalDiscGolf.impl.util.Constants.*;
+
 public class RoundHandler {
 
     private final Set<GameRound> activeRounds;
@@ -29,13 +32,13 @@ public class RoundHandler {
     public RoundHandler(NormalDiscGolfPlugin normalDiscGolfPlugin) {
         this.activeRounds = new HashSet<>();
         this.plugin = normalDiscGolfPlugin;
-        this.startQueueTask(new RoundQueueManager(this, NDGManager.getInstance().getPlayerDataManager()));
+        this.startQueueTask();
     }
 
-    public void startQueueTask(RoundQueueManager queueManager) {
+    public void startQueueTask() {
         Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            queueManager.tickPlayerQueue();
-            queueManager.tickRoundQueue();
+            NDGManager.getInstance().getRoundQueueManager().tickPlayerQueue();
+            NDGManager.getInstance().getRoundQueueManager().tickRoundQueue();
         }, 0, 20);
     }
 
@@ -55,35 +58,43 @@ public class RoundHandler {
         this.cleanupEndedRounds();
     }
 
-    public GameRound createRound(Division division, String roundType, boolean isTournamentRound, boolean isPrivate) {
-        World world = Bukkit.getWorld("NDGCourses");
+    public GameRound createRound(Division division, String roundType, boolean isTournamentRound, boolean isPrivate, String courseName) {
+        World world = Bukkit.createWorld(new CourseGridWorldCreator(courseName, new CourseCreator().create(DEFAULT_FFA_COURSE_SIZE, DEFAULT_COURSE_HOLES, courseName), division));
 
         if (world == null) throw new RuntimeException("World is null!");
 
         Supplier<GameRound> roundSupplier = switch (roundType.toLowerCase()) {
-            case "ffa" -> () -> createFFARound(isTournamentRound, isPrivate, division, world);
-            case "doubles" -> () -> createDoublesRound(isTournamentRound, isPrivate, division, world);
+            case "ffa" -> () -> createFFARound(isTournamentRound, isPrivate, courseName);
+            case "doubles" -> () -> createDoublesRound(isTournamentRound, isPrivate, courseName);
             default -> throw new IllegalArgumentException("Unknown round type: " + roundType);
         };
         return roundSupplier.get();
     }
 
-    private GameRound createFFARound(boolean isTournamentRound, boolean isPrivate, Division division, World world) {
+    private GameRound createFFARound(boolean isTournamentRound, boolean isPrivate, String courseName) {
         return new FFARound(
                 plugin,
-                NDGManager.getInstance().getPlayerDataManager(),
-                NDGManager.getInstance().courseCreator().create(division, world),
+                NDGManager.getInstance().courseCreator()
+                        .setSize(DEFAULT_FFA_COURSE_SIZE)
+                        .setDivision(DEFAULT_FFA_COURSE_DIVISION)
+                        .setHoles(DEFAULT_COURSE_HOLES)
+                        .setName(courseName)
+                        .create(),
                 isTournamentRound,
-                "FFA_ROUND." + UUID.randomUUID(),
+                courseName,
                 Constants.FFA_ROUND_MAX_PLAYERS,
                 isPrivate);
     }
 
-    private GameRound createDoublesRound(boolean isTournamentRound, boolean isPrivate, Division division, World world) {
+    private GameRound createDoublesRound(boolean isTournamentRound, boolean isPrivate, String courseName) {
         return new DoublesRound(
                 plugin,
-                NDGManager.getInstance().getPlayerDataManager(),
-                NDGManager.getInstance().courseCreator().create(division, world),
+                NDGManager.getInstance().courseCreator()
+                        .setSize(DEFAULT_DUBS_COURSE_SIZE)
+                        .setDivision(DEFAULT_DUBS_COURSE_DIVISION)
+                        .setHoles(DEFAULT_COURSE_HOLES)
+                        .setName(courseName)
+                        .create(),
                 isTournamentRound,
                 "DOUBLES_ROUND." + UUID.randomUUID(),
                 Constants.DOUBLES_ROUND_MAX_TEAMS,

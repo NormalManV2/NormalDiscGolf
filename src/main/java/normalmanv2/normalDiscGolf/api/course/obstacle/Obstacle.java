@@ -7,5 +7,5 @@ public interface Obstacle {
     Location getLocation();
     String getSchematicName();
     void setLocation(Location location);
-    boolean generate(Location location);
+    void generate(Location location);
 }

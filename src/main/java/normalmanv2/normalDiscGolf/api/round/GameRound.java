@@ -6,6 +6,7 @@ import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
+import org.bukkit.Location;
 
 import java.util.List;
 import java.util.UUID;
@@ -32,8 +33,6 @@ public interface GameRound {
 
     void handleStroke(ThrowMechanic mechanic);
 
-    void setTurn(Team team);
-
     boolean isTurn(Team team);
 
     void nextTurn();
@@ -46,6 +45,8 @@ public interface GameRound {
 
     CourseImpl getCourse();
 
+    Location getNextTeeLocation();
+
     boolean isTournamentRound();
 
     int getCurrentHoleNumber();
@@ -57,4 +58,10 @@ public interface GameRound {
     boolean isFull();
 
     boolean isPrivate();
+
+    boolean containsPlayer(UUID uuid);
+
+    boolean containsTeam(Team team);
+
+    boolean isTeamMember(Team team, UUID uuid);
 }

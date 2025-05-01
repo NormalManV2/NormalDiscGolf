@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.registry;
 
 import normalmanv2.normalDiscGolf.common.division.Division;
-import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
+import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
 import org.normal.impl.registry.FreezableRegistryImpl;
 
 import java.util.Arrays;

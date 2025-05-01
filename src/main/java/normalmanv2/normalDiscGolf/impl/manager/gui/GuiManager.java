@@ -30,6 +30,7 @@ public class GuiManager {
     public void openGUI(InventoryGUI gui, Player player) {
         this.registerInventory(gui.getInventory(), gui);
         player.openInventory(gui.getInventory());
+        System.out.println("GUI opened " + gui);
     }
 
     public void handleClick(InventoryClickEvent event) {

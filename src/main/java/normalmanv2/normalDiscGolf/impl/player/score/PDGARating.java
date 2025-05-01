@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.player.score;
 
 import normalmanv2.normalDiscGolf.common.division.Division;
-import normalmanv2.normalDiscGolf.impl.course.CourseDifficulty;
+import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
 
 public class PDGARating {
 
