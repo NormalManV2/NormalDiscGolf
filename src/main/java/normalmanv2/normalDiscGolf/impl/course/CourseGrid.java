@@ -48,7 +48,7 @@ public class CourseGrid {
         }
     }
 
-    public void generate(RegistryImpl<String, ObstacleImpl> obstacleRegistry, Division division) {
+    public void generate(Division division) {
         this.initializeSuperposition();
         generateFairways();
         generateObstaclesOutsideFairways();
@@ -59,7 +59,7 @@ public class CourseGrid {
             propagateConstraints(tileToCollapse);
         }
 
-        this.obstacleGenerator = new ObstacleGenerator(this, obstacleRegistry, division);
+        this.obstacleGenerator = new ObstacleGenerator(this, division);
     }
 
     public void generateObstacles(World world) {
@@ -85,7 +85,7 @@ public class CourseGrid {
                 Tile teeTile = grid[teeX][teeZ];
                 Tile pinTile = grid[pinX][pinZ];
 
-                List<Tile> path = findAStarPath(teeTile, pinTile);
+                List<Tile> path = findPath(teeTile, pinTile);
                 if (path == null || path.isEmpty()) continue;
 
                 teeTile.collapseTo(TileTypes.TEE);
@@ -107,7 +107,7 @@ public class CourseGrid {
         propagateFairwayConstraints();
     }
 
-    private List<Tile> findAStarPath(Tile start, Tile goal) {
+    private List<Tile> findPath(Tile start, Tile goal) {
         class Node {
             final Tile tile;
             final Node parent;

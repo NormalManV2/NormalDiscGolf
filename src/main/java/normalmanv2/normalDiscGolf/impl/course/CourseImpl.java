@@ -2,6 +2,7 @@ package normalmanv2.normalDiscGolf.impl.course;
 
 import normalmanv2.normalDiscGolf.api.course.Course;
 import normalmanv2.normalDiscGolf.common.division.Division;
+import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
 import org.bukkit.Location;
 
@@ -21,6 +22,7 @@ public class CourseImpl implements Course {
     public CourseImpl(Division division, CourseGrid grid, String courseName) {
         this.division = division;
         this.courseName = courseName;
+        grid.generate(division);
         this.grid = grid;
         this.teeLocations = grid.getTeeLocations();
         this.holeLocations = grid.getHoleLocations();

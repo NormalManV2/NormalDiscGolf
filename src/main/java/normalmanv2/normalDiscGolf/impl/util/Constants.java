@@ -18,9 +18,9 @@ public class Constants {
     public static final int FFA_ROUND_MAX_PLAYERS = 8;
     public static final int DOUBLES_ROUND_MAX_TEAMS = 4;
     public static final int MAXIMUM_PARTY_MEMBERS = 4;
-    public static final int DEFAULT_FFA_COURSE_SIZE = 24;
+    public static final int DEFAULT_FFA_COURSE_SIZE = 16;
     public static final Division DEFAULT_FFA_COURSE_DIVISION = Division.ADVANCED;
-    public static final int DEFAULT_DUBS_COURSE_SIZE = 32;
+    public static final int DEFAULT_DUBS_COURSE_SIZE = 18;
     public static final Division DEFAULT_DUBS_COURSE_DIVISION = Division.MASTER;
     public static final int DEFAULT_COURSE_HOLES = 18;
 
@@ -31,7 +31,7 @@ public class Constants {
     public static final int DEFAULT_TILE_SIZE = 16;
     public static final int DEFAULT_TILE_Y = 64;
 
-    public static final int DEFAULT_TILE_OBSTACLES_LIMIT = 8;
-    public static final int DEFAULT_FAIRWAY_TILE_OBSTACLES_LIMIT = 10;
-    public static final int DEFAULT_OBSTACLE_TILE_OBSTACLES_LIMIT = 15;
+    public static final int DEFAULT_TILE_OBSTACLES_LIMIT = 14;
+    public static final int DEFAULT_FAIRWAY_TILE_OBSTACLES_LIMIT = 18;
+    public static final int DEFAULT_OBSTACLE_TILE_OBSTACLES_LIMIT = 25;
 }

@@ -15,8 +15,8 @@ import com.sk89q.worldedit.session.ClipboardHolder;
 import com.sk89q.worldedit.world.World;
 import normalmanv2.normalDiscGolf.api.course.obstacle.Obstacle;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
-import normalmanv2.normalDiscGolf.impl.manager.course.ObstacleManager;
 import org.bukkit.Location;
+import org.bukkit.util.BoundingBox;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -29,7 +29,7 @@ public class ObstacleImpl implements Obstacle, Cloneable {
 
     private Location location;
     private final String schematicName;
-    private final ObstacleManager obstacleManager = NDGManager.getInstance().getObstacleManager();
+    private BlockVector3 schematicSize;
 
     public ObstacleImpl(@Nullable Location location, String schematicName) {
         this.location = location;
@@ -54,7 +54,7 @@ public class ObstacleImpl implements Obstacle, Cloneable {
 
     @Override
     public void generate(Location location) {
-        Optional<Path> schemFile = this.obstacleManager.getFile(this);
+        Optional<Path> schemFile = NDGManager.getInstance().getObstacleManager().getFile(this);
 
         if (schemFile.isEmpty()) throw new RuntimeException("Could not find schematic file");
 
@@ -83,8 +83,6 @@ public class ObstacleImpl implements Obstacle, Cloneable {
                         .build();
 
                 Operations.complete(operation);
-
-                System.out.println(location.getWorld().getName());
             } catch (WorldEditException exception) {
                 throw new RuntimeException(exception);
             }
@@ -102,7 +100,41 @@ public class ObstacleImpl implements Obstacle, Cloneable {
         try {
             return (ObstacleImpl) super.clone();
         } catch (CloneNotSupportedException e) {
-            throw new AssertionError();
+            throw new AssertionError(e);
         }
     }
+
+    public BlockVector3 getSchematicSize() {
+        if (schematicSize != null) return schematicSize;
+
+        Optional<Path> schemFile = NDGManager.getInstance().getObstacleManager().getFile(this);
+        if (schemFile.isEmpty()) throw new RuntimeException("Could not find schematic file");
+
+        ClipboardFormat format = ClipboardFormats.findByFile(schemFile.get().toFile());
+        if (format == null) throw new RuntimeException("Unsupported schematic format: " + schemFile.get());
+
+        try (ClipboardReader reader = format.getReader(Files.newInputStream(schemFile.get()))) {
+            Clipboard clipboard = reader.read();
+            schematicSize = clipboard.getDimensions();
+            return schematicSize;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public BoundingBox getBoundingBox() {
+        double x = this.location.getX();
+        double y = this.location.getY();
+        double z = this.location.getZ();
+        BlockVector3 size = this.getSchematicSize();
+
+        double halfX = size.x() / 2.0;
+        double halfZ = size.z() / 2.0;
+
+        return new BoundingBox(
+                x - halfX, y, z - halfZ,
+                x + halfX, y + size.y(), z + halfZ
+        );
+    }
+
 }

@@ -49,7 +49,7 @@ public class CourseGridChunkGenerator extends ChunkGenerator {
             return;
         }
 
-        this.grid.generate(NDGManager.getInstance().getObstacleRegistry(), this.division);
+        this.grid.generate(this.division);
 
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {

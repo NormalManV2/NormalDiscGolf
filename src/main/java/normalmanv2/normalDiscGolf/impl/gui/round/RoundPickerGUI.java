@@ -15,7 +15,6 @@ public class RoundPickerGUI extends InventoryGUI {
     public RoundPickerGUI() {
         super();
         this.addButton(11, new FFAButton(new ItemStack(Material.EMERALD)));
-        System.out.println("RoundPickerGUI");
     }
 
     @Override

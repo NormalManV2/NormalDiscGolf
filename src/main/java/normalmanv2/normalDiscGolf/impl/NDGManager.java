@@ -25,6 +25,7 @@ import normalmanv2.normalDiscGolf.impl.manager.round.lifecycle.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.registry.ThrowTechniqueRegistry;
 import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
 
+import org.bukkit.Bukkit;
 import org.normal.impl.registry.RegistryImpl;
 
 import java.io.IOException;
@@ -38,10 +39,9 @@ public class NDGManager {
     private final RegistryImpl<String, DiscImpl> discRegistry = new DiscRegistry();
     private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
     private final InviteService inviteService = new InviteService();
-    private final RegistryImpl<String, ObstacleImpl> obstacleRegistry = new ObstacleRegistry();
+    private final RegistryImpl<String, ObstacleImpl> obstacleRegistry;
     private final FileManager fileManager;
     private final ObstacleManager obstacleManager;
-    private final TaskManager taskManager;
     private final GuiManager guiManager = new GuiManager();
     private final RoundQueueManager roundQueueManager;
     private final RegistryImpl<Division, CourseDifficulty> divisionCourseRegistry = new CourseDivisionRegistry();
@@ -50,22 +50,28 @@ public class NDGManager {
     private final NormalDiscGolfPlugin plugin;
     private static NDGManager instance;
 
+    private static boolean initializing = false;
+
     private NDGManager() {
         this.plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
+        this.obstacleRegistry = new ObstacleRegistry();
         this.fileManager = new FileManager(plugin);
-        this.taskManager = new TaskManager();
         this.obstacleManager = new ObstacleManager(this.fileManager);
         this.roundHandler = new RoundHandler(plugin);
         this.roundQueueManager = new RoundQueueManager(this.roundHandler, this.playerDataManager);
 
         //this.registerDefaultDiscs();
-        this.registerDefaultObstacles();
-        this.registerDefaultCourseDifficulty();
+        Bukkit.getScheduler().runTaskLater(plugin, this::registerDefaultCourseDifficulty, 20);
     }
 
     public static NDGManager getInstance() {
         if (instance == null) {
+            if (initializing) {
+                throw new IllegalStateException("NDGManager is being initialized");
+            }
+            initializing = true;
             instance = new NDGManager();
+            initializing = false;
         }
         return instance;
     }
@@ -122,23 +128,12 @@ public class NDGManager {
         return this.obstacleManager;
     }
 
-    public TaskManager getTaskManager() {
-        return this.taskManager;
-    }
-
     public GuiManager getGuiManager() {
         return this.guiManager;
     }
 
     public RoundQueueManager getRoundQueueManager() {
         return this.roundQueueManager;
-    }
-
-    private void registerDefaultObstacles() {
-        this.obstacleRegistry.register("tree", new Tree(null, "tree"));
-        this.obstacleRegistry.register("bush", new Bush(null, "bush"));
-        this.obstacleRegistry.register("rock", new Rock(null, "rock"));
-        this.obstacleRegistry.register("pin", new Pin(null, "pin"));
     }
 
     private void registerDefaultCourseDifficulty() {

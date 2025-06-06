@@ -229,7 +229,20 @@ public class RoundImpl implements GameRound {
                 break;
             }
         }
-        if (allTeamsScored) this.nextHole();
+        if (allTeamsScored) {
+            this.nextHole();
+            for (Team team : this.teams) {
+                for (UUID playerId : team.getTeamMembers()) {
+                    Player player = Bukkit.getPlayer(playerId);
+
+                    if (player == null) {
+                        continue;
+                    }
+
+                    player.teleport(this.courseImpl.teeLocations().get(this.holeIndex));
+                }
+            }
+        }
     }
 
     @Override

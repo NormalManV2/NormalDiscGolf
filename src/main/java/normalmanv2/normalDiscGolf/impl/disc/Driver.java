@@ -10,7 +10,6 @@ import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil;
-import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.technique.ThrowTechnique;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Bukkit;

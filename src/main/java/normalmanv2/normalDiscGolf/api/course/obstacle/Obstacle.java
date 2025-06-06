@@ -8,4 +8,5 @@ public interface Obstacle {
     String getSchematicName();
     void setLocation(Location location);
     void generate(Location location);
+
 }

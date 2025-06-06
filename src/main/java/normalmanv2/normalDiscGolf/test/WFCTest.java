@@ -42,7 +42,11 @@ public class WFCTest implements CommandExecutor {
 
         Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
             grid.generateObstacles(world);
-            Bukkit.getScheduler().runTaskLater(this.plugin, () -> player.teleport(world.getSpawnLocation()), 20);
+            Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+                if (world.getSpawnLocation() == null) throw new RuntimeException("world spawn location is null");
+
+             player.teleport(world.getSpawnLocation());
+            }, 20);
         }, 20);
 
     return true;
