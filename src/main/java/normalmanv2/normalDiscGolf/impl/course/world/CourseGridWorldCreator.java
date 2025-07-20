@@ -23,4 +23,6 @@ public class CourseGridWorldCreator extends WorldCreator {
     public @Nullable ChunkGenerator generator() {
         return new CourseGridChunkGenerator(this.course.grid(), this.division);
     }
+
+
 }

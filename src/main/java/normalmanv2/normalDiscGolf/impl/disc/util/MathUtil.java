@@ -17,7 +17,7 @@ public class MathUtil {
             return false;
         }
 
-        return result.getHitBlock() != null && result.getHitBlock().getType().isSolid() || result.getHitBlock().getType() == Material.WATER;
+        return result.getHitBlock() != null && result.getHitBlock().getType().isSolid() || result.getHitBlock().isLiquid();
     }
 
     public static boolean detectGoalCollision(World world, Location startLocation, Vector direction) {

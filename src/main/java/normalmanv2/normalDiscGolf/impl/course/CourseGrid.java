@@ -305,4 +305,8 @@ public class CourseGrid {
     public Tile getTile(int x, int z) {
         return this.grid[x][z];
     }
+
+    public Tile[][] getGrid() {
+        return this.grid;
+    }
 }

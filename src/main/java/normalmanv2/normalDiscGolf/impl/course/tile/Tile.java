@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.course.tile;
 
 import org.bukkit.Location;
+import org.bukkit.util.BoundingBox;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +60,17 @@ public class Tile {
             case PIN -> List.of(TileTypes.FAIRWAY, TileTypes.WATER, TileTypes.OBSTACLE, TileTypes.OUT_OF_BOUNDS);
             default -> List.of(TileTypes.FAIRWAY);
         };
+    }
+
+    public BoundingBox getBoundingBox() {
+        double x = location.getX();
+        double y = location.getY();
+        double z = location.getZ();
+
+        return new BoundingBox(
+                x, y, z,
+                x + 16, y + 256, z + 16
+        );
     }
 
     public TileTypes getCollapsedState() {
