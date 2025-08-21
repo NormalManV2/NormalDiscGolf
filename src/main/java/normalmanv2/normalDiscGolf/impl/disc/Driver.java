@@ -116,7 +116,7 @@ public class Driver extends DiscImpl {
     }
 
     private void handleGoalScore(Player player, GameRound round) {
-        Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, round.getCurrentHoleNumber(), round));
+        Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, round.getCurrentHole(), round));
 
         // player.teleport(round.getNextTeeLocation());
     }

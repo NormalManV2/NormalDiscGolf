@@ -43,18 +43,18 @@ public class RoundHandler {
     }
 
     public void startRound(GameRound round) {
-        round.setRoundState(RoundState.START);
+        round.setState(RoundState.START);
         this.activeRounds.add(round);
         round.start();
     }
 
     public void endRound(GameRound round) {
-        round.setRoundState(RoundState.END);
+        round.setState(RoundState.END);
         this.cleanupEndedRounds();
     }
 
     public void cancelRound(GameRound round) {
-        round.setRoundState(RoundState.CANCEL);
+        round.setState(RoundState.CANCEL);
         this.cleanupEndedRounds();
     }
 
@@ -105,13 +105,13 @@ public class RoundHandler {
         final Iterator<GameRound> activeRoundsIterator = activeRounds.iterator();
         while (activeRoundsIterator.hasNext()) {
             final GameRound gameRound = activeRoundsIterator.next();
-            final RoundState roundState = gameRound.getRoundState();
+            final RoundState roundState = gameRound.getState();
             if (roundState != RoundState.END && roundState != RoundState.CANCEL) {
                 continue;
             }
 
             activeRoundsIterator.remove();
-            gameRound.endRound();
+            gameRound.end();
             System.out.println(gameRound + " Has been ended!");
         }
     }

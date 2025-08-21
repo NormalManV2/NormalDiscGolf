@@ -1,6 +1,8 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
+import normalmanv2.normalDiscGolf.api.round.RoundResult;
+import normalmanv2.normalDiscGolf.api.round.RoundType;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.team.Team;
@@ -19,13 +21,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 public class RoundImpl implements GameRound {
 
@@ -33,7 +29,7 @@ public class RoundImpl implements GameRound {
     private final int maximumTeams;
     private final List<Team> teams;
     private final Map<Team, ScoreCard> scoreCards;
-    private final boolean isTournamentRound;
+    private final RoundType type;
     private final Plugin plugin;
     private final PlayerDataManager playerDataManager;
     private final CourseImpl courseImpl;
@@ -49,13 +45,13 @@ public class RoundImpl implements GameRound {
     private Division division;
 
 
-    public RoundImpl(Plugin plugin, CourseImpl courseImpl, boolean isTournamentRound, String id, int maximumTeams, boolean isPrivate) {
+    public RoundImpl(Plugin plugin, CourseImpl courseImpl, RoundType type, String id, int maximumTeams, boolean isPrivate) {
         this.plugin = plugin;
         this.playerDataManager = NDGManager.getInstance().getPlayerDataManager();
         this.courseImpl = courseImpl;
         this.teams = new ArrayList<>();
         this.scoreCards = new HashMap<>();
-        this.isTournamentRound = isTournamentRound;
+        this.type = type;
         this.id = id;
         this.maximumTeams = maximumTeams;
         this.scoredGoals = new HashMap<>();
@@ -78,17 +74,17 @@ public class RoundImpl implements GameRound {
     }
 
     @Override
-    public RoundState getRoundState() {
+    public RoundState getState() {
         return this.roundState;
     }
 
     @Override
-    public void setRoundState(RoundState roundState) {
+    public void setState(RoundState roundState) {
         this.roundState = roundState;
     }
 
     @Override
-    public void start() {
+    public RoundResult start() {
         this.roundOver = false;
         this.holeIndex = 0;
 
@@ -127,6 +123,7 @@ public class RoundImpl implements GameRound {
             this.tick();
             System.out.println(this.id + " Round Currently Running");
         }, 0, 100);
+        return RoundResult.SUCCESS;
     }
 
     protected void tick() {
@@ -145,17 +142,19 @@ public class RoundImpl implements GameRound {
     }
 
     @Override
-    public void endRound() {
+    public RoundResult end() {
         this.handleRoundEnd();
+        return RoundResult.SUCCESS;
     }
 
     @Override
-    public void cancelRound() {
+    public RoundResult cancel() {
         this.dispose();
+        return RoundResult.SUCCESS;
     }
 
     @Override
-    public void addTeam(Team team) {
+    public boolean addTeam(Team team) {
 
         if (this.gameTask != null) {
             throw new IllegalStateException("Round has already been started");
@@ -169,9 +168,10 @@ public class RoundImpl implements GameRound {
                 }
                 player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&4This round is full!"));
             }
-            return;
+            return false;
         }
         this.teams.add(team);
+        return true;
     }
 
     @Override
@@ -214,8 +214,9 @@ public class RoundImpl implements GameRound {
 
     @Override
     public void nextTurn() {
-        if (this.currentTeamTurn == null || this.teams.isEmpty())
+        if (this.currentTeamTurn == null || this.teams.isEmpty()) {
             throw new RuntimeException("No team is currently selected for a turn, this is a very unexpected error please reach out for support!");
+        }
 
         int currentIndex = this.teams.indexOf(this.currentTeamTurn);
         int nextIndex = (currentIndex + 1) % this.teams.size();
@@ -230,7 +231,7 @@ public class RoundImpl implements GameRound {
             }
         }
         if (allTeamsScored) {
-            this.nextHole();
+            this.advanceHole();
             for (Team team : this.teams) {
                 for (UUID playerId : team.getTeamMembers()) {
                     Player player = Bukkit.getPlayer(playerId);
@@ -246,12 +247,12 @@ public class RoundImpl implements GameRound {
     }
 
     @Override
-    public void nextHole() {
+    public void advanceHole() {
         this.holeIndex++;
     }
 
     @Override
-    public boolean isRoundOver() {
+    public boolean isOver() {
         return this.roundOver;
     }
 
@@ -266,12 +267,12 @@ public class RoundImpl implements GameRound {
     }
 
     @Override
-    public boolean isTournamentRound() {
-        return this.isTournamentRound;
+    public RoundType getType() {
+        return this.type;
     }
 
     @Override
-    public int getCurrentHoleNumber() {
+    public int getCurrentHole() {
         return this.holeIndex;
     }
 
@@ -281,7 +282,7 @@ public class RoundImpl implements GameRound {
     }
 
     @Override
-    public int getMaximumTeams() {
+    public int maxTeams() {
         return this.maximumTeams;
     }
 
@@ -291,21 +292,13 @@ public class RoundImpl implements GameRound {
     }
 
     @Override
-    public boolean containsPlayer(UUID uuid) {
-        return this.teams.stream().anyMatch(team -> team.getTeamMembers().contains(uuid));
-    }
-
-    @Override
     public boolean containsTeam(Team team) {
-        return this.teams.contains(team);
+        return this.teams.stream().anyMatch(t -> t.equals(team));
     }
 
     @Override
-    public boolean isTeamMember(Team team, UUID uuid) {
-        if (!this.teams.contains(team)) {
-            throw new RuntimeException("Team " + team + " is not in this round " + this.id);
-        }
-        return team.contains(uuid);
+    public boolean containsPlayer(UUID playerId) {
+        return this.teams.stream().anyMatch(team -> team.contains(playerId));
     }
 
     private void handleRoundEnd() {
