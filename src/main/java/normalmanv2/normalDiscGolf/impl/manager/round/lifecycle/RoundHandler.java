@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.manager.round.lifecycle;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
+import normalmanv2.normalDiscGolf.api.round.RoundType;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
@@ -58,20 +59,20 @@ public class RoundHandler {
         this.cleanupEndedRounds();
     }
 
-    public GameRound createRound(Division division, String roundType, boolean isTournamentRound, boolean isPrivate, String courseName) {
+    public GameRound createRound(Division division, String roundType, RoundType type, boolean isPrivate, String courseName) {
         World world = Bukkit.createWorld(new CourseGridWorldCreator(courseName, new CourseCreator().create(DEFAULT_FFA_COURSE_SIZE, DEFAULT_COURSE_HOLES, courseName), division));
 
         if (world == null) throw new RuntimeException("World is null!");
 
         Supplier<GameRound> roundSupplier = switch (roundType.toLowerCase()) {
-            case "ffa" -> () -> createFFARound(isTournamentRound, isPrivate, courseName);
-            case "doubles" -> () -> createDoublesRound(isTournamentRound, isPrivate, courseName);
+            case "ffa" -> () -> createFFARound(type, isPrivate, courseName);
+            case "doubles" -> () -> createDoublesRound(type, isPrivate, courseName);
             default -> throw new IllegalArgumentException("Unknown round type: " + roundType);
         };
         return roundSupplier.get();
     }
 
-    private GameRound createFFARound(boolean isTournamentRound, boolean isPrivate, String courseName) {
+    private GameRound createFFARound(RoundType type, boolean isPrivate, String courseName) {
         return new FFARound(
                 plugin,
                 NDGManager.getInstance().courseCreator()
@@ -80,13 +81,13 @@ public class RoundHandler {
                         .setHoles(DEFAULT_COURSE_HOLES)
                         .setName(courseName)
                         .create(),
-                isTournamentRound,
+                type,
                 courseName,
                 Constants.FFA_ROUND_MAX_PLAYERS,
                 isPrivate);
     }
 
-    private GameRound createDoublesRound(boolean isTournamentRound, boolean isPrivate, String courseName) {
+    private GameRound createDoublesRound(RoundType type, boolean isPrivate, String courseName) {
         return new DoublesRound(
                 plugin,
                 NDGManager.getInstance().courseCreator()
@@ -95,7 +96,7 @@ public class RoundHandler {
                         .setHoles(DEFAULT_COURSE_HOLES)
                         .setName(courseName)
                         .create(),
-                isTournamentRound,
+                type,
                 "DOUBLES_ROUND." + UUID.randomUUID(),
                 Constants.DOUBLES_ROUND_MAX_TEAMS,
                 isPrivate);

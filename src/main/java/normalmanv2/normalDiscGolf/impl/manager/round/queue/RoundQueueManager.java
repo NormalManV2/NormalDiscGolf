@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.manager.round.queue;
 
 import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.api.round.RoundType;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.common.division.Division;
@@ -92,7 +93,7 @@ public class RoundQueueManager {
                 if (player == null) continue;
 
                 String roundType = divisionQueue.get(playerId);
-                GameRound round = findOrCreateRoundForDivision(division, roundType, false, true, player.getDisplayName() + "." + roundType );
+                GameRound round = findOrCreateRoundForDivision(division, roundType, RoundType.RECREATIONAL, true, player.getDisplayName() + "." + roundType );
 
                 if (round == null)
                     throw new RuntimeException("Error ticking player queue: No suitable round could be found!");
@@ -132,12 +133,12 @@ public class RoundQueueManager {
         }
     }
 
-    private GameRound findOrCreateRoundForDivision(Division division, String roundType, boolean isTournamentRound, boolean isPrivate, String courseName) {
+    private GameRound findOrCreateRoundForDivision(Division division, String roundType, RoundType type, boolean isPrivate, String courseName) {
         return this.queuedRounds.stream()
-                .filter(round -> round.getDivision() == division && round.getId().equalsIgnoreCase(roundType) && round.isTournamentRound() == isTournamentRound)
+                .filter(round -> round.getDivision() == division && round.getId().equalsIgnoreCase(roundType) && round.getType() == type)
                 .findFirst()
                 .orElseGet(() -> {
-                    GameRound newRound = roundHandler.createRound(division, roundType, isTournamentRound, isPrivate, courseName);
+                    GameRound newRound = roundHandler.createRound(division, roundType, type, isPrivate, courseName);
                     this.addRoundToQueue(newRound);
                     return newRound;
                 });

@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf.test;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
+import normalmanv2.normalDiscGolf.api.round.RoundType;
 import normalmanv2.normalDiscGolf.common.command.AbstractCommand;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
@@ -34,7 +35,7 @@ public class TestThrowMechanic extends AbstractCommand {
         //testWorld.setSpawnLocation(new Location(testWorld, 0, 0, 0));
         CourseGrid grid = new CourseGrid(16, 16, List.of(TileTypes.values()), 18);
         CourseImpl course = new CourseImpl(Division.RECREATIONAL, grid, "TestCourse");
-        FFARound round = new FFARound(this.plugin, course, false, "TestRound", 1, true);
+        FFARound round = new FFARound(this.plugin, course, RoundType.RECREATIONAL, "TestRound", 1, true);
 
         round.addTeam(new TeamImpl(player.getUniqueId(), 1));
 

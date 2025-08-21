@@ -23,6 +23,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
+
 public class RoundImpl implements GameRound {
 
     private final String id;
@@ -88,7 +89,7 @@ public class RoundImpl implements GameRound {
         this.roundOver = false;
         this.holeIndex = 0;
 
-        for (Team teamImpl : teams) {
+        for (Team teamImpl : this.teams) {
             this.scoreCards.put(teamImpl, new ScoreCard());
 
             for (UUID playerId : teamImpl.getTeamMembers()) {
@@ -116,10 +117,10 @@ public class RoundImpl implements GameRound {
                 }, 20);
             }
 
-            this.currentTeamTurn = this.teams.get(random.nextInt(this.teams.size()));
+            this.currentTeamTurn = this.teams.get(this.random.nextInt(this.teams.size()));
         }
 
-        this.gameTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+        this.gameTask = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
             this.tick();
             System.out.println(this.id + " Round Currently Running");
         }, 0, 100);
@@ -127,18 +128,23 @@ public class RoundImpl implements GameRound {
     }
 
     protected void tick() {
-        for (Team team : teams) {
-            for (UUID playerId : team.getTeamMembers()) {
-                Player player = Bukkit.getPlayer(playerId);
-                if (player == null) {
-                    team.removePlayer(playerId);
-                    if (team.getTeamMembers().isEmpty()) {
-                        this.teams.remove(team);
-                        this.scoreCards.remove(team);
-                    }
-                }
-            }
-        }
+
+        this.teams.forEach(team ->
+                team.getTeamMembers().removeIf(Objects::isNull)
+        );
+
+        List<Team> emptyTeams = this.teams.stream()
+                .peek(team -> team.getTeamMembers().removeIf(playerId -> {
+                    Player player = Bukkit.getPlayer(playerId);
+                    return player == null;
+                }))
+                .filter(team -> team.getTeamMembers().isEmpty())
+                .toList();
+
+        emptyTeams.forEach(team -> {
+            this.teams.remove(team);
+            this.scoreCards.remove(team);
+        });
     }
 
     @Override
