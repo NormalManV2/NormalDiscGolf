@@ -11,10 +11,11 @@ import org.bukkit.entity.Player;
 import java.util.*;
 
 public class DefaultRoundTeamManager implements DelegateRoundTeamManager {
-    private final Set<Team> teams = new HashSet<>();
+    private final Set<Team> teams;
     private final RoundSettings settings;
 
     public DefaultRoundTeamManager(RoundSettings settings) {
+        this.teams = new HashSet<>();
         this.settings = settings;
     }
 
@@ -35,7 +36,7 @@ public class DefaultRoundTeamManager implements DelegateRoundTeamManager {
             }
             return false;
         }
-
+        this.teams.add(team);
         return this.getRoundTeamManager().addTeam(team);
     }
 
@@ -64,6 +65,7 @@ public class DefaultRoundTeamManager implements DelegateRoundTeamManager {
         return DelegateRoundTeamManager.super.containsPlayer(playerId);
     }
 
+    @Override
     public void tick() {
         Iterator<Team> it = this.teams.iterator();
         while (it.hasNext()) {
@@ -82,5 +84,9 @@ public class DefaultRoundTeamManager implements DelegateRoundTeamManager {
                 it.remove();
             }
         }
+    }
+
+    public void dispose() {
+        this.teams.clear();
     }
 }

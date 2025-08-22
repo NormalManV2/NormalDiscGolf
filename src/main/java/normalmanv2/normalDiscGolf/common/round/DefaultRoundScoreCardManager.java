@@ -58,4 +58,8 @@ public class DefaultRoundScoreCardManager implements DelegateRoundScoreCardManag
     public void clearScores() {
         this.scoreCards.clear();
     }
+
+    public void dispose() {
+        this.scoreCards.clear();
+    }
 }

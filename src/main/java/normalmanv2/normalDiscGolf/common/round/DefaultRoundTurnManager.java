@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.common.round;
 
+import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.round.manager.RoundTurnManager;
 import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTurnManager;
 import normalmanv2.normalDiscGolf.api.team.Team;
@@ -10,14 +11,16 @@ import org.bukkit.entity.Player;
 import java.util.*;
 
 public class DefaultRoundTurnManager implements DelegateRoundTurnManager {
+    private final GameRound round;
     private final List<Team> turnOrder;
     private final Map<Integer, Map<Team, Boolean>> scoredGoals;
     private final Random random = new Random();
     private int currentIndex = 0;
     private int hole = 1;
 
-    public DefaultRoundTurnManager(Collection<Team> teams) {
+    public DefaultRoundTurnManager(Collection<Team> teams, GameRound round) {
         this.turnOrder = new ArrayList<>(teams);
+        this.round = round;
         this.scoredGoals = new HashMap<>();
     }
 
@@ -33,38 +36,36 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager {
 
     @Override
     public void nextTurn() {
-        if (this.currentTeamTurn == null || this.teams.isEmpty()) {
-            throw new RuntimeException("No team is currently selected for a turn, this is a very unexpected error please reach out for support!");
+
+        List<Team> teams = this.round.getTeams();
+
+        if (teams.isEmpty()) {
+            throw new IllegalStateException("No Teams in Round");
         }
 
-        int currentIndex = this.teams.indexOf(this.currentTeamTurn);
-        int nextIndex = (currentIndex + 1) % this.teams.size();
-        this.currentTeamTurn = this.teams.get(nextIndex);
+        this.currentIndex = (this.currentIndex + 1) % teams.size();
 
-        boolean allTeamsScored = true;
+        boolean allTeamsScored = this.scoredGoals.get(this.hole).values().stream().allMatch(Boolean::booleanValue);
 
-        for (Map<Team, Boolean> teams : this.scoredGoals.values()) {
-            if (!teams.values().stream().allMatch(Boolean::booleanValue)) {
-                allTeamsScored = false;
-                break;
-            }
-        }
         if (allTeamsScored) {
             this.advanceHole();
-            for (Team team : this.teams) {
+
+            Location tee = this.getNextTeeLocation();
+
+            for (Team team : teams) {
                 for (UUID playerId : team.getTeamMembers()) {
                     Player player = Bukkit.getPlayer(playerId);
-
                     if (player == null) {
+                        this.round.getRoundTeamManager().tick();
                         continue;
                     }
-
-                    player.teleport(this.courseImpl.teeLocations().get(this.holeIndex));
+                    player.teleport(tee);
                 }
             }
         }
     }
 
+    @Override
     public void selectRandomTeamTurn() {
         this.currentIndex = (this.random.nextInt(this.turnOrder.size()));
     }
@@ -87,6 +88,11 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager {
 
     @Override
     public Location getNextTeeLocation() {
-        return DelegateRoundTurnManager.super.getNextTeeLocation();
+        return this.round.getCourse().teeLocations().get(this.hole);
+    }
+
+    public void dispose() {
+        this.turnOrder.clear();
+        this.scoredGoals.clear();
     }
 }

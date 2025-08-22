@@ -23,6 +23,11 @@ public interface DelegateRoundTurnManager extends RoundTurnManager {
     }
 
     @Override
+    default void selectRandomTeamTurn() {
+        this.getRoundTurnManager().selectRandomTeamTurn();
+    }
+
+    @Override
     default void setTeamScored(int holeNumber, Team team) {
         this.getRoundTurnManager().setTeamScored(holeNumber, team);
     }

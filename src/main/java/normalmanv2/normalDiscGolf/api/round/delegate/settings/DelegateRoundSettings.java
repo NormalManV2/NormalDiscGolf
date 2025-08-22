@@ -13,18 +13,17 @@ public interface DelegateRoundSettings extends RoundSettings {
     }
 
     @Override
-    default RoundType getType() {
-        return this.getSettings().getType();
+    default RoundType type() {
+        return this.getSettings().type();
     }
 
     @Override
-    default Division getDivision() {
-        return this.getSettings().getDivision();
+    default Division division() {
+        return this.getSettings().division();
     }
 
     @Override
     default boolean isPrivate() {
         return this.getSettings().isPrivate();
     }
-
 }

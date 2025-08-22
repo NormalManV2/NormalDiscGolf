@@ -39,4 +39,8 @@ public interface DelegateRoundTeamManager extends RoundTeamManager {
         return this.getRoundTeamManager().isFull();
     }
 
+    @Override
+    default void tick() {
+        this.getRoundTeamManager().tick();
+    }
 }

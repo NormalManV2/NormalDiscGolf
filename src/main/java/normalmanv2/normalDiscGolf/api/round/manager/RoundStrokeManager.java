@@ -6,7 +6,6 @@ import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 public interface RoundStrokeManager {
 
     PlayerDataManager getPlayerDataManager();
-    RoundScoreCardManager getScoreCardManager();
     boolean handleStroke(ThrowMechanic throwMechanic);
 
 }

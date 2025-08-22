@@ -6,9 +6,9 @@ public interface RoundSettings {
 
     int maxTeams();
 
-    RoundType getType();
+    RoundType type();
 
-    Division getDivision();
+    Division division();
 
     boolean isPrivate();
 }

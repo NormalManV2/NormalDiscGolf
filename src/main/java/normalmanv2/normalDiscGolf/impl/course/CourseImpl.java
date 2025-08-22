@@ -64,10 +64,6 @@ public class CourseImpl implements Course {
         return this.division;
     }
 
-    public CourseDifficulty difficulty() {
-        return this.division.getDifficulty();
-    }
-
     public CourseGrid grid() {
         return this.grid;
     }

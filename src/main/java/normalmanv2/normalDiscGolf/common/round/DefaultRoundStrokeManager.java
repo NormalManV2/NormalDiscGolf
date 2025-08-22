@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.common.round;
 
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
-import normalmanv2.normalDiscGolf.api.round.manager.RoundScoreCardManager;
+import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.round.manager.RoundStrokeManager;
 import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundStrokeManager;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
@@ -14,20 +14,22 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 public class DefaultRoundStrokeManager implements DelegateRoundStrokeManager {
+    private final GameRound round;
+    private final PlayerDataManager playerDataManager;
+
+    public DefaultRoundStrokeManager(GameRound round, PlayerDataManager playerDataManager) {
+        this.round = round;
+        this.playerDataManager = playerDataManager;
+    }
 
     @Override
     public RoundStrokeManager getRoundStrokeManager() {
-        return null;
+        return this;
     }
 
     @Override
     public PlayerDataManager getPlayerDataManager() {
-        return DelegateRoundStrokeManager.super.getPlayerDataManager();
-    }
-
-    @Override
-    public RoundScoreCardManager getScoreCardManager() {
-        return DelegateRoundStrokeManager.super.getScoreCardManager();
+        return this.playerDataManager;
     }
 
     @Override
@@ -41,8 +43,8 @@ public class DefaultRoundStrokeManager implements DelegateRoundStrokeManager {
         PlayerSkills skills = playerData.getSkills();
 
 
-        if (this instanceof FFARound) {
-            ScoreCard card = this.getScoreCardManager().getScoreCardById(player.getUniqueId());
+        if (this.round instanceof FFARound) {
+            ScoreCard card = this.round.getRoundScoreCardManager().getScoreCardById(player.getUniqueId());
             if (card == null)
                 throw new RuntimeException("No score card found for player " + player.getDisplayName() + ". This is a major issue, please report!");
             card.trackStroke();

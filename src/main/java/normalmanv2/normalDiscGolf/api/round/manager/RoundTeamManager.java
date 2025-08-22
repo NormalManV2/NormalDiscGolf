@@ -18,4 +18,6 @@ public interface RoundTeamManager {
     boolean containsPlayer(UUID playerId);
 
     boolean isFull();
+
+    void tick();
 }

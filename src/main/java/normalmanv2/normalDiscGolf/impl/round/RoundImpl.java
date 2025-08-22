@@ -9,6 +9,7 @@ import normalmanv2.normalDiscGolf.api.round.manager.RoundTurnManager;
 import normalmanv2.normalDiscGolf.api.round.settings.RoundSettings;
 import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
+import org.bukkit.scheduler.BukkitTask;
 
 
 public class RoundImpl implements GameRound {
@@ -22,6 +23,8 @@ public class RoundImpl implements GameRound {
     private final DefaultRoundLifecycle roundLifecycle;
     private final DefaultRoundStrokeManager strokeManager;
     private final DefaultRoundScoreCardManager scoreCardManager;
+
+    private BukkitTask gameTask;
 
     public RoundImpl(
             CourseImpl courseImpl,
@@ -43,6 +46,16 @@ public class RoundImpl implements GameRound {
         this.roundLifecycle = roundLifecycle;
         this.strokeManager = strokeManager;
         this.scoreCardManager = scoreCardManager;
+    }
+
+    @Override
+    public BukkitTask getGameTask() {
+        return this.gameTask;
+    }
+
+    @Override
+    public void setGameTask(BukkitTask gameTask) {
+        this.gameTask = gameTask;
     }
 
     @Override
@@ -84,4 +97,14 @@ public class RoundImpl implements GameRound {
     public RoundSettings getSettings() {
         return this.roundSettings;
     }
+
+    @Override
+    public void dispose() {
+        this.gameTask.cancel();
+        this.gameTask = null;
+        this.scoreCardManager.dispose();
+        this.roundTeamManager.dispose();
+        this.roundTurnManager.dispose();
+    }
+
 }

@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.common.round;
 
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
+import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundLifecycle;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundResult;
 import normalmanv2.normalDiscGolf.api.round.delegate.lifecycle.DelegateRoundLifecycle;
@@ -19,6 +21,14 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
     private boolean ended = false;
     private RoundState state;
 
+    private final GameRound round;
+    private final NormalDiscGolfPlugin plugin;
+
+    public DefaultRoundLifecycle(GameRound round, NormalDiscGolfPlugin plugin) {
+        this.round = round;
+        this.plugin = plugin;
+    }
+
     @Override
     public RoundLifecycle getRoundLifecycle() {
         return this;
@@ -29,65 +39,62 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
         if (this.started) return RoundResult.ALREADY_STARTED;
         this.started = true;
         this.state = RoundState.START;
-        return RoundResult.SUCCESS;
 
-        for (Team teamImpl : this.getTeams()) {
-            this.scoreCards.put(teamImpl, new ScoreCard());
+        for (Team team : this.round.getTeams()) {
+            this.round.getRoundScoreCardManager().addScoreCard(team, new ScoreCard());
 
-            for (UUID playerId : teamImpl.getTeamMembers()) {
+            for (UUID playerId : team.getTeamMembers()) {
                 Player player = Bukkit.getPlayer(playerId);
                 if (player == null) {
-                    teamImpl.removePlayer(playerId);
-                    if (teamImpl.getTeamMembers().isEmpty()) {
-                        this.getTeams().remove(teamImpl);
-                        this.scoreCards.remove(teamImpl);
+                    team.removePlayer(playerId);
+                    if (team.getTeamMembers().isEmpty()) {
+                        this.round.getRoundTeamManager().removeTeam(team);
+                        this.round.getRoundScoreCardManager().removeScoreCard(team);
                     }
                     continue;
                 }
 
-
                 Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
 
-                    if (Bukkit.getWorld(this.id) == null) {
-                        throw new RuntimeException("World " + this.id + " does not exist");
+                    if (Bukkit.getWorld(this.round.getId()) == null) {
+                        throw new RuntimeException("World " + this.round.getId() + " does not exist");
                     }
 
-                    Location startingLocation = Bukkit.getWorld(this.id).getSpawnLocation();
-
+                    Location startingLocation = Bukkit.getWorld(this.round.getId()).getSpawnLocation();
 
                     player.teleport(startingLocation);
                 }, 20);
             }
 
-            this.roundTurnManager.selectRandomTeamTurn();
+            this.round.getRoundTurnManager().selectRandomTeamTurn();
         }
 
-        this.gameTask = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
-            this.roundTeamManager.tick();
-            System.out.println(this.id + " Round Currently Running");
-        }, 0, 100);
+        this.round.setGameTask(Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
+            this.round.getRoundTeamManager().tick();
+            System.out.println(this.round.getId() + " Round Currently Running");
+        }, 0, 100));
         return RoundResult.SUCCESS;
-
     }
 
     @Override
     public RoundResult end() {
-        if (!this.started || this.ended) return RoundResult.INVALID;
+        if (!this.started || this.ended) {
+            return RoundResult.INVALID;
+        }
         this.ended = true;
         this.state = RoundState.END;
-        return RoundResult.ENDED;
 
-        for (Team team : this.teams) {
-            ScoreCard scoreCard = this.scoreCards.get(team);
+        for (Team team : this.round.getTeams()) {
+            ScoreCard scoreCard = this.round.getScoreCardByTeam(team);
             if (scoreCard == null) {
                 continue;
             }
 
             for (UUID playerId : team.getTeamMembers()) {
-                PlayerData playerData = playerDataManager.getDataByPlayer(playerId);
+                PlayerData playerData = this.round.getPlayerDataManager().getDataByPlayer(playerId);
                 PDGARating rating = playerData.getRating();
                 rating.handleRoundEnd(scoreCard.getTotalScore());
-                rating.updateRating(courseImpl.difficulty());
+                rating.updateRating(this.round.getSettings().division().getDifficulty());
                 System.out.println(scoreCard.getTotalStrokes());
                 System.out.println(scoreCard.getTotalScore());
                 System.out.println(rating.getRating());
@@ -96,8 +103,8 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                 System.out.println(rating.getTotalRounds());
             }
         }
-        this.dispose();
-
+        this.round.dispose();
+        return RoundResult.ENDED;
     }
 
     @Override

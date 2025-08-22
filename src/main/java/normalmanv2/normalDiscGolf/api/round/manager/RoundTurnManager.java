@@ -11,6 +11,8 @@ public interface RoundTurnManager {
 
     boolean isTurn(Team team);
 
+    void selectRandomTeamTurn();
+
     void setTeamScored(int holeNumber, Team team);
 
     Location getNextTeeLocation();
