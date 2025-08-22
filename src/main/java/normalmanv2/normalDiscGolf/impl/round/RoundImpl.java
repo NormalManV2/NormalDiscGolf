@@ -1,72 +1,48 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
-import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
-import normalmanv2.normalDiscGolf.api.round.RoundResult;
-import normalmanv2.normalDiscGolf.api.round.RoundType;
-import normalmanv2.normalDiscGolf.common.division.Division;
-import normalmanv2.normalDiscGolf.api.round.GameRound;
-import normalmanv2.normalDiscGolf.api.team.Team;
-import normalmanv2.normalDiscGolf.impl.NDGManager;
+import normalmanv2.normalDiscGolf.api.round.*;
+import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundLifecycle;
+import normalmanv2.normalDiscGolf.api.round.manager.RoundScoreCardManager;
+import normalmanv2.normalDiscGolf.api.round.manager.RoundStrokeManager;
+import normalmanv2.normalDiscGolf.api.round.manager.RoundTeamManager;
+import normalmanv2.normalDiscGolf.api.round.manager.RoundTurnManager;
+import normalmanv2.normalDiscGolf.api.round.settings.RoundSettings;
+import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
-import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
-import normalmanv2.normalDiscGolf.impl.player.PlayerData;
-import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
-import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
-import normalmanv2.normalDiscGolf.impl.player.score.PDGARating;
-import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitTask;
-
-import java.util.*;
 
 
 public class RoundImpl implements GameRound {
 
     private final String id;
-    private final int maximumTeams;
-    private final List<Team> teams;
-    private final Map<Team, ScoreCard> scoreCards;
-    private final RoundType type;
-    private final Plugin plugin;
-    private final PlayerDataManager playerDataManager;
     private final CourseImpl courseImpl;
-    private final Random random = new Random();
-    private final Map<Integer, Map<Team, Boolean>> scoredGoals;
-    private final boolean isPrivate;
 
-    private RoundState roundState;
-    private boolean roundOver;
-    private int holeIndex;
-    private BukkitTask gameTask;
-    private Team currentTeamTurn;
-    private Division division;
+    private final DefaultRoundSettings roundSettings;
+    private final DefaultRoundTurnManager roundTurnManager;
+    private final DefaultRoundTeamManager roundTeamManager;
+    private final DefaultRoundLifecycle roundLifecycle;
+    private final DefaultRoundStrokeManager strokeManager;
+    private final DefaultRoundScoreCardManager scoreCardManager;
+
+    public RoundImpl(
+            CourseImpl courseImpl,
+            String id,
+            DefaultRoundSettings roundSettings,
+            DefaultRoundTurnManager roundTurnManager,
+            DefaultRoundTeamManager roundTeamManager,
+            DefaultRoundLifecycle roundLifecycle,
+            DefaultRoundStrokeManager strokeManager,
+            DefaultRoundScoreCardManager scoreCardManager) {
 
 
-    public RoundImpl(Plugin plugin, CourseImpl courseImpl, RoundType type, String id, int maximumTeams, boolean isPrivate) {
-        this.plugin = plugin;
-        this.playerDataManager = NDGManager.getInstance().getPlayerDataManager();
         this.courseImpl = courseImpl;
-        this.teams = new ArrayList<>();
-        this.scoreCards = new HashMap<>();
-        this.type = type;
         this.id = id;
-        this.maximumTeams = maximumTeams;
-        this.scoredGoals = new HashMap<>();
-        this.isPrivate = isPrivate;
-    }
 
-    @Override
-    public Division getDivision() {
-        return this.division;
-    }
-
-    @Override
-    public void setDivision(Division division) {
-        this.division = division;
+        this.roundSettings = roundSettings;
+        this.roundTurnManager = roundTurnManager;
+        this.roundTeamManager = roundTeamManager;
+        this.roundLifecycle = roundLifecycle;
+        this.strokeManager = strokeManager;
+        this.scoreCardManager = scoreCardManager;
     }
 
     @Override
@@ -75,293 +51,37 @@ public class RoundImpl implements GameRound {
     }
 
     @Override
-    public RoundState getState() {
-        return this.roundState;
-    }
-
-    @Override
-    public void setState(RoundState roundState) {
-        this.roundState = roundState;
-    }
-
-    @Override
-    public RoundResult start() {
-        this.roundOver = false;
-        this.holeIndex = 0;
-
-        for (Team teamImpl : this.teams) {
-            this.scoreCards.put(teamImpl, new ScoreCard());
-
-            for (UUID playerId : teamImpl.getTeamMembers()) {
-                Player player = Bukkit.getPlayer(playerId);
-                if (player == null) {
-                    teamImpl.removePlayer(playerId);
-                    if (teamImpl.getTeamMembers().isEmpty()) {
-                        this.teams.remove(teamImpl);
-                        this.scoreCards.remove(teamImpl);
-                    }
-                    continue;
-                }
-
-
-                Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
-
-                    if (Bukkit.getWorld(this.id) == null) {
-                        throw new RuntimeException("World " + this.id + " does not exist");
-                    }
-
-                    Location startingLocation = Bukkit.getWorld(this.id).getSpawnLocation();
-
-
-                    player.teleport(startingLocation);
-                }, 20);
-            }
-
-            this.currentTeamTurn = this.teams.get(this.random.nextInt(this.teams.size()));
-        }
-
-        this.gameTask = Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
-            this.tick();
-            System.out.println(this.id + " Round Currently Running");
-        }, 0, 100);
-        return RoundResult.SUCCESS;
-    }
-
-    protected void tick() {
-
-        this.teams.forEach(team ->
-                team.getTeamMembers().removeIf(Objects::isNull)
-        );
-
-        List<Team> emptyTeams = this.teams.stream()
-                .peek(team -> team.getTeamMembers().removeIf(playerId -> {
-                    Player player = Bukkit.getPlayer(playerId);
-                    return player == null;
-                }))
-                .filter(team -> team.getTeamMembers().isEmpty())
-                .toList();
-
-        emptyTeams.forEach(team -> {
-            this.teams.remove(team);
-            this.scoreCards.remove(team);
-        });
-    }
-
-    @Override
-    public RoundResult end() {
-        this.handleRoundEnd();
-        return RoundResult.SUCCESS;
-    }
-
-    @Override
-    public RoundResult cancel() {
-        this.dispose();
-        return RoundResult.SUCCESS;
-    }
-
-    @Override
-    public boolean addTeam(Team team) {
-
-        if (this.gameTask != null) {
-            throw new IllegalStateException("Round has already been started");
-        }
-
-        if (this.isFull()) {
-            for (UUID playerId : team.getTeamMembers()) {
-                Player player = Bukkit.getPlayer(playerId);
-                if (player == null) {
-                    continue;
-                }
-                player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&4This round is full!"));
-            }
-            return false;
-        }
-        this.teams.add(team);
-        return true;
-    }
-
-    @Override
-    public void removeTeam(Team team) {
-        this.teams.remove(team);
-    }
-
-    @Override
-    public boolean isFull() {
-        return this.teams.size() >= this.maximumTeams;
-    }
-
-    @Override
-    public void handleStroke(ThrowMechanic throwMechanic) {
-        Player player = Bukkit.getPlayer(throwMechanic.getPlayerId());
-        if (player == null) {
-            return;
-        }
-
-        PlayerData playerData = playerDataManager.getDataByPlayer(throwMechanic.getPlayerId());
-        PlayerSkills skills = playerData.getSkills();
-
-
-        if (this instanceof FFARound) {
-            ScoreCard card = this.getScoreCardById(player.getUniqueId());
-            if (card == null)
-                throw new RuntimeException("No score card found for player " + player.getDisplayName() + ". This is a major issue, please report!");
-            card.trackStroke();
-        }
-
-        DiscImpl disc = (DiscImpl) throwMechanic.getDisc();
-
-        disc.handleThrow(player, skills, throwMechanic.getThrowTechnique(), player.getFacing(), throwMechanic);
-    }
-
-    @Override
-    public boolean isTurn(Team team) {
-        return team.equals(this.currentTeamTurn);
-    }
-
-    @Override
-    public void nextTurn() {
-        if (this.currentTeamTurn == null || this.teams.isEmpty()) {
-            throw new RuntimeException("No team is currently selected for a turn, this is a very unexpected error please reach out for support!");
-        }
-
-        int currentIndex = this.teams.indexOf(this.currentTeamTurn);
-        int nextIndex = (currentIndex + 1) % this.teams.size();
-        this.currentTeamTurn = this.teams.get(nextIndex);
-
-        boolean allTeamsScored = true;
-
-        for (Map<Team, Boolean> teams : this.scoredGoals.values()) {
-            if (!teams.values().stream().allMatch(Boolean::booleanValue)) {
-                allTeamsScored = false;
-                break;
-            }
-        }
-        if (allTeamsScored) {
-            this.advanceHole();
-            for (Team team : this.teams) {
-                for (UUID playerId : team.getTeamMembers()) {
-                    Player player = Bukkit.getPlayer(playerId);
-
-                    if (player == null) {
-                        continue;
-                    }
-
-                    player.teleport(this.courseImpl.teeLocations().get(this.holeIndex));
-                }
-            }
-        }
-    }
-
-    @Override
-    public void advanceHole() {
-        this.holeIndex++;
-    }
-
-    @Override
-    public boolean isOver() {
-        return this.roundOver;
-    }
-
-    @Override
-    public List<Team> getTeams() {
-        return Collections.unmodifiableList(this.teams);
-    }
-
-    @Override
     public CourseImpl getCourse() {
         return this.courseImpl;
     }
 
     @Override
-    public RoundType getType() {
-        return this.type;
+    public RoundScoreCardManager getRoundScoreCardManager() {
+        return this.scoreCardManager;
     }
 
     @Override
-    public int getCurrentHole() {
-        return this.holeIndex;
+    public RoundStrokeManager getRoundStrokeManager() {
+        return this.strokeManager;
     }
 
     @Override
-    public Location getNextTeeLocation() {
-        return this.courseImpl.teeLocations().get(this.holeIndex + 1);
+    public RoundLifecycle getRoundLifecycle() {
+        return this.roundLifecycle;
     }
 
     @Override
-    public int maxTeams() {
-        return this.maximumTeams;
+    public RoundTeamManager getRoundTeamManager() {
+        return this.roundTeamManager;
     }
 
     @Override
-    public boolean isPrivate() {
-        return this.isPrivate;
+    public RoundTurnManager getRoundTurnManager() {
+        return this.roundTurnManager;
     }
 
     @Override
-    public boolean containsTeam(Team team) {
-        return this.teams.stream().anyMatch(t -> t.equals(team));
+    public RoundSettings getSettings() {
+        return this.roundSettings;
     }
-
-    @Override
-    public boolean containsPlayer(UUID playerId) {
-        return this.teams.stream().anyMatch(team -> team.contains(playerId));
-    }
-
-    private void handleRoundEnd() {
-        this.roundOver = true;
-        for (Team team : this.teams) {
-            ScoreCard scoreCard = this.scoreCards.get(team);
-            if (scoreCard == null) {
-                continue;
-            }
-
-            for (UUID playerId : team.getTeamMembers()) {
-                PlayerData playerData = playerDataManager.getDataByPlayer(playerId);
-                PDGARating rating = playerData.getRating();
-                rating.handleRoundEnd(scoreCard.getTotalScore());
-                rating.updateRating(courseImpl.difficulty());
-                System.out.println(scoreCard.getTotalStrokes());
-                System.out.println(scoreCard.getTotalScore());
-                System.out.println(rating.getRating());
-                System.out.println(rating.getAverageScore());
-                System.out.println(rating.getDivision());
-                System.out.println(rating.getTotalRounds());
-            }
-        }
-        this.dispose();
-    }
-
-    public Map<Team, ScoreCard> getScoreCards() {
-        return this.scoreCards;
-    }
-
-    public ScoreCard getScoreCardByTeam(Team team) {
-        return this.scoreCards.get(team);
-    }
-
-    protected ScoreCard getScoreCardById(UUID playerId) {
-        return teams.stream()
-                .filter(team -> team.getTeamMembers().contains(playerId))
-                .findFirst()
-                .map(scoreCards::get)
-                .orElse(null);
-    }
-
-    public Map<Integer, Map<Team, Boolean>> getScoredGoals() {
-        return Collections.unmodifiableMap(this.scoredGoals);
-    }
-
-    public void setTeamScored(int holeNumber, Team team) {
-        this.scoredGoals.put(holeNumber, Map.of(team, true));
-    }
-
-    private void dispose() {
-        this.teams.clear();
-        this.scoreCards.clear();
-        this.gameTask.cancel();
-        this.gameTask = null;
-        this.currentTeamTurn = null;
-        this.roundOver = true;
-    }
-
 }

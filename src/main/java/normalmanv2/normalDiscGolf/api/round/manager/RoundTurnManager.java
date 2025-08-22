@@ -1,6 +1,5 @@
-package normalmanv2.normalDiscGolf.api.round;
+package normalmanv2.normalDiscGolf.api.round.manager;
 
-import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import org.bukkit.Location;
 
@@ -12,7 +11,7 @@ public interface RoundTurnManager {
 
     boolean isTurn(Team team);
 
-    void handleStroke(ThrowMechanic throwMechanic);
+    void setTeamScored(int holeNumber, Team team);
 
     Location getNextTeeLocation();
 

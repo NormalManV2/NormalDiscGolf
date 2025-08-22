@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.api.round;
+package normalmanv2.normalDiscGolf.api.round.settings;
 
 public enum RoundType {
     PRACTICE,

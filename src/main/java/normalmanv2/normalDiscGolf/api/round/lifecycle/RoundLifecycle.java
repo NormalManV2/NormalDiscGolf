@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.api.round;
+package normalmanv2.normalDiscGolf.api.round.lifecycle;
 
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
 

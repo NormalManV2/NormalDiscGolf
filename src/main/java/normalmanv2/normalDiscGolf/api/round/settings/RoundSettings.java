@@ -1,4 +1,4 @@
-package normalmanv2.normalDiscGolf.api.round;
+package normalmanv2.normalDiscGolf.api.round.settings;
 
 import normalmanv2.normalDiscGolf.common.division.Division;
 
@@ -9,8 +9,6 @@ public interface RoundSettings {
     RoundType getType();
 
     Division getDivision();
-
-    void setDivision(Division division);
 
     boolean isPrivate();
 }
