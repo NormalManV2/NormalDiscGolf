@@ -1,27 +1,55 @@
 package normalmanv2.normalDiscGolf.common.round;
 
-import normalmanv2.normalDiscGolf.api.round.settings.RoundSettings;
+import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.api.round.Wirable;
 import normalmanv2.normalDiscGolf.api.round.manager.RoundTeamManager;
 import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTeamManager;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
-public class DefaultRoundTeamManager implements DelegateRoundTeamManager {
+public class DefaultRoundTeamManager implements DelegateRoundTeamManager, Wirable {
     private final Set<Team> teams;
-    private final RoundSettings settings;
+    private GameRound round;
+    private boolean isWired = false;
 
-    public DefaultRoundTeamManager(RoundSettings settings) {
+    public DefaultRoundTeamManager() {
         this.teams = new HashSet<>();
-        this.settings = settings;
     }
 
     @Override
     public RoundTeamManager getRoundTeamManager() {
         return this;
+    }
+
+    @Override
+    public void wire(@NotNull GameRound round, @Nullable Plugin plugin) {
+        if (this.isWired) {
+            throw new IllegalStateException("This team manager is already wired!");
+        }
+
+        this.round = round;
+        this.isWired = true;
+    }
+
+    @Override
+    public void unwire() {
+        if (!this.isWired) {
+            throw new IllegalStateException("This team manager is not wired!");
+        }
+        this.round = null;
+        this.isWired = false;
+    }
+
+    @Override
+    public boolean isWired() {
+        return this.isWired;
     }
 
     @Override
@@ -47,7 +75,7 @@ public class DefaultRoundTeamManager implements DelegateRoundTeamManager {
 
     @Override
     public boolean isFull() {
-        return this.teams.size() >= this.settings.maxTeams();
+        return this.teams.size() >= this.round.getSettings().maxTeams();
     }
 
     @Override

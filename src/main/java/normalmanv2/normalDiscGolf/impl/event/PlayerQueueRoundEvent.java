@@ -13,22 +13,22 @@ public class PlayerQueueRoundEvent extends Event {
 
     private static final HandlerList HANDLERS = new HandlerList();
     private final UUID playerId;
-    private final String roundType;
+    private final String roundFormat;
     private final Set<GameRound> roundQueue;
 
-    public PlayerQueueRoundEvent(UUID playerId, Set<GameRound> roundQueue, String roundType) {
+    public PlayerQueueRoundEvent(UUID playerId, Set<GameRound> roundQueue, String roundFormat) {
         this.playerId = playerId;
         this.roundQueue = roundQueue;
-        this.roundType = roundType;
-        System.out.println("PlayerQueueRoundEvent: " + playerId + " roundQueue " + roundQueue + " roundType " + roundType);
+        this.roundFormat = roundFormat;
+        System.out.println("PlayerQueueRoundEvent: " + playerId + " roundQueue " + roundQueue + " roundType " + roundFormat);
     }
 
     public UUID getPlayerId() {
         return this.playerId;
     }
 
-    public String getRoundType() {
-        return this.roundType;
+    public String getRoundFormat() {
+        return this.roundFormat;
     }
 
     public Set<GameRound> getRoundQueue() {

@@ -2,6 +2,7 @@ package normalmanv2.normalDiscGolf.api.round.delegate.manager;
 
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
 import normalmanv2.normalDiscGolf.api.round.manager.RoundStrokeManager;
+import normalmanv2.normalDiscGolf.common.round.DefaultRoundStrokeManager;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 
 public interface DelegateRoundStrokeManager extends RoundStrokeManager {
@@ -15,6 +16,10 @@ public interface DelegateRoundStrokeManager extends RoundStrokeManager {
     @Override
     default boolean handleStroke(ThrowMechanic throwMechanic) {
         return getRoundStrokeManager().handleStroke(throwMechanic);
+    }
+
+    static RoundStrokeManager createDefault() {
+        return new DefaultRoundStrokeManager();
     }
 
 }

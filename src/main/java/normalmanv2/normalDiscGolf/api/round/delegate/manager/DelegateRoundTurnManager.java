@@ -2,6 +2,7 @@ package normalmanv2.normalDiscGolf.api.round.delegate.manager;
 
 import normalmanv2.normalDiscGolf.api.round.manager.RoundTurnManager;
 import normalmanv2.normalDiscGolf.api.team.Team;
+import normalmanv2.normalDiscGolf.common.round.DefaultRoundTurnManager;
 import org.bukkit.Location;
 
 public interface DelegateRoundTurnManager extends RoundTurnManager {
@@ -40,5 +41,9 @@ public interface DelegateRoundTurnManager extends RoundTurnManager {
     @Override
     default int getCurrentHole() {
         return this.getRoundTurnManager().getCurrentHole();
+    }
+
+    static RoundTurnManager createDefault() {
+        return new DefaultRoundTurnManager();
     }
 }

@@ -2,6 +2,7 @@ package normalmanv2.normalDiscGolf.api.round.delegate.manager;
 
 import normalmanv2.normalDiscGolf.api.round.manager.RoundScoreCardManager;
 import normalmanv2.normalDiscGolf.api.team.Team;
+import normalmanv2.normalDiscGolf.common.round.DefaultRoundScoreCardManager;
 import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
 
 import java.util.Map;
@@ -38,5 +39,9 @@ public interface DelegateRoundScoreCardManager extends RoundScoreCardManager {
     @Override
     default void clearScores() {
         this.getRoundScoreCardManager().clearScores();
+    }
+
+    static RoundScoreCardManager createDefault() {
+        return new DefaultRoundScoreCardManager();
     }
 }

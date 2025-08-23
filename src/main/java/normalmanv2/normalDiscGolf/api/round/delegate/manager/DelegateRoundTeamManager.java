@@ -2,6 +2,7 @@ package normalmanv2.normalDiscGolf.api.round.delegate.manager;
 
 import normalmanv2.normalDiscGolf.api.round.manager.RoundTeamManager;
 import normalmanv2.normalDiscGolf.api.team.Team;
+import normalmanv2.normalDiscGolf.common.round.DefaultRoundTeamManager;
 
 import java.util.List;
 import java.util.UUID;
@@ -42,5 +43,9 @@ public interface DelegateRoundTeamManager extends RoundTeamManager {
     @Override
     default void tick() {
         this.getRoundTeamManager().tick();
+    }
+
+    static RoundTeamManager createDefault() {
+        return new DefaultRoundTeamManager();
     }
 }

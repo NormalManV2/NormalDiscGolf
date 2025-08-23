@@ -2,9 +2,11 @@ package normalmanv2.normalDiscGolf.common.round;
 
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.api.round.Wirable;
 import normalmanv2.normalDiscGolf.api.round.manager.RoundStrokeManager;
 import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundStrokeManager;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
+import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
@@ -12,19 +14,48 @@ import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-public class DefaultRoundStrokeManager implements DelegateRoundStrokeManager {
-    private final GameRound round;
+public class DefaultRoundStrokeManager implements DelegateRoundStrokeManager, Wirable {
+    private GameRound round;
+    private boolean isWired = false;
+
     private final PlayerDataManager playerDataManager;
 
-    public DefaultRoundStrokeManager(GameRound round, PlayerDataManager playerDataManager) {
-        this.round = round;
-        this.playerDataManager = playerDataManager;
+    public DefaultRoundStrokeManager() {
+        this.playerDataManager = NDGManager.getInstance().getPlayerDataManager();
     }
 
     @Override
     public RoundStrokeManager getRoundStrokeManager() {
         return this;
+    }
+
+    @Override
+    public void wire(@NotNull GameRound gameRound, @Nullable Plugin plugin) {
+        if (this.isWired) {
+            throw new IllegalStateException("This stroke manager is already wired!");
+        }
+
+        this.round = gameRound;
+        this.isWired = true;
+    }
+
+    @Override
+    public void unwire() {
+        if (!this.isWired) {
+            throw new IllegalStateException("This turn manager is not wired!");
+        }
+
+        this.round = null;
+        this.isWired = false;
+    }
+
+    @Override
+    public boolean isWired() {
+        return this.isWired;
     }
 
     @Override

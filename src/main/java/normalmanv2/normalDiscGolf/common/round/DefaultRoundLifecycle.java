@@ -1,6 +1,5 @@
 package normalmanv2.normalDiscGolf.common.round;
 
-import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundLifecycle;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundResult;
@@ -13,6 +12,8 @@ import normalmanv2.normalDiscGolf.impl.round.RoundState;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
@@ -21,17 +22,41 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
     private boolean ended = false;
     private RoundState state;
 
-    private final GameRound round;
-    private final NormalDiscGolfPlugin plugin;
-
-    public DefaultRoundLifecycle(GameRound round, NormalDiscGolfPlugin plugin) {
-        this.round = round;
-        this.plugin = plugin;
-    }
+    private GameRound round;
+    private Plugin plugin;
+    private boolean isWired = false;
 
     @Override
     public RoundLifecycle getRoundLifecycle() {
         return this;
+    }
+
+    @Override
+    public void wire(@NotNull GameRound round, @NotNull Plugin plugin) {
+
+        if (this.isWired) {
+            throw new IllegalStateException("This lifecycle is already wired!");
+        }
+
+        this.round = round;
+        this.plugin = plugin;
+        this.isWired = true;
+    }
+
+    @Override
+    public void unwire() {
+        if (!this.isWired) {
+            throw new IllegalStateException("This lifecycle is not wired!");
+        }
+
+        this.round = null;
+        this.plugin = null;
+        this.isWired = false;
+    }
+
+    @Override
+    public boolean isWired() {
+        return this.isWired;
     }
 
     @Override

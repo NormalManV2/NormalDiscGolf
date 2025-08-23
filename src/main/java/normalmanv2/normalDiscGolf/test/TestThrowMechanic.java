@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.test;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
-import normalmanv2.normalDiscGolf.api.round.RoundType;
+import normalmanv2.normalDiscGolf.api.round.settings.RoundType;
 import normalmanv2.normalDiscGolf.common.command.AbstractCommand;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;

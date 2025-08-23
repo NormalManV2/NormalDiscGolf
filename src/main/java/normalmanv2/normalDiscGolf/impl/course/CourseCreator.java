@@ -17,9 +17,9 @@ public class CourseCreator {
         return new CourseImpl(division, grid, courseName);
     }
 
-    public CourseImpl create(int size, int numHoles, String name) {
+    public CourseImpl create(int size, int numHoles, Division division, String name) {
         CourseGrid grid = new CourseGrid(size, size, List.of(TileTypes.values()), numHoles);
-        return new CourseImpl(Constants.DEFAULT_FFA_COURSE_DIVISION, grid, name);
+        return new CourseImpl(division, grid, name);
     }
 
     public CourseImpl create() {

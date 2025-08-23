@@ -1,6 +1,11 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
 import normalmanv2.normalDiscGolf.api.round.*;
+import normalmanv2.normalDiscGolf.api.round.delegate.lifecycle.DelegateRoundLifecycle;
+import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundScoreCardManager;
+import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundStrokeManager;
+import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTeamManager;
+import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTurnManager;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundLifecycle;
 import normalmanv2.normalDiscGolf.api.round.manager.RoundScoreCardManager;
 import normalmanv2.normalDiscGolf.api.round.manager.RoundStrokeManager;
@@ -9,6 +14,7 @@ import normalmanv2.normalDiscGolf.api.round.manager.RoundTurnManager;
 import normalmanv2.normalDiscGolf.api.round.settings.RoundSettings;
 import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
 
@@ -25,27 +31,22 @@ public class RoundImpl implements GameRound {
     private final DefaultRoundScoreCardManager scoreCardManager;
 
     private BukkitTask gameTask;
+    private boolean isWired = false;
 
     public RoundImpl(
             CourseImpl courseImpl,
             String id,
-            DefaultRoundSettings roundSettings,
-            DefaultRoundTurnManager roundTurnManager,
-            DefaultRoundTeamManager roundTeamManager,
-            DefaultRoundLifecycle roundLifecycle,
-            DefaultRoundStrokeManager strokeManager,
-            DefaultRoundScoreCardManager scoreCardManager) {
-
+            DefaultRoundSettings roundSettings) {
 
         this.courseImpl = courseImpl;
         this.id = id;
 
         this.roundSettings = roundSettings;
-        this.roundTurnManager = roundTurnManager;
-        this.roundTeamManager = roundTeamManager;
-        this.roundLifecycle = roundLifecycle;
-        this.strokeManager = strokeManager;
-        this.scoreCardManager = scoreCardManager;
+        this.roundTurnManager = (DefaultRoundTurnManager) DelegateRoundTurnManager.createDefault();
+        this.roundTeamManager = (DefaultRoundTeamManager) DelegateRoundTeamManager.createDefault();
+        this.roundLifecycle = (DefaultRoundLifecycle) DelegateRoundLifecycle.createDefault();
+        this.strokeManager = (DefaultRoundStrokeManager) DelegateRoundStrokeManager.createDefault();
+        this.scoreCardManager = (DefaultRoundScoreCardManager) DelegateRoundScoreCardManager.createDefault();
     }
 
     @Override
@@ -105,6 +106,42 @@ public class RoundImpl implements GameRound {
         this.scoreCardManager.dispose();
         this.roundTeamManager.dispose();
         this.roundTurnManager.dispose();
+    }
+
+    @Override
+    public void wire(GameRound round, Plugin plugin) {
+        this.initWire(plugin);
+    }
+
+    private void initWire(Plugin plugin) {
+
+        if (this.isWired) {
+            throw new IllegalStateException("This round is already wired!");
+        }
+
+        this.roundTurnManager.wire(this, null);
+        this.roundTeamManager.wire(this, null);
+        this.roundLifecycle.wire(this, plugin);
+        this.strokeManager.wire(this, null);
+        this.isWired = true;
+    }
+
+    @Override
+    public void unwire() {
+        if (!this.isWired) {
+            throw new IllegalStateException("This round is not wired!");
+        }
+
+        this.roundTurnManager.unwire();
+        this.roundTeamManager.unwire();
+        this.roundLifecycle.unwire();
+        this.strokeManager.unwire();
+        this.isWired = false;
+    }
+
+    @Override
+    public boolean isWired() {
+        return this.isWired;
     }
 
 }

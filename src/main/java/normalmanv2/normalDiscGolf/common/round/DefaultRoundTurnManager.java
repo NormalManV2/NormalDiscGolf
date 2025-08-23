@@ -1,27 +1,60 @@
 package normalmanv2.normalDiscGolf.common.round;
 
 import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.api.round.Wirable;
 import normalmanv2.normalDiscGolf.api.round.manager.RoundTurnManager;
 import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTurnManager;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
-public class DefaultRoundTurnManager implements DelegateRoundTurnManager {
-    private final GameRound round;
-    private final List<Team> turnOrder;
+public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirable {
+    private GameRound round;
+    private boolean isWired = false;
+    private List<Team> turnOrder;
+
     private final Map<Integer, Map<Team, Boolean>> scoredGoals;
     private final Random random = new Random();
     private int currentIndex = 0;
     private int hole = 1;
 
-    public DefaultRoundTurnManager(Collection<Team> teams, GameRound round) {
-        this.turnOrder = new ArrayList<>(teams);
-        this.round = round;
+    public DefaultRoundTurnManager() {
         this.scoredGoals = new HashMap<>();
+    }
+
+    @Override
+    public void wire(@NotNull GameRound round, @Nullable Plugin plugin) {
+        if (this.isWired) {
+            throw new IllegalStateException("This turn manager is already wired!");
+        }
+
+        this.round = round;
+        this.isWired = true;
+        this.init();
+    }
+
+    @Override
+    public void unwire() {
+        if (!this.isWired) {
+            throw new IllegalStateException("This turn manager is not wired!");
+        }
+
+        this.round = null;
+        this.isWired = false;
+    }
+
+    private void init() {
+        this.turnOrder = new ArrayList<>(this.round.getTeams());
+    }
+
+    public boolean isWired() {
+        return this.isWired;
     }
 
     @Override
@@ -89,6 +122,11 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager {
     @Override
     public Location getNextTeeLocation() {
         return this.round.getCourse().teeLocations().get(this.hole);
+    }
+
+    public DefaultRoundTurnManager setRound(GameRound round) {
+        this.round = round;
+        return this;
     }
 
     public void dispose() {

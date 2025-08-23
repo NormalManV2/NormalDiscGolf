@@ -1,23 +1,24 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
-import normalmanv2.normalDiscGolf.api.round.RoundType;
+import normalmanv2.normalDiscGolf.api.round.settings.RoundType;
+import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
-import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
-import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import org.bukkit.plugin.Plugin;
-
-import java.util.UUID;
 
 public class DoublesRound extends RoundImpl {
 
-    public DoublesRound(Plugin plugin, CourseImpl courseImpl, RoundType type, String id, int maximumTeams, boolean isPrivate) {
-        super(plugin, courseImpl, type, id, maximumTeams, isPrivate);
-    }
+    public DoublesRound(
+            CourseImpl courseImpl,
+            String id,
+            DefaultRoundSettings settings,
+            DefaultRoundTurnManager turnManager,
+            DefaultRoundTeamManager teamManager,
+            DefaultRoundLifecycle lifecycle,
+            DefaultRoundStrokeManager strokeManager,
+            DefaultRoundScoreCardManager scoreCardManager) {
 
-    @Override
-    public void handleStroke(ThrowMechanic throwMechanic) {
-        super.handleStroke(throwMechanic);
-    }
+        super(courseImpl, id, settings, turnManager, teamManager, lifecycle, strokeManager, scoreCardManager);
 
+    }
 }

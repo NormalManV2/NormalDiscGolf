@@ -3,6 +3,9 @@ package normalmanv2.normalDiscGolf.impl.listener;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.event.PlayerQueueRoundEvent;
 import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
@@ -15,10 +18,15 @@ public class PlayerRoundQueueListener implements Listener {
 
     @EventHandler
     public void onRoundQueue(PlayerQueueRoundEvent event) {
-        this.queueManager.addPlayerToQueue(event.getPlayerId(), event.getRoundType());
+        this.queueManager.addPlayerToQueue(event.getPlayerId(), event.getRoundFormat());
+        Player player = Bukkit.getPlayer(event.getPlayerId());
+        if (player == null) {
+            return;
+        }
+        player.sendMessage(ChatColor.GREEN + "You have been queued!");
     }
 
-
+}
     /*
             List<RoundQueue> roundQueue = event.getRoundQueue();
 
@@ -47,11 +55,11 @@ public class PlayerRoundQueueListener implements Listener {
                         CourseGrid courseGrid = new CourseGrid(8, 8, List.of(TileTypes.FAIRWAY, TileTypes.OBSTACLE), world);
 
                         newQueue[0] = this.queueManager.createQueue(
-                                new FFARound(plugin, NDGManager.getInstance().getPlayerDataManager(),
+                                new FFARound(plugin, NDGManager.getSettings().getPlayerDataManager(),
                                 new CourseImpl(difficulty, "New Course FFA", 18,
                                         courseGrid, world.getSpawnLocation(), Collections.emptyMap(), Collections.emptySet(), Collections.emptyMap()), false, "ffa", 4));
 
-                        courseGrid.generate(NDGManager.getInstance().getObstacleRegistry(), difficulty);
+                        courseGrid.generate(NDGManager.getSettings().getObstacleRegistry(), difficulty);
 
                         this.queueManager.addPlayerToRound(event.getPlayerId(), newQueue[0].round().getId());
 
@@ -70,11 +78,11 @@ public class PlayerRoundQueueListener implements Listener {
                         CourseGrid courseGrid = new CourseGrid(8, 8, List.of(TileTypes.FAIRWAY, TileTypes.OBSTACLE), world);
 
                         newQueue[0] = this.queueManager.createQueue(
-                                new DoublesRound(plugin, NDGManager.getInstance().getPlayerDataManager(),
+                                new DoublesRound(plugin, NDGManager.getSettings().getPlayerDataManager(),
                                 new CourseImpl(difficulty, "New Course Doubles", 18,
                                         courseGrid, world.getSpawnLocation(), Collections.emptyMap(), Collections.emptySet(), Collections.emptyMap()), false, "doubles", 4));
 
-                        courseGrid.generate(NDGManager.getInstance().getObstacleRegistry(), difficulty);
+                        courseGrid.generate(NDGManager.getSettings().getObstacleRegistry(), difficulty);
 
                         this.queueManager.addPlayerToRound(event.getPlayerId(), newQueue[0].round().getId());
                         for (int x = 0; x < courseGrid.getWidth(); x++) {
@@ -115,4 +123,4 @@ public class PlayerRoundQueueListener implements Listener {
     }
 
 */
-}
+

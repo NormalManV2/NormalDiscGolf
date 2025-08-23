@@ -1,10 +1,14 @@
 package normalmanv2.normalDiscGolf.api.round.delegate.lifecycle;
 
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
+import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.api.round.Wirable;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundLifecycle;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundResult;
+import normalmanv2.normalDiscGolf.common.round.DefaultRoundLifecycle;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
 
-public interface DelegateRoundLifecycle extends RoundLifecycle {
+public interface DelegateRoundLifecycle extends RoundLifecycle, Wirable {
     RoundLifecycle getRoundLifecycle();
 
     @Override
@@ -36,5 +40,9 @@ public interface DelegateRoundLifecycle extends RoundLifecycle {
     @Override
     default void setState(RoundState state) {
         this.getRoundLifecycle().setState(state);
+    }
+
+    static RoundLifecycle createDefault() {
+        return new DefaultRoundLifecycle();
     }
 }

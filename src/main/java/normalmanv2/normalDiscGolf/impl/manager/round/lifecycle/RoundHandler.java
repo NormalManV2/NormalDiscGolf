@@ -1,11 +1,15 @@
 package normalmanv2.normalDiscGolf.impl.manager.round.lifecycle;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
-import normalmanv2.normalDiscGolf.api.round.RoundType;
+import normalmanv2.normalDiscGolf.api.round.settings.RoundType;
+import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.CourseCreator;
+import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.round.DoublesRound;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
@@ -14,12 +18,7 @@ import normalmanv2.normalDiscGolf.impl.course.world.CourseGridWorldCreator;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Supplier;
 
 import static normalmanv2.normalDiscGolf.impl.util.Constants.*;
@@ -28,7 +27,6 @@ public class RoundHandler {
 
     private final Set<GameRound> activeRounds;
     private final NormalDiscGolfPlugin plugin;
-
 
     public RoundHandler(NormalDiscGolfPlugin normalDiscGolfPlugin) {
         this.activeRounds = new HashSet<>();
@@ -59,47 +57,67 @@ public class RoundHandler {
         this.cleanupEndedRounds();
     }
 
-    public GameRound createRound(Division division, String roundType, RoundType type, boolean isPrivate, String courseName) {
-        World world = Bukkit.createWorld(new CourseGridWorldCreator(courseName, new CourseCreator().create(DEFAULT_FFA_COURSE_SIZE, DEFAULT_COURSE_HOLES, courseName), division));
+    public GameRound createRound(
+            String roundFormat,
+            CourseImpl course,
+            String courseName,
+            DefaultRoundSettings settings,
+            DefaultRoundTurnManager turnManager,
+            DefaultRoundTeamManager teamManager,
+            DefaultRoundLifecycle lifecycle,
+            DefaultRoundStrokeManager strokeManager,
+            DefaultRoundScoreCardManager scoreCardManager) {
+
+        World world = Bukkit.createWorld(new CourseGridWorldCreator(courseName, course, settings.division()));
 
         if (world == null) throw new RuntimeException("World is null!");
 
-        Supplier<GameRound> roundSupplier = switch (roundType.toLowerCase()) {
-            case "ffa" -> () -> createFFARound(type, isPrivate, courseName);
-            case "doubles" -> () -> createDoublesRound(type, isPrivate, courseName);
-            default -> throw new IllegalArgumentException("Unknown round type: " + roundType);
+        Supplier<GameRound> roundSupplier = switch (roundFormat.toLowerCase()) {
+            case "ffa" -> () -> createFFARound(course, courseName, settings, turnManager, teamManager, lifecycle, strokeManager, scoreCardManager);
+            case "doubles" -> () -> createDoublesRound(course, courseName, settings, turnManager, teamManager, lifecycle, strokeManager, scoreCardManager);
+            default -> throw new IllegalArgumentException("Unknown round type: " + roundFormat);
         };
         return roundSupplier.get();
     }
 
-    private GameRound createFFARound(RoundType type, boolean isPrivate, String courseName) {
+    private GameRound createFFARound(
+            CourseImpl course,
+            String id,
+            DefaultRoundSettings settings,
+            DefaultRoundTurnManager turnManager,
+            DefaultRoundTeamManager teamManager,
+            DefaultRoundLifecycle lifecycle,
+            DefaultRoundStrokeManager strokeManager,
+            DefaultRoundScoreCardManager scoreCardManager) {
         return new FFARound(
-                plugin,
-                NDGManager.getInstance().courseCreator()
-                        .setSize(DEFAULT_FFA_COURSE_SIZE)
-                        .setDivision(DEFAULT_FFA_COURSE_DIVISION)
-                        .setHoles(DEFAULT_COURSE_HOLES)
-                        .setName(courseName)
-                        .create(),
-                type,
-                courseName,
-                Constants.FFA_ROUND_MAX_PLAYERS,
-                isPrivate);
+                course,
+                id,
+                settings,
+                turnManager,
+                teamManager,
+                lifecycle,
+                strokeManager,
+                scoreCardManager);
     }
 
-    private GameRound createDoublesRound(RoundType type, boolean isPrivate, String courseName) {
+    private GameRound createDoublesRound(
+            CourseImpl course,
+            String id,
+            DefaultRoundSettings settings,
+            DefaultRoundTurnManager turnManager,
+            DefaultRoundTeamManager teamManager,
+            DefaultRoundLifecycle lifecycle,
+            DefaultRoundStrokeManager strokeManager,
+            DefaultRoundScoreCardManager scoreCardManager) {
         return new DoublesRound(
-                plugin,
-                NDGManager.getInstance().courseCreator()
-                        .setSize(DEFAULT_DUBS_COURSE_SIZE)
-                        .setDivision(DEFAULT_DUBS_COURSE_DIVISION)
-                        .setHoles(DEFAULT_COURSE_HOLES)
-                        .setName(courseName)
-                        .create(),
-                type,
-                "DOUBLES_ROUND." + UUID.randomUUID(),
-                Constants.DOUBLES_ROUND_MAX_TEAMS,
-                isPrivate);
+                course,
+                id,
+                settings,
+                turnManager,
+                teamManager,
+                lifecycle,
+                strokeManager,
+                scoreCardManager);
     }
 
     private void cleanupEndedRounds() {
@@ -112,7 +130,7 @@ public class RoundHandler {
             }
 
             activeRoundsIterator.remove();
-            gameRound.end();
+            System.out.println(gameRound.end().toString());
             System.out.println(gameRound + " Has been ended!");
         }
     }

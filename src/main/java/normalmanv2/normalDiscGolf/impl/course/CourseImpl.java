@@ -11,7 +11,6 @@ import java.util.Map;
 
 
 public class CourseImpl implements Course {
-
     private final Division division;
     private final String courseName;
     private final CourseGrid grid;
