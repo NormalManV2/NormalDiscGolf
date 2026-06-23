@@ -1,12 +1,13 @@
 package normalmanv2.normalDiscGolf.common.round;
 
 import normalmanv2.normalDiscGolf.api.round.GameRound;
-import normalmanv2.normalDiscGolf.api.round.Wirable;
+import normalmanv2.normalDiscGolf.api.round.delegate.Wirable;
 import normalmanv2.normalDiscGolf.api.round.manager.RoundTurnManager;
 import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTurnManager;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -83,8 +84,6 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
         if (allTeamsScored) {
             this.advanceHole();
 
-            Location tee = this.getNextTeeLocation();
-
             for (Team team : teams) {
                 for (UUID playerId : team.getTeamMembers()) {
                     Player player = Bukkit.getPlayer(playerId);
@@ -92,6 +91,9 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
                         this.round.getRoundTeamManager().tick();
                         continue;
                     }
+
+                    World world = player.getWorld();
+                    Location tee = this.getNextTeeLocation(world);
                     player.teleport(tee);
                 }
             }
@@ -120,8 +122,8 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
     }
 
     @Override
-    public Location getNextTeeLocation() {
-        return this.round.getCourse().teeLocations().get(this.hole);
+    public Location getNextTeeLocation(World world) {
+        return this.round.getCourse().toLocation(world, this.round.getCourse().teeLocations().get(this.hole));
     }
 
     public DefaultRoundTurnManager setRound(GameRound round) {

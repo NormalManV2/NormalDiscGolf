@@ -7,6 +7,9 @@ public enum TileTypes {
     OBSTACLE,
     TEE,
     PIN,
-    OUT_OF_BOUNDS
+    OUT_OF_BOUNDS,
+    LIGHT_ROUGH,
+    HEAVY_ROUGH,
+    SAND
 
 }

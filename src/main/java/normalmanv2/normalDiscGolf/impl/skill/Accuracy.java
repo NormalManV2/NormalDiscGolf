@@ -5,4 +5,10 @@ public class Accuracy extends Skill {
     public Accuracy(int level, int maxLevel) {
         super(level, maxLevel);
     }
+
+    @Override
+    protected void onLevelUp() {
+
+    }
+
 }

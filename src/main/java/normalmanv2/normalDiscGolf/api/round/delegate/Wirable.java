@@ -1,5 +1,6 @@
-package normalmanv2.normalDiscGolf.api.round;
+package normalmanv2.normalDiscGolf.api.round.delegate;
 
+import normalmanv2.normalDiscGolf.api.round.GameRound;
 import org.bukkit.plugin.Plugin;
 
 public interface Wirable {

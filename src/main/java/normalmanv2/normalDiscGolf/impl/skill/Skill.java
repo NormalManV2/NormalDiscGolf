@@ -3,29 +3,51 @@ package normalmanv2.normalDiscGolf.impl.skill;
 public class Skill {
 
     private int level;
-    private int maxLevel;
+    private final int maxLevel;
 
-    public Skill(int level, int maxLevel) {
-        this.level = level;
+    private double xp;
+    private double xpToNext;
+
+    public Skill(int startingLevel, int maxLevel) {
+        this.level = startingLevel;
         this.maxLevel = maxLevel;
+        this.xp = 0;
+        this.xpToNext = this.computeXpNeeded(this.level);
     }
 
     public int getLevel() {
         return this.level;
     }
-
-
-    public int getMaxLevel() {
+       public int getMaxLevel() {
         return this.maxLevel;
     }
 
-
-    public void setLevel(int level) {
-        this.level = level;
+    public double getXp() {
+        return this.xp;
     }
 
-
-    public void setMaxLevel(int maxLevel) {
-        this.maxLevel = maxLevel;
+    protected void incrLevel() {
+        this.level++;
+        this.onLevelUp();
     }
+
+    public void addXp(double amount) {
+        if (this.level >= this.maxLevel) return;
+
+        this.xp += amount;
+        while (this.xp >= this.xpToNext && level < this.maxLevel) {
+            this.xp -= this.xpToNext;
+            this.incrLevel();
+            this.xpToNext = this.computeXpNeeded(this.level);
+        }
+    }
+
+    protected double computeXpNeeded(int currentLevel) {
+        return 50 + (currentLevel * currentLevel * 15);
+    }
+
+    protected void onLevelUp() {
+
+    }
+
 }

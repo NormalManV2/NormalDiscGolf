@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.common.round;
 
 import normalmanv2.normalDiscGolf.api.round.GameRound;
-import normalmanv2.normalDiscGolf.api.round.Wirable;
+import normalmanv2.normalDiscGolf.api.round.delegate.Wirable;
 import normalmanv2.normalDiscGolf.api.round.manager.RoundTeamManager;
 import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTeamManager;
 import normalmanv2.normalDiscGolf.api.team.Team;

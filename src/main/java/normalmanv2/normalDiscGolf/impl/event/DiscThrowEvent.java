@@ -3,7 +3,6 @@ package normalmanv2.normalDiscGolf.impl.event;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
-import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;

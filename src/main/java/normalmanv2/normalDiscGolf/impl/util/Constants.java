@@ -32,9 +32,11 @@ public class Constants {
     public static final int DEFAULT_TILE_Y = 64;
 
     public static final int DEFAULT_TILE_OBSTACLES_LIMIT = 14;
+    public static final int DEFAULT_HEAVY_ROUGH_TILE_OBSTACLES_LIMIT = 23;
+    public static final int DEFAULT_LIGHT_ROUGH_TILE_OBSTACLES_LIMIT = 20;
     public static final int DEFAULT_FAIRWAY_TILE_OBSTACLES_LIMIT = 18;
     public static final int DEFAULT_OBSTACLE_TILE_OBSTACLES_LIMIT = 25;
     public static final int DEFAULT_OBSTACLE_CLUSTER_RADIUS = 6;
 
-    public static final int DEFAULT_MAX_OBSTACLE_GENERATION_ATTEMPTS = 10;
+    public static final int DEFAULT_MAX_OBSTACLE_GENERATION_ATTEMPTS = 4;
 }

@@ -22,7 +22,7 @@ public abstract class ThrowTechnique {
 
         // Diminishing factor of the turn phase
         final double turnFactor = (Constants.TURN_PHASE_END - flightPhase) / Constants.TURN_PHASE_END;
-        // Exponential increase of the fade phase - scale the last number for increase / decrease of the exponential effect
+        // Exponential increase of the fade phase
         final double fadeFactor = Math.pow((flightPhase - Constants.FADE_PHASE_START) / (1 - Constants.FADE_PHASE_START), 3);
         // Drag factor
         discVelocity.multiply(Constants.DRAG_FACTOR);

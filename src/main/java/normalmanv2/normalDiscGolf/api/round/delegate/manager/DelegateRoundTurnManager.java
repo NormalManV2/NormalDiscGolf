@@ -4,6 +4,7 @@ import normalmanv2.normalDiscGolf.api.round.manager.RoundTurnManager;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.common.round.DefaultRoundTurnManager;
 import org.bukkit.Location;
+import org.bukkit.World;
 
 public interface DelegateRoundTurnManager extends RoundTurnManager {
     RoundTurnManager getRoundTurnManager();
@@ -34,8 +35,8 @@ public interface DelegateRoundTurnManager extends RoundTurnManager {
     }
 
     @Override
-    default Location getNextTeeLocation() {
-        return this.getRoundTurnManager().getNextTeeLocation();
+    default Location getNextTeeLocation(World world) {
+        return this.getRoundTurnManager().getNextTeeLocation(world);
     }
 
     @Override

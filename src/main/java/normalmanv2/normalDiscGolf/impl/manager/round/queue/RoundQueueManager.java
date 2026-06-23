@@ -1,19 +1,14 @@
 package normalmanv2.normalDiscGolf.impl.manager.round.queue;
 
 import normalmanv2.normalDiscGolf.api.round.GameRound;
-import normalmanv2.normalDiscGolf.api.round.delegate.lifecycle.DelegateRoundLifecycle;
-import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundScoreCardManager;
-import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundStrokeManager;
-import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTeamManager;
-import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTurnManager;
 import normalmanv2.normalDiscGolf.api.round.delegate.settings.DelegateRoundSettings;
 import normalmanv2.normalDiscGolf.api.round.settings.RoundType;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.common.division.Division;
-import normalmanv2.normalDiscGolf.impl.course.CourseCreator;
-import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.course.creator.CourseCreator;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 import normalmanv2.normalDiscGolf.impl.manager.round.lifecycle.RoundHandler;
@@ -106,12 +101,6 @@ public class RoundQueueManager {
                     settings = (DefaultRoundSettings) DelegateRoundSettings.create(Constants.DOUBLES_ROUND_MAX_TEAMS, RoundType.RECREATIONAL, division, false);
                 }
 
-                DefaultRoundTurnManager turnManager = (DefaultRoundTurnManager) DelegateRoundTurnManager.createDefault();
-                DefaultRoundTeamManager teamManager = (DefaultRoundTeamManager) DelegateRoundTeamManager.createDefault();
-                DefaultRoundLifecycle lifecycle = (DefaultRoundLifecycle) DelegateRoundLifecycle.createDefault();
-                DefaultRoundStrokeManager strokeManager = (DefaultRoundStrokeManager) DelegateRoundStrokeManager.createDefault();
-                DefaultRoundScoreCardManager scoreCardManager = (DefaultRoundScoreCardManager) DelegateRoundScoreCardManager.createDefault();
-
                 GameRound round = findOrCreateRoundForDivision(
                         roundFormat,
                         RoundType.RECREATIONAL,
@@ -124,12 +113,7 @@ public class RoundQueueManager {
                                         18),
                                 playerId + "." + roundFormat),
                         player.getDisplayName(),
-                        settings,
-                        turnManager,
-                        teamManager,
-                        lifecycle,
-                        strokeManager,
-                        scoreCardManager);
+                        settings);
 
                 if (round == null)
                     throw new RuntimeException("Error ticking player queue: No suitable round could be found!");
@@ -174,17 +158,12 @@ public class RoundQueueManager {
             RoundType type,
             CourseImpl course,
             String courseName,
-            DefaultRoundSettings settings,
-            DefaultRoundTurnManager turnManager,
-            DefaultRoundTeamManager teamManager,
-            DefaultRoundLifecycle lifecycle,
-            DefaultRoundStrokeManager strokeManager,
-            DefaultRoundScoreCardManager scoreCardManager) {
+            DefaultRoundSettings settings) {
         return this.queuedRounds.stream()
                 .filter(round -> round.getId().equalsIgnoreCase(roundFormat) && round.type() == type)
                 .findFirst()
                 .orElseGet(() -> {
-                    GameRound newRound = this.roundHandler.createRound(roundFormat, course, courseName, settings, turnManager, teamManager, lifecycle, strokeManager, scoreCardManager);
+                    GameRound newRound = this.roundHandler.createRound(roundFormat, course, courseName, settings);
                     this.addRoundToQueue(newRound);
                     return newRound;
                 });

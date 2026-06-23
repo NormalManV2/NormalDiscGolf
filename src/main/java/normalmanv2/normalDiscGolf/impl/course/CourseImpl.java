@@ -2,11 +2,10 @@ package normalmanv2.normalDiscGolf.impl.course;
 
 import normalmanv2.normalDiscGolf.api.course.Course;
 import normalmanv2.normalDiscGolf.common.division.Division;
-import normalmanv2.normalDiscGolf.impl.NDGManager;
-import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
 import org.bukkit.Location;
+import org.bukkit.World;
 
-import java.util.Collections;
 import java.util.Map;
 
 
@@ -14,18 +13,11 @@ public class CourseImpl implements Course {
     private final Division division;
     private final String courseName;
     private final CourseGrid grid;
-    private final Map<Integer, Location> teeLocations;
-    private final Map<Integer, Location> holeLocations;
-    private final Map<Integer, Integer> holePars;
 
     public CourseImpl(Division division, CourseGrid grid, String courseName) {
         this.division = division;
         this.courseName = courseName;
-        grid.generate(division);
         this.grid = grid;
-        this.teeLocations = grid.getTeeLocations();
-        this.holeLocations = grid.getHoleLocations();
-        this.holePars = grid.getHolePars();
     }
 
     @Override
@@ -40,23 +32,28 @@ public class CourseImpl implements Course {
     }
 
     @Override
-    public Location startingLocation() {
-        return this.teeLocations.get(0);
+    public CourseGrid.GridPoint startingLocation() {
+        return this.grid.getTeePoints().get(0);
     }
 
     @Override
-    public Map<Integer, Location> teeLocations() {
-        return Collections.unmodifiableMap(this.teeLocations);
+    public Location toLocation(World world, CourseGrid.GridPoint gridPoint) {
+        return new Location(world, gridPoint.x(), gridPoint.y(), gridPoint.z());
     }
 
     @Override
-    public Map<Integer, Location> holeLocations() {
-        return Collections.unmodifiableMap(this.holeLocations);
+    public Map<Integer, CourseGrid.GridPoint> teeLocations() {
+        return this.grid.getTeePoints();
+    }
+
+    @Override
+    public Map<Integer, CourseGrid.GridPoint> holeLocations() {
+        return this.grid.getHolePoints();
     }
 
     @Override
     public Map<Integer, Integer> holePars() {
-        return Collections.unmodifiableMap(this.holePars);
+        return this.grid.getHolePars();
     }
 
     public Division division() {

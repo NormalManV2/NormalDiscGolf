@@ -7,7 +7,7 @@ group = "normalmanv2.normalDiscGolf"
 version = property("version") as String
 
 repositories {
-    maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots")
+    maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
     maven("https://oss.sonatype.org/content/repositories/snapshots")
     maven("https://oss.sonatype.org/content/repositories/central")
     maven("https://oss.sonatype.org/content/groups/public")
@@ -18,10 +18,10 @@ repositories {
 }
 
 dependencies {
-    compileOnly("org.spigotmc:spigot-api:1.21.1-R0.1-SNAPSHOT")
-    compileOnly("com.sk89q.worldedit:worldedit-core:7.3.4")
-    compileOnly("com.sk89q.worldedit:worldedit-bukkit:7.3.4")
-    compileOnly("io.netty:netty-all:4.1.97.Final")
+    compileOnly("org.spigotmc:spigot-api:1.21.8-R0.1-SNAPSHOT")
+    compileOnly("com.sk89q.worldedit:worldedit-core:7.3.19")
+    compileOnly("com.sk89q.worldedit:worldedit-bukkit:7.3.19")
+    compileOnly("io.netty:netty-all:4.2.5.Final")
 
     implementation("org.NormalMan:NormalAPI:1.1")
 

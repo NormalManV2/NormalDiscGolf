@@ -2,6 +2,7 @@ package normalmanv2.normalDiscGolf.api.round.manager;
 
 import normalmanv2.normalDiscGolf.api.team.Team;
 import org.bukkit.Location;
+import org.bukkit.World;
 
 public interface RoundTurnManager {
 
@@ -15,7 +16,7 @@ public interface RoundTurnManager {
 
     void setTeamScored(int holeNumber, Team team);
 
-    Location getNextTeeLocation();
+    Location getNextTeeLocation(World world);
 
     int getCurrentHole();
 }

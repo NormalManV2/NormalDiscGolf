@@ -1,25 +1,22 @@
-package normalmanv2.normalDiscGolf.impl.course.chunk;
+package normalmanv2.normalDiscGolf.impl.course.grid;
 
 import normalmanv2.normalDiscGolf.common.division.Division;
-import normalmanv2.normalDiscGolf.impl.NDGManager;
-import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.tile.Tile;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Material;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Random;
 
 public class CourseGridChunkGenerator extends ChunkGenerator {
 
     private final CourseGrid grid;
-    private final Division division;
 
-    public CourseGridChunkGenerator(CourseGrid grid, Division division) {
+    public CourseGridChunkGenerator(CourseGrid grid) {
         this.grid = grid;
-        this.division = division;
     }
 
     @Override
@@ -49,8 +46,6 @@ public class CourseGridChunkGenerator extends ChunkGenerator {
             return;
         }
 
-        this.grid.generate(this.division);
-
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
                 int blockX = (chunkX << 4) + x;
@@ -62,15 +57,7 @@ public class CourseGridChunkGenerator extends ChunkGenerator {
                 Tile tile = grid.getTile(tx, tz);
                 if (tile == null) continue;
 
-                TileTypes type = tile.getCollapsedState();
-                Material blockType = switch (type) {
-                    case FAIRWAY -> Material.GRASS_BLOCK;
-                    case OBSTACLE -> Material.COBBLESTONE;
-                    case WATER -> Material.WATER;
-                    case TEE -> Material.LIME_CONCRETE;
-                    case PIN -> Material.RED_CONCRETE;
-                    case OUT_OF_BOUNDS -> Material.BEDROCK;
-                };
+                Material blockType = getMaterial(tile);
 
                 for (int y = 0; y <= baseY; y++) {
                     chunkData.setBlock(x, y, z, Material.DIRT);
@@ -78,5 +65,20 @@ public class CourseGridChunkGenerator extends ChunkGenerator {
                 chunkData.setBlock(x, baseY + 1, z, blockType);
             }
         }
+    }
+
+    private static @NonNull Material getMaterial(Tile tile) {
+        TileTypes type = tile.getCollapsedState();
+        return switch (type) {
+            case FAIRWAY -> Material.GRASS_BLOCK;
+            case OBSTACLE -> Material.COBBLESTONE;
+            case WATER -> Material.WATER;
+            case TEE -> Material.LIME_CONCRETE;
+            case PIN -> Material.RED_CONCRETE;
+            case OUT_OF_BOUNDS -> Material.BEDROCK;
+            case LIGHT_ROUGH -> Material.BONE_BLOCK;
+            case HEAVY_ROUGH -> Material.AMETHYST_BLOCK;
+            case SAND -> Material.SAND;
+        };
     }
 }

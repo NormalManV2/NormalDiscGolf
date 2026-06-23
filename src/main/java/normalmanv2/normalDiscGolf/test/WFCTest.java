@@ -3,9 +3,11 @@ package normalmanv2.normalDiscGolf.test;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
-import normalmanv2.normalDiscGolf.impl.course.*;
+import normalmanv2.normalDiscGolf.impl.course.creator.CourseCreator;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
-import normalmanv2.normalDiscGolf.impl.course.world.CourseGridWorldCreator;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGridWorldCreator;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -41,11 +43,11 @@ public class WFCTest implements CommandExecutor {
         World world = Bukkit.createWorld(worldCreator);
 
         Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            grid.generate(division);
             grid.generateObstacles(world);
             Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
-                if (world.getSpawnLocation() == null) throw new RuntimeException("world spawn location is null");
 
-             player.teleport(world.getSpawnLocation());
+                player.teleport(grid.toLocation(world, grid.getTeePoints().get(0)));
             }, 20);
         }, 20);
 

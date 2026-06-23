@@ -3,12 +3,12 @@ package normalmanv2.normalDiscGolf.impl.course.obstacle.generator;
 import com.sk89q.worldedit.math.BlockVector3;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
-import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.WeightedObstacle;
 import normalmanv2.normalDiscGolf.impl.course.tile.Tile;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
-import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -17,7 +17,10 @@ import org.bukkit.block.Block;
 import org.bukkit.util.BoundingBox;
 import org.normal.impl.registry.RegistryImpl;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
 public class ObstacleGenerator {
 
@@ -55,18 +58,24 @@ public class ObstacleGenerator {
     }
 
     private void placeObstacle(Tile tile, World world) {
+        TileTypes tileType = tile.getCollapsedState();
+
+        if (tileType == TileTypes.WATER || tileType == TileTypes.OUT_OF_BOUNDS || tileType == TileTypes.SAND) {
+            return;
+        }
+
         int maxObstaclesPerTile = this.calculateMaxObstacles(tile);
         int clusters = Math.max(1, (int) Math.ceil(maxObstaclesPerTile * this.getClusterDensityFactor(tile)));
 
         // Random cluster centers within a tile.
         List<Location> clusterCenters = new ArrayList<>();
         double tileSize = Constants.DEFAULT_TILE_SIZE;
-        Location tileBase = tile.getLocation();
+        CourseGrid.GridPoint tileBase = tile.getGridPoint();
 
         for (int i = 0; i < clusters; i++) {
-            double cx = tileBase.getX() + random.nextDouble() * tileSize;
-            double cz = tileBase.getZ() + random.nextDouble() * tileSize;
-            clusterCenters.add(new Location(world, cx, tileBase.getY(), cz));
+            double cx = tileBase.x() + random.nextDouble() * tileSize;
+            double cz = tileBase.z() + random.nextDouble() * tileSize;
+            clusterCenters.add(new Location(world, cx, tileBase.y(), cz));
         }
 
         int placed = 0;
@@ -92,74 +101,127 @@ public class ObstacleGenerator {
             double halfDepth = size.z() / 2.0;
 
             // Clamp x/z coordinates to ensure placement within tile bounds.
-            double minX = tileBase.getX() + halfWidth;
-            double maxX = tileBase.getX() + tileSize - halfWidth;
-            double minZ = tileBase.getZ() + halfDepth;
-            double maxZ = tileBase.getZ() + tileSize - halfDepth;
+            double minX = tileBase.x() + halfWidth;
+            double maxX = tileBase.x() + tileSize - halfWidth;
+            double minZ = tileBase.z() + halfDepth;
+            double maxZ = tileBase.z() + tileSize - halfDepth;
 
             double finalX = this.clamp(center.getX() + offsetX, minX, maxX);
             double finalZ = this.clamp(center.getZ() + offsetZ, minZ, maxZ);
 
-            Location finalLoc = new Location(world, finalX, tileBase.getY(), finalZ);
+            Location finalLoc = new Location(world, finalX, tileBase.y(), finalZ);
             ObstacleImpl obstacle = prototype.clone();
             obstacle.setLocation(finalLoc);
 
             // Extra bound validation
             BoundingBox box = obstacle.getBoundingBox();
-            boolean overlapsObstacle = this.placedObstacleBounds.stream().anyMatch(box::overlaps);
-            boolean overlapsTile = this.placedTileBounds.stream().anyMatch(box::overlaps);
 
-            // We can skip these tiles as there are no current plans for obstacle placements within these types.
-            if (tile.getCollapsedState() == TileTypes.TEE
-                    || tile.getCollapsedState() == TileTypes.WATER
-                    || tile.getCollapsedState() == TileTypes.OUT_OF_BOUNDS) {
-
-                if (overlapsTile) continue;
+            // ensure center is within the tile bounds (tile.getBoundingBox contains the obstacle bounds)
+            BoundingBox tileBox = tile.getBoundingBox();
+            if (!containsTile(tileBox, box)) {
+                System.out.println("Obstacle is outside of tile bounds!");
+                continue;
             }
 
-            if (overlapsObstacle) continue;
+            // ensure obstacle doesn't overlap previously placed obstacles
+            boolean overlapsObstacle = this.placedObstacleBounds.stream().anyMatch(box::overlaps);
+            if (overlapsObstacle) {
+                System.out.println("Obstacle is overlapping another obstacle!");
+                continue;
+            }
 
-            // Validates the area of which the obstacle is attempting to generate.
+            // Tee/pin objects are allowed to occupy their own tee/pin safety zone.
+            if (tileType != TileTypes.TEE && tileType != TileTypes.PIN && !safeFromTeesPins(box)) {
+                System.out.println("Obstacle is not a safe distance from tee/pin tile");
+                continue;
+            }
+
+            // shouldPlaceObstacle still checks ground validity etc.
             if (shouldPlaceObstacle(tile, obstacle, world)) {
                 obstacle.generate();
                 this.placedObstacleBounds.add(box);
                 placed++;
+                System.out.println("Obstacle generated: " + obstacle.getSchematicName());
             }
         }
+    }
+
+    private boolean containsTile(BoundingBox tileBox, BoundingBox box) {
+        return box.getMinX() >= tileBox.getMinX()
+                && box.getMaxX() <= tileBox.getMaxX()
+                && box.getMinZ() >= tileBox.getMinZ()
+                && box.getMaxZ() <= tileBox.getMaxZ();
+    }
+
+    private boolean safeFromTeesPins(BoundingBox box) {
+        double TEE_R = 0.5 * Constants.DEFAULT_TILE_SIZE;
+        double PIN_R = 0.5 * Constants.DEFAULT_TILE_SIZE;
+        for (CourseGrid.GridPoint loc : courseGrid.getTeePoints().values()) {
+            BoundingBox tb = new BoundingBox(
+                    loc.x() - TEE_R, loc.y() - 4, loc.z() - TEE_R,
+                    loc.x() + TEE_R, loc.y() + 16, loc.z() + TEE_R
+            );
+            if (tb.overlaps(box)) return false;
+        }
+        for (CourseGrid.GridPoint loc : courseGrid.getHolePoints().values()) {
+            BoundingBox pb = new BoundingBox(
+                    loc.x() - PIN_R, loc.y() - 4, loc.z() - PIN_R,
+                    loc.x() + PIN_R, loc.y() + 16, loc.z() + PIN_R
+            );
+            if (pb.overlaps(box)) return false;
+        }
+        return true;
     }
 
     private double clamp(double val, double min, double max) {
         return Math.max(min, Math.min(max, val));
     }
 
+    private CourseDifficulty getCourseDifficulty() {
+        CourseDifficulty difficulty = this.divisionCourseDifficulty.get(this.division);
+        if (difficulty == null) {
+            return CourseDifficulty.MEDIUM;
+        }
+
+        return difficulty;
+    }
+
     private int calculateMaxObstacles(Tile tile) {
-        double baseFactor = this.divisionCourseDifficulty.get(this.division).getDensityFactor();
+        double baseFactor = this.getCourseDifficulty().getDensityFactor();
 
         return switch (tile.getCollapsedState()) {
             case OBSTACLE -> (int) Math.ceil(baseFactor * Constants.DEFAULT_OBSTACLE_TILE_OBSTACLES_LIMIT);
             case FAIRWAY -> (int) Math.ceil(baseFactor * Constants.DEFAULT_FAIRWAY_TILE_OBSTACLES_LIMIT);
+            case HEAVY_ROUGH -> (int) Math.ceil(baseFactor * Constants.DEFAULT_HEAVY_ROUGH_TILE_OBSTACLES_LIMIT);
+            case LIGHT_ROUGH -> (int) Math.ceil(baseFactor * Constants.DEFAULT_LIGHT_ROUGH_TILE_OBSTACLES_LIMIT);
             case PIN -> 1;
             default -> (int) Math.ceil(baseFactor * Constants.DEFAULT_TILE_OBSTACLES_LIMIT);
         };
     }
 
     private double getClusterDensityFactor(Tile tile) {
-        double baseFactor = this.divisionCourseDifficulty.get(this.division).getDensityFactor();
+        double baseFactor = this.getCourseDifficulty().getDensityFactor();
 
         return switch (tile.getCollapsedState()) {
             case OBSTACLE -> baseFactor * 0.25;
             case FAIRWAY -> baseFactor * 0.35;
-            case PIN -> baseFactor * 0.6;
+            case HEAVY_ROUGH -> baseFactor * 0.45;
+            case LIGHT_ROUGH -> baseFactor * 0.4;
+            case PIN -> baseFactor;
             default -> baseFactor * 0.3;
         };
     }
 
     private boolean shouldPlaceObstacle(Tile tile, ObstacleImpl obstacle, World world) {
+        TileTypes tileType = tile.getCollapsedState();
 
-        if (tile.getCollapsedState() == TileTypes.PIN) return true;
-        if (this.isGroundValid(obstacle.getBoundingBox(), world)) return true;
+        if (tileType == TileTypes.PIN || tileType == TileTypes.TEE) return true;
 
-        return tile.getCollapsedState() != TileTypes.WATER && tile.getCollapsedState() != TileTypes.TEE && tile.getCollapsedState() != TileTypes.OUT_OF_BOUNDS;
+        if (tileType == TileTypes.WATER || tileType == TileTypes.OUT_OF_BOUNDS || tileType == TileTypes.SAND) {
+            return false;
+        }
+
+        return this.isGroundValid(obstacle.getBoundingBox(), world);
     }
 
     private boolean isGroundValid(BoundingBox box, World world) {
@@ -171,12 +233,10 @@ public class ObstacleGenerator {
 
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
-
                 Block block = world.getBlockAt(x, y, z);
                 if (block.isEmpty() || block.isLiquid() || block.getType() == Material.WATER) {
                     return false;
                 }
-
             }
         }
         return true;
@@ -186,20 +246,31 @@ public class ObstacleGenerator {
 
         final Map<TileTypes, List<WeightedObstacle>> obstacleWeights = Map.of(
                 TileTypes.OBSTACLE, List.of(
-                        new WeightedObstacle(registry.get("tree"), 0.4),
-                        new WeightedObstacle(registry.get("bigTree"), 0.2),
-                        new WeightedObstacle(registry.get("tallTree"), 0.25),
-                        new WeightedObstacle(registry.get("tallTree1"), 0.25),
+                        new WeightedObstacle(registry.get("tree"), 0.8),
+                        //new WeightedObstacle(registry.get("bigTree"), 0.2),
+                        //new WeightedObstacle(registry.get("tallTree"), 0.25),
+                        //new WeightedObstacle(registry.get("tallTree1"), 0.25),
                         new WeightedObstacle(registry.get("bush"), 0.2)
                 ),
                 TileTypes.FAIRWAY, List.of(
-                        new WeightedObstacle(registry.get("bigTree"), 0.2),
-                        new WeightedObstacle(registry.get("tallTree"), 0.15),
-                        new WeightedObstacle(registry.get("rock"), 0.2),
+                        //new WeightedObstacle(registry.get("bigTree"), 0.2),
+                        //new WeightedObstacle(registry.get("tallTree"), 0.15),
+                        new WeightedObstacle(registry.get("rock"), 0.75),
                         new WeightedObstacle(registry.get("tree"), 0.25)
                 ),
                 TileTypes.PIN, List.of(
                         new WeightedObstacle(registry.get("pin"), 1.0)
+                ),
+                TileTypes.TEE, List.of(
+                        new WeightedObstacle(registry.get("tee"), 1.0)
+                ),
+                TileTypes.HEAVY_ROUGH, List.of(
+                    new WeightedObstacle(registry.get("tree"), 0.5),
+                    new WeightedObstacle(registry.get("bush"), 0.5)
+                ),
+                TileTypes.LIGHT_ROUGH, List.of(
+                    new WeightedObstacle(registry.get("bush"), 0.5),
+                    new WeightedObstacle(registry.get("rock"), 0.5)
                 )
         );
 

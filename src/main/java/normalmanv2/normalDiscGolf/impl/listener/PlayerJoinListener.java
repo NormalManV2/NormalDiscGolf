@@ -11,10 +11,10 @@ import java.io.IOException;
 
 public class PlayerJoinListener implements Listener {
     @EventHandler
-    public void onJoin(PlayerJoinEvent event) throws IOException {
+    public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         PlayerData playerData = new PlayerData();
         NDGManager.getInstance().getPlayerDataManager().registerPlayerData(player.getUniqueId(), playerData);
-        NDGManager.getInstance().getPacked().send(player);
+        //NDGManager.getInstance().getPacked().send(player);
     }
 }

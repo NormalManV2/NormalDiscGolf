@@ -37,7 +37,6 @@ public class ObstacleImpl implements Obstacle, Cloneable {
     }
 
     @Override
-    @Nonnull
     public Location getLocation() {
         return this.location;
     }
@@ -54,6 +53,10 @@ public class ObstacleImpl implements Obstacle, Cloneable {
 
     @Override
     public void generate(Location location) {
+        if (location == null) {
+            throw new IllegalStateException("Cannot generate obstacle without a location");
+        }
+
         Optional<Path> schemFile = NDGManager.getInstance().getObstacleManager().getFile(this);
 
         if (schemFile.isEmpty()) throw new RuntimeException("Could not find schematic file");
@@ -92,6 +95,9 @@ public class ObstacleImpl implements Obstacle, Cloneable {
     }
 
     public void generate() {
+
+        if (this.location == null) throw new RuntimeException("Location is null");
+
         this.generate(this.location);
     }
 
@@ -123,6 +129,10 @@ public class ObstacleImpl implements Obstacle, Cloneable {
     }
 
     public BoundingBox getBoundingBox() {
+        if (this.location == null) {
+            throw new IllegalStateException("Cannot calculate obstacle bounding box without a location");
+        }
+
         double x = this.location.getX();
         double y = this.location.getY();
         double z = this.location.getZ();

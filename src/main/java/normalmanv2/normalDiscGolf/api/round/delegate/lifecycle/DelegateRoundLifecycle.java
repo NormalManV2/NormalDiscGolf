@@ -1,8 +1,6 @@
 package normalmanv2.normalDiscGolf.api.round.delegate.lifecycle;
 
-import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
-import normalmanv2.normalDiscGolf.api.round.GameRound;
-import normalmanv2.normalDiscGolf.api.round.Wirable;
+import normalmanv2.normalDiscGolf.api.round.delegate.Wirable;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundLifecycle;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundResult;
 import normalmanv2.normalDiscGolf.common.round.DefaultRoundLifecycle;

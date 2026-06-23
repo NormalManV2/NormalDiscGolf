@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.course.tile;
 
-import org.bukkit.Location;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.util.BoundingBox;
 
 import java.util.ArrayList;
@@ -8,15 +9,16 @@ import java.util.List;
 import java.util.Random;
 
 public class Tile {
+
     private final List<TileTypes> possibleStates;
     private TileTypes collapsedState;
     private boolean isCollapsed;
-    private final Location location;
+    private final CourseGrid.GridPoint gridPoint;
 
-    public Tile(List<TileTypes> initialStates, Location location) {
+    public Tile(List<TileTypes> initialStates, CourseGrid.GridPoint gridPoint) {
         this.possibleStates = new ArrayList<>(initialStates);
         this.isCollapsed = false;
-        this.location = location;
+        this.gridPoint = gridPoint;
     }
 
     public TileTypes collapse(Random random) {
@@ -54,22 +56,26 @@ public class Tile {
     }
 
     private List<TileTypes> getCompatibleStates(TileTypes state) {
+        // expanded for roughs, sand, etc.
         return switch (state) {
-            case WATER -> List.of(TileTypes.WATER, TileTypes.FAIRWAY);
-            case OUT_OF_BOUNDS -> List.of(TileTypes.OBSTACLE, TileTypes.WATER);
-            case PIN -> List.of(TileTypes.FAIRWAY, TileTypes.WATER, TileTypes.OBSTACLE, TileTypes.OUT_OF_BOUNDS);
-            default -> List.of(TileTypes.FAIRWAY);
+            case WATER -> List.of(TileTypes.WATER, TileTypes.HEAVY_ROUGH);
+            case OUT_OF_BOUNDS -> List.of(TileTypes.OUT_OF_BOUNDS);
+            case PIN -> List.of(TileTypes.FAIRWAY, TileTypes.LIGHT_ROUGH, TileTypes.HEAVY_ROUGH, TileTypes.SAND);
+            case FAIRWAY -> List.of(TileTypes.FAIRWAY, TileTypes.LIGHT_ROUGH);
+            case LIGHT_ROUGH -> List.of(TileTypes.LIGHT_ROUGH, TileTypes.FAIRWAY, TileTypes.HEAVY_ROUGH);
+            case HEAVY_ROUGH -> List.of(TileTypes.HEAVY_ROUGH, TileTypes.LIGHT_ROUGH, TileTypes.OBSTACLE);
+            default -> List.of(TileTypes.HEAVY_ROUGH, TileTypes.LIGHT_ROUGH);
         };
     }
 
     public BoundingBox getBoundingBox() {
-        double x = location.getX();
-        double y = location.getY();
-        double z = location.getZ();
+        double x = gridPoint.x();
+        double y = gridPoint.y();
+        double z = gridPoint.z();
 
         return new BoundingBox(
                 x, y, z,
-                x + 16, y + 256, z + 16
+                x + Constants.DEFAULT_TILE_SIZE, y + 256, z + Constants.DEFAULT_TILE_SIZE
         );
     }
 
@@ -77,8 +83,8 @@ public class Tile {
         return this.collapsedState;
     }
 
-    public Location getLocation() {
-        return this.location;
+    public CourseGrid.GridPoint getGridPoint() {
+        return this.gridPoint;
     }
 
     public boolean isCollapsed() {
@@ -88,4 +94,6 @@ public class Tile {
     public int getEntropy() {
         return possibleStates.size();
     }
+
+
 }

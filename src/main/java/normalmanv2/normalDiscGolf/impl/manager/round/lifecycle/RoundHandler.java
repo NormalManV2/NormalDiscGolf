@@ -1,27 +1,19 @@
 package normalmanv2.normalDiscGolf.impl.manager.round.lifecycle;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
-import normalmanv2.normalDiscGolf.api.round.settings.RoundType;
-import normalmanv2.normalDiscGolf.api.team.Team;
-import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
-import normalmanv2.normalDiscGolf.impl.course.CourseCreator;
-import normalmanv2.normalDiscGolf.impl.course.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.round.DoublesRound;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
-import normalmanv2.normalDiscGolf.impl.util.Constants;
-import normalmanv2.normalDiscGolf.impl.course.world.CourseGridWorldCreator;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGridWorldCreator;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 
 import java.util.*;
 import java.util.function.Supplier;
-
-import static normalmanv2.normalDiscGolf.impl.util.Constants.*;
 
 public class RoundHandler {
 
@@ -61,20 +53,15 @@ public class RoundHandler {
             String roundFormat,
             CourseImpl course,
             String courseName,
-            DefaultRoundSettings settings,
-            DefaultRoundTurnManager turnManager,
-            DefaultRoundTeamManager teamManager,
-            DefaultRoundLifecycle lifecycle,
-            DefaultRoundStrokeManager strokeManager,
-            DefaultRoundScoreCardManager scoreCardManager) {
+            DefaultRoundSettings settings) {
 
         World world = Bukkit.createWorld(new CourseGridWorldCreator(courseName, course, settings.division()));
 
         if (world == null) throw new RuntimeException("World is null!");
 
         Supplier<GameRound> roundSupplier = switch (roundFormat.toLowerCase()) {
-            case "ffa" -> () -> createFFARound(course, courseName, settings, turnManager, teamManager, lifecycle, strokeManager, scoreCardManager);
-            case "doubles" -> () -> createDoublesRound(course, courseName, settings, turnManager, teamManager, lifecycle, strokeManager, scoreCardManager);
+            case "ffa" -> () -> createFFARound(course, courseName, settings);
+            case "doubles" -> () -> createDoublesRound(course, courseName, settings);
             default -> throw new IllegalArgumentException("Unknown round type: " + roundFormat);
         };
         return roundSupplier.get();
@@ -83,41 +70,21 @@ public class RoundHandler {
     private GameRound createFFARound(
             CourseImpl course,
             String id,
-            DefaultRoundSettings settings,
-            DefaultRoundTurnManager turnManager,
-            DefaultRoundTeamManager teamManager,
-            DefaultRoundLifecycle lifecycle,
-            DefaultRoundStrokeManager strokeManager,
-            DefaultRoundScoreCardManager scoreCardManager) {
+            DefaultRoundSettings settings) {
         return new FFARound(
                 course,
                 id,
-                settings,
-                turnManager,
-                teamManager,
-                lifecycle,
-                strokeManager,
-                scoreCardManager);
+                settings);
     }
 
     private GameRound createDoublesRound(
             CourseImpl course,
             String id,
-            DefaultRoundSettings settings,
-            DefaultRoundTurnManager turnManager,
-            DefaultRoundTeamManager teamManager,
-            DefaultRoundLifecycle lifecycle,
-            DefaultRoundStrokeManager strokeManager,
-            DefaultRoundScoreCardManager scoreCardManager) {
+            DefaultRoundSettings settings) {
         return new DoublesRound(
                 course,
                 id,
-                settings,
-                turnManager,
-                teamManager,
-                lifecycle,
-                strokeManager,
-                scoreCardManager);
+                settings);
     }
 
     private void cleanupEndedRounds() {

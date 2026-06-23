@@ -2,7 +2,7 @@ package normalmanv2.normalDiscGolf.common.round;
 
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
-import normalmanv2.normalDiscGolf.api.round.Wirable;
+import normalmanv2.normalDiscGolf.api.round.delegate.Wirable;
 import normalmanv2.normalDiscGolf.api.round.manager.RoundStrokeManager;
 import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundStrokeManager;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
