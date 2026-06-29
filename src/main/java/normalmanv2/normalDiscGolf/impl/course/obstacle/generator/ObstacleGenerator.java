@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.course.obstacle.generator;
 
 import com.sk89q.worldedit.math.BlockVector3;
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
@@ -119,20 +120,20 @@ public class ObstacleGenerator {
             // ensure center is within the tile bounds (tile.getBoundingBox contains the obstacle bounds)
             BoundingBox tileBox = tile.getBoundingBox();
             if (!containsTile(tileBox, box)) {
-                System.out.println("Obstacle is outside of tile bounds!");
+                //NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class).getLogger().warning("Obstacle is outside of tile bounds!");
                 continue;
             }
 
             // ensure obstacle doesn't overlap previously placed obstacles
             boolean overlapsObstacle = this.placedObstacleBounds.stream().anyMatch(box::overlaps);
             if (overlapsObstacle) {
-                System.out.println("Obstacle is overlapping another obstacle!");
+                //NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class).getLogger().warning("Obstacle is overlapping another obstacle!");
                 continue;
             }
 
             // Tee/pin objects are allowed to occupy their own tee/pin safety zone.
             if (tileType != TileTypes.TEE && tileType != TileTypes.PIN && !safeFromTeesPins(box)) {
-                System.out.println("Obstacle is not a safe distance from tee/pin tile");
+                //NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class).getLogger().warning("Obstacle is not a safe distance from tee/pin tile");
                 continue;
             }
 
@@ -141,7 +142,7 @@ public class ObstacleGenerator {
                 obstacle.generate();
                 this.placedObstacleBounds.add(box);
                 placed++;
-                System.out.println("Obstacle generated: " + obstacle.getSchematicName());
+                //NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class).getLogger().info("Obstacle generated: " + obstacle.getSchematicName());
             }
         }
     }
@@ -194,7 +195,8 @@ public class ObstacleGenerator {
             case FAIRWAY -> (int) Math.ceil(baseFactor * Constants.DEFAULT_FAIRWAY_TILE_OBSTACLES_LIMIT);
             case HEAVY_ROUGH -> (int) Math.ceil(baseFactor * Constants.DEFAULT_HEAVY_ROUGH_TILE_OBSTACLES_LIMIT);
             case LIGHT_ROUGH -> (int) Math.ceil(baseFactor * Constants.DEFAULT_LIGHT_ROUGH_TILE_OBSTACLES_LIMIT);
-            case PIN -> 1;
+            case PIN, TEE -> 1;
+            case WATER, SAND, OUT_OF_BOUNDS -> 0;
             default -> (int) Math.ceil(baseFactor * Constants.DEFAULT_TILE_OBSTACLES_LIMIT);
         };
     }
@@ -203,8 +205,8 @@ public class ObstacleGenerator {
         double baseFactor = this.getCourseDifficulty().getDensityFactor();
 
         return switch (tile.getCollapsedState()) {
-            case OBSTACLE -> baseFactor * 0.25;
-            case FAIRWAY -> baseFactor * 0.35;
+            case OBSTACLE -> baseFactor * 0.35;
+            case FAIRWAY -> baseFactor * 0.2;
             case HEAVY_ROUGH -> baseFactor * 0.45;
             case LIGHT_ROUGH -> baseFactor * 0.4;
             case PIN -> baseFactor;

@@ -24,17 +24,17 @@ public class Constants {
     public static final Division DEFAULT_DUBS_COURSE_DIVISION = Division.MASTER;
     public static final int DEFAULT_COURSE_HOLES = 18;
 
-    public static final double DEFAULT_EASY_COURSE_DIFFICULTY = 0.2;
-    public static final double DEFAULT_MEDIUM_COURSE_DIFFICULTY = 0.5;
-    public static final double DEFAULT_HARD_COURSE_DIFFICULTY = 0.8;
+    public static final double DEFAULT_EASY_COURSE_DIFFICULTY = 1.2;
+    public static final double DEFAULT_MEDIUM_COURSE_DIFFICULTY = 1.5;
+    public static final double DEFAULT_HARD_COURSE_DIFFICULTY = 1.8;
 
     public static final int DEFAULT_TILE_SIZE = 16;
     public static final int DEFAULT_TILE_Y = 64;
 
-    public static final int DEFAULT_TILE_OBSTACLES_LIMIT = 14;
-    public static final int DEFAULT_HEAVY_ROUGH_TILE_OBSTACLES_LIMIT = 23;
-    public static final int DEFAULT_LIGHT_ROUGH_TILE_OBSTACLES_LIMIT = 20;
-    public static final int DEFAULT_FAIRWAY_TILE_OBSTACLES_LIMIT = 18;
+    public static final int DEFAULT_TILE_OBSTACLES_LIMIT = 15;
+    public static final int DEFAULT_HEAVY_ROUGH_TILE_OBSTACLES_LIMIT = 50;
+    public static final int DEFAULT_LIGHT_ROUGH_TILE_OBSTACLES_LIMIT = 30;
+    public static final int DEFAULT_FAIRWAY_TILE_OBSTACLES_LIMIT = 10;
     public static final int DEFAULT_OBSTACLE_TILE_OBSTACLES_LIMIT = 25;
     public static final int DEFAULT_OBSTACLE_CLUSTER_RADIUS = 6;
 

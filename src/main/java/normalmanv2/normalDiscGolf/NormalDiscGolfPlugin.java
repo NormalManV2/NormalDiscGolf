@@ -7,10 +7,7 @@ import normalmanv2.normalDiscGolf.impl.listener.GuiListener;
 import normalmanv2.normalDiscGolf.impl.listener.PlayerJoinListener;
 import normalmanv2.normalDiscGolf.impl.listener.PlayerRoundQueueListener;
 import normalmanv2.normalDiscGolf.impl.listener.ThrowMechanicListener;
-import normalmanv2.normalDiscGolf.test.RoundQueueTest;
-import normalmanv2.normalDiscGolf.test.TransferWorldCommand;
-import normalmanv2.normalDiscGolf.test.WFCIntegrationTest;
-import normalmanv2.normalDiscGolf.test.WFCTest;
+import normalmanv2.normalDiscGolf.test.*;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -39,6 +36,7 @@ public final class NormalDiscGolfPlugin extends JavaPlugin {
     private void registerAbstractCommands() {
         new TransferWorldCommand("world", new String[]{}, "Transfer world command", "ndg.commands.transfer_world");
         new WFCIntegrationTest("wfc", new String[]{}, "WFC Integration Test", "ndg.commands.wfc", this);
+        new WorldTPCommand("worldtp", new String[]{}, "Teleport to world", "ndg.commands.worldtp");
     }
 
     private void registerListeners() {
