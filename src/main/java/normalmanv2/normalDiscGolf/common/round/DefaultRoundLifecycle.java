@@ -11,10 +11,13 @@ import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
@@ -62,42 +65,42 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
     @Override
     public RoundResult start() {
         if (this.started) return RoundResult.ALREADY_STARTED;
+        if (this.round.getTeams().isEmpty()) return RoundResult.NOT_ENOUGH_TEAMS;
+
         this.started = true;
         this.state = RoundState.START;
 
+        World world = Bukkit.getWorld(this.round.getId());
+        if (world == null) {
+            throw new IllegalStateException("World " + this.round.getId() + " does not exist");
+        }
+
         for (Team team : this.round.getTeams()) {
             this.round.getRoundScoreCardManager().addScoreCard(team, new ScoreCard());
+            Set<UUID> missingPlayers = new HashSet<>();
 
             for (UUID playerId : team.getTeamMembers()) {
                 Player player = Bukkit.getPlayer(playerId);
                 if (player == null) {
-                    team.removePlayer(playerId);
-                    if (team.getTeamMembers().isEmpty()) {
-                        this.round.getRoundTeamManager().removeTeam(team);
-                        this.round.getRoundScoreCardManager().removeScoreCard(team);
-                    }
+                    missingPlayers.add(playerId);
                     continue;
                 }
 
                 Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
-
-                    if (Bukkit.getWorld(this.round.getId()) == null) {
-                        throw new RuntimeException("World " + this.round.getId() + " does not exist");
-                    }
-
-                    Location startingLocation = Bukkit.getWorld(this.round.getId()).getSpawnLocation();
-
+                    Location startingLocation = this.round.getNextTeeLocation(world);
                     player.teleport(startingLocation);
                 }, 20);
             }
 
-            this.round.getRoundTurnManager().selectRandomTeamTurn();
+            missingPlayers.forEach(team::removePlayer);
+            if (team.getTeamMembers().isEmpty()) {
+                this.round.getRoundTeamManager().removeTeam(team);
+                this.round.getRoundScoreCardManager().removeScoreCard(team);
+            }
         }
 
-        this.round.setGameTask(Bukkit.getScheduler().runTaskTimer(this.plugin, () -> {
-            this.round.getRoundTeamManager().tick();
-            System.out.println(this.round.getId() + " Round Currently Running");
-        }, 0, 100));
+        this.round.getRoundTurnManager().selectRandomTeamTurn();
+        this.round.setGameTask(Bukkit.getScheduler().runTaskTimer(this.plugin, () -> this.round.getRoundTeamManager().tick(), 0, 100));
         return RoundResult.SUCCESS;
     }
 
@@ -117,15 +120,13 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
 
             for (UUID playerId : team.getTeamMembers()) {
                 PlayerData playerData = this.round.getPlayerDataManager().getDataByPlayer(playerId);
+                if (playerData == null) {
+                    continue;
+                }
+
                 PDGARating rating = playerData.getRating();
                 rating.handleRoundEnd(scoreCard.getTotalScore());
                 rating.updateRating(this.round.getSettings().division().getDifficulty());
-                System.out.println(scoreCard.getTotalStrokes());
-                System.out.println(scoreCard.getTotalScore());
-                System.out.println(rating.getRating());
-                System.out.println(rating.getAverageScore());
-                System.out.println(rating.getDivision());
-                System.out.println(rating.getTotalRounds());
             }
         }
         this.round.dispose();
@@ -152,6 +153,7 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
         if (!this.started) return RoundResult.INVALID;
         this.ended = true;
         this.state = RoundState.CANCEL;
+        this.round.dispose();
         return RoundResult.CANCELED;
     }
 }
