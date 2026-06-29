@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf;
 
 import normalmanv2.normalDiscGolf.impl.NDGManager;
+import normalmanv2.normalDiscGolf.impl.command.ThrowDiscCommand;
 import normalmanv2.normalDiscGolf.impl.listener.DiscThrowListener;
 import normalmanv2.normalDiscGolf.impl.listener.GoalScoreListener;
 import normalmanv2.normalDiscGolf.impl.listener.GuiListener;
@@ -37,6 +38,7 @@ public final class NormalDiscGolfPlugin extends JavaPlugin {
         new TransferWorldCommand("world", new String[]{}, "Transfer world command", "ndg.commands.transfer_world");
         new WFCIntegrationTest("wfc", new String[]{}, "WFC Integration Test", "ndg.commands.wfc", this);
         new WorldTPCommand("worldtp", new String[]{}, "Teleport to world", "ndg.commands.worldtp");
+        new ThrowDiscCommand("throwdisc", new String[]{"tdisc"}, "Throw a disc in the active round", "ndg.commands.throwdisc", this);
     }
 
     private void registerListeners() {

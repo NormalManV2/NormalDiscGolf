@@ -5,6 +5,8 @@ import normalmanv2.normalDiscGolf.api.round.delegate.Wirable;
 import normalmanv2.normalDiscGolf.api.round.manager.RoundTurnManager;
 import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTurnManager;
 import normalmanv2.normalDiscGolf.api.team.Team;
+import normalmanv2.normalDiscGolf.impl.NDGManager;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -20,10 +22,10 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
     private boolean isWired = false;
     private List<Team> turnOrder;
 
-    private final Map<Integer, Map<Team, Boolean>> scoredGoals;
+    private final Map<Integer, Set<Team>> scoredGoals;
     private final Random random = new Random();
     private int currentIndex = 0;
-    private int hole = 1;
+    private int hole = 0;
 
     public DefaultRoundTurnManager() {
         this.scoredGoals = new HashMap<>();
@@ -47,11 +49,13 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
         }
 
         this.round = null;
+        this.turnOrder = null;
         this.isWired = false;
     }
 
     private void init() {
         this.turnOrder = new ArrayList<>(this.round.getTeams());
+        this.scoredGoals.putIfAbsent(this.hole, new HashSet<>());
     }
 
     public boolean isWired() {
@@ -65,55 +69,49 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
 
     @Override
     public void setTeamScored(int holeNumber, Team team) {
-        this.scoredGoals.put(holeNumber, Map.of(team, true));
+        this.scoredGoals.computeIfAbsent(holeNumber, ignored -> new HashSet<>()).add(team);
     }
 
     @Override
     public void nextTurn() {
-
-        List<Team> teams = this.round.getTeams();
+        List<Team> teams = this.getTurnOrder();
 
         if (teams.isEmpty()) {
             throw new IllegalStateException("No Teams in Round");
         }
 
-        this.currentIndex = (this.currentIndex + 1) % teams.size();
-
-        boolean allTeamsScored = this.scoredGoals.get(this.hole).values().stream().allMatch(Boolean::booleanValue);
-
-        if (allTeamsScored) {
+        if (this.allTeamsScoredCurrentHole(teams)) {
             this.advanceHole();
 
-            for (Team team : teams) {
-                for (UUID playerId : team.getTeamMembers()) {
-                    Player player = Bukkit.getPlayer(playerId);
-                    if (player == null) {
-                        this.round.getRoundTeamManager().tick();
-                        continue;
-                    }
-
-                    World world = player.getWorld();
-                    Location tee = this.getNextTeeLocation(world);
-                    player.teleport(tee);
-                }
+            if (this.hole >= this.round.getCourse().holes()) {
+                NDGManager.getInstance().getRoundHandler().endRound(this.round);
+                return;
             }
+
+            this.teleportTeamsToCurrentTee(teams);
+            return;
         }
+
+        this.currentIndex = (this.currentIndex + 1) % teams.size();
     }
 
     @Override
     public void selectRandomTeamTurn() {
-        this.currentIndex = (this.random.nextInt(this.turnOrder.size()));
+        List<Team> teams = this.getTurnOrder();
+        this.currentIndex = teams.isEmpty() ? 0 : this.random.nextInt(teams.size());
     }
 
     @Override
     public void advanceHole() {
         this.hole++;
         this.currentIndex = 0;
+        this.scoredGoals.putIfAbsent(this.hole, new HashSet<>());
     }
 
     @Override
     public boolean isTurn(Team team) {
-        return turnOrder.get(this.currentIndex).equals(team);
+        List<Team> teams = this.getTurnOrder();
+        return !teams.isEmpty() && teams.get(this.currentIndex).equals(team);
     }
 
     @Override
@@ -123,7 +121,11 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
 
     @Override
     public Location getNextTeeLocation(World world) {
-        return this.round.getCourse().toLocation(world, this.round.getCourse().teeLocations().get(this.hole));
+        CourseGrid.GridPoint teePoint = this.round.getCourse().teeLocations().get(this.hole);
+        if (teePoint == null) {
+            throw new IllegalStateException("No tee location found for hole " + this.hole);
+        }
+        return this.round.getCourse().toLocation(world, teePoint);
     }
 
     public DefaultRoundTurnManager setRound(GameRound round) {
@@ -132,7 +134,40 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
     }
 
     public void dispose() {
-        this.turnOrder.clear();
+        if (this.turnOrder != null) {
+            this.turnOrder.clear();
+        }
         this.scoredGoals.clear();
+    }
+
+    private List<Team> getTurnOrder() {
+        List<Team> teams = this.round.getTeams();
+        if (this.turnOrder == null || this.turnOrder.size() != teams.size() || !this.turnOrder.containsAll(teams)) {
+            this.turnOrder = new ArrayList<>(teams);
+            if (this.currentIndex >= this.turnOrder.size()) {
+                this.currentIndex = 0;
+            }
+        }
+        return this.turnOrder;
+    }
+
+    private boolean allTeamsScoredCurrentHole(List<Team> teams) {
+        Set<Team> scoredTeams = this.scoredGoals.getOrDefault(this.hole, Collections.emptySet());
+        return !teams.isEmpty() && teams.stream().allMatch(scoredTeams::contains);
+    }
+
+    private void teleportTeamsToCurrentTee(List<Team> teams) {
+        for (Team team : teams) {
+            for (UUID playerId : team.getTeamMembers()) {
+                Player player = Bukkit.getPlayer(playerId);
+                if (player == null) {
+                    this.round.getRoundTeamManager().tick();
+                    continue;
+                }
+
+                Location tee = this.getNextTeeLocation(player.getWorld());
+                player.teleport(tee);
+            }
+        }
     }
 }

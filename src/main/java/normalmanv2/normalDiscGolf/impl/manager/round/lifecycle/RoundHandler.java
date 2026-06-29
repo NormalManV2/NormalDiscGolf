@@ -2,6 +2,7 @@ package normalmanv2.normalDiscGolf.impl.manager.round.lifecycle;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundResult;
 import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
@@ -34,9 +35,16 @@ public class RoundHandler {
     }
 
     public void startRound(GameRound round) {
+        if (!round.isWired()) {
+            round.wire(round, this.plugin);
+        }
+
         round.setState(RoundState.START);
         this.activeRounds.add(round);
-        round.start();
+        RoundResult result = round.start();
+        if (result != RoundResult.SUCCESS && result != RoundResult.ALREADY_STARTED) {
+            this.activeRounds.remove(round);
+        }
     }
 
     public void endRound(GameRound round) {
@@ -64,7 +72,10 @@ public class RoundHandler {
             case "doubles" -> () -> createDoublesRound(course, courseName, settings);
             default -> throw new IllegalArgumentException("Unknown round type: " + roundFormat);
         };
-        return roundSupplier.get();
+
+        GameRound round = roundSupplier.get();
+        round.wire(round, this.plugin);
+        return round;
     }
 
     private GameRound createFFARound(
@@ -97,8 +108,7 @@ public class RoundHandler {
             }
 
             activeRoundsIterator.remove();
-            System.out.println(gameRound.end().toString());
-            System.out.println(gameRound + " Has been ended!");
+            gameRound.end();
         }
     }
 

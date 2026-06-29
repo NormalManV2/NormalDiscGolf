@@ -2,6 +2,7 @@ package normalmanv2.normalDiscGolf.impl.disc;
 
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
+import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
 import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
@@ -9,7 +10,6 @@ import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
-import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.technique.ThrowTechnique;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Bukkit;
@@ -34,7 +34,6 @@ public class MidRange extends DiscImpl {
 
     public MidRange(int speed, int glide, int turn, int fade, String discName) {
         super(speed, glide, turn, fade, discName, DiscType.MID_RANGE);
-        NDGManager.getInstance().getDiscRegistry().register(discName, this);
     }
 
     @Override
@@ -68,7 +67,7 @@ public class MidRange extends DiscImpl {
 
         Vector velocity = direction.multiply(finalVelocity);
 
-        double maxSpread = 0.05 - (accuracyLevel * Constants.ACCURACY_ADJUSTMENT);
+        double maxSpread = Math.max(0.0, 0.05 - (accuracyLevel * Constants.ACCURACY_ADJUSTMENT));
         velocity.setX(velocity.getX() + (Math.random() * maxSpread - maxSpread / 2));
         velocity.setZ(velocity.getZ() + (Math.random() * maxSpread - maxSpread / 2));
 
@@ -82,50 +81,59 @@ public class MidRange extends DiscImpl {
 
         final ThrowTechnique throwTechnique = NDGManager.getInstance().getThrowTechniqueRegistry().get(technique);
         this.discTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-
             Location currentLocation = discDisplay.getLocation();
             currentLocation.add(currentVelocity);
             throwTechnique.applyPhysics(this, currentVelocity, tickCount[0], maxTicks, direction);
             discDisplay.teleport(currentLocation);
             player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, currentLocation, 5);
 
-            if (MathUtil.detectGoalCollision(player.getWorld(), discDisplay.getLocation(), currentVelocity) || tickCount[0] > maxTicks) {
-                Vector throwDirection = initialVelocity.clone().normalize();
-                Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));
+            boolean goalScored = MathUtil.detectGoalCollision(player.getWorld(), currentLocation, currentVelocity);
+            boolean flightEnded = goalScored
+                    || MathUtil.detectCollision(player.getWorld(), currentLocation, currentVelocity)
+                    || tickCount[0] >= maxTicks;
 
-                player.teleport(teleportLocation);
-
-                FFARound round = (FFARound) NDGManager.getInstance().getRoundHandler().getActiveRounds().get(0);
-                System.out.println("Disc hit the goal!");
-                Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, 1, round));
-                if (this.discTask == null) {
-                    discDisplay.remove();
-                    return;
-                }
-                this.discTask.cancel();
-                this.discTask = null;
-                Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100);
-                return;
-            }
-
-            if (MathUtil.detectCollision(player.getWorld(), discDisplay.getLocation(), currentVelocity) || tickCount[0] > maxTicks) {
-                Vector throwDirection = initialVelocity.clone().normalize();
-                Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));
-
-                player.teleport(teleportLocation);
-
-                if (this.discTask == null) {
-                    discDisplay.remove();
-                    return;
-                }
-
-                this.discTask.cancel();
-                this.discTask = null;
-                Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100);
+            if (flightEnded) {
+                this.resolveFlight(player, discDisplay, currentLocation, initialVelocity, goalScored);
                 return;
             }
 
             tickCount[0]++;
         }, 0, 1);
+    }
+
+    private void resolveFlight(Player player, ItemDisplay discDisplay, Location currentLocation, Vector initialVelocity, boolean goalScored) {
+        GameRound round = this.getActiveRound(player);
+        if (round != null && goalScored) {
+            this.handleGoalScore(player, round);
+        } else if (!goalScored) {
+            Vector throwDirection = initialVelocity.clone().normalize();
+            Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));
+            player.teleport(teleportLocation);
+        }
+
+        this.cleanupDiscFlight(discDisplay);
+
+        if (round != null && !round.isOver()) {
+            round.nextTurn();
+        }
+    }
+
+    private GameRound getActiveRound(Player player) {
+        return NDGManager.getInstance().getRoundHandler().getActiveRounds().stream()
+                .filter(round -> round.containsPlayer(player.getUniqueId()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void cleanupDiscFlight(ItemDisplay discDisplay) {
+        if (this.discTask != null) {
+            this.discTask.cancel();
+            this.discTask = null;
+        }
+        Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100);
+    }
+
+    private void handleGoalScore(Player player, GameRound round) {
+        Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, round.getCurrentHole(), round));
     }
 }

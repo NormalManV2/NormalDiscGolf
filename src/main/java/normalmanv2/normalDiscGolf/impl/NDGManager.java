@@ -2,10 +2,12 @@ package normalmanv2.normalDiscGolf.impl;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.division.Division;
-import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.course.creator.CourseCreator;
 import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
+import normalmanv2.normalDiscGolf.impl.disc.Driver;
+import normalmanv2.normalDiscGolf.impl.disc.MidRange;
+import normalmanv2.normalDiscGolf.impl.disc.Putter;
 import normalmanv2.normalDiscGolf.impl.manager.file.FileManager;
 import normalmanv2.normalDiscGolf.impl.manager.gui.GuiManager;
 import normalmanv2.normalDiscGolf.impl.manager.course.ObstacleManager;
@@ -31,7 +33,7 @@ import java.util.stream.Collectors;
 public class NDGManager {
     private final PlayerDataManager playerDataManager = new PlayerDataManager();
     private final RoundHandler roundHandler;
-    private final RegistryImpl<String, DiscImpl> discRegistry = new DiscRegistry();
+    private final DiscRegistry discRegistry = new DiscRegistry();
     private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
     private final InviteService inviteService = new InviteService();
     private final RegistryImpl<String, ObstacleImpl> obstacleRegistry;
@@ -55,7 +57,7 @@ public class NDGManager {
         this.roundHandler = new RoundHandler(plugin);
         this.roundQueueManager = new RoundQueueManager(this.roundHandler, this.playerDataManager);
 
-        //this.registerDefaultDiscs();
+        this.registerDefaultDiscs();
         Bukkit.getScheduler().runTaskLater(plugin, this::registerDefaultCourseDifficulty, 20);
     }
 
@@ -103,7 +105,7 @@ public class NDGManager {
         return this.throwTechniqueRegistry;
     }
 
-    public RegistryImpl<String, DiscImpl> getDiscRegistry() {
+    public DiscRegistry getDiscRegistry() {
         return this.discRegistry;
     }
 
@@ -129,6 +131,12 @@ public class NDGManager {
 
     public RoundQueueManager getRoundQueueManager() {
         return this.roundQueueManager;
+    }
+
+    private void registerDefaultDiscs() {
+        this.discRegistry.register("Starter Putter", new Putter(2, 4, 0, 1, "Starter Putter"));
+        this.discRegistry.register("Starter Midrange", new MidRange(5, 5, -1, 1, "Starter Midrange"));
+        this.discRegistry.register("Starter Driver", new Driver(9, 5, -2, 2, "Starter Driver"));
     }
 
     private void registerDefaultCourseDifficulty() {

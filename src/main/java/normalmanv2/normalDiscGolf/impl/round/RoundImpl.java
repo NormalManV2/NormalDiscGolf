@@ -101,8 +101,10 @@ public class RoundImpl implements GameRound {
 
     @Override
     public void dispose() {
-        this.gameTask.cancel();
-        this.gameTask = null;
+        if (this.gameTask != null) {
+            this.gameTask.cancel();
+            this.gameTask = null;
+        }
         this.scoreCardManager.dispose();
         this.roundTeamManager.dispose();
         this.roundTurnManager.dispose();
