@@ -6,6 +6,7 @@ import normalmanv2.normalDiscGolf.api.round.manager.RoundTurnManager;
 import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTurnManager;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -120,11 +121,11 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
 
     @Override
     public Location getNextTeeLocation(World world) {
-        CourseGridPoint teePoint = new CourseGridPoint(this.round.getCourse().teeLocations().get(this.hole));
-        if (teePoint.isMissing()) {
+        CourseGrid.GridPoint teePoint = this.round.getCourse().teeLocations().get(this.hole);
+        if (teePoint == null) {
             throw new IllegalStateException("No tee location found for hole " + this.hole);
         }
-        return this.round.getCourse().toLocation(world, teePoint.value());
+        return this.round.getCourse().toLocation(world, teePoint);
     }
 
     public DefaultRoundTurnManager setRound(GameRound round) {
@@ -167,12 +168,6 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
                 Location tee = this.getNextTeeLocation(player.getWorld());
                 player.teleport(tee);
             }
-        }
-    }
-
-    private record CourseGridPoint(normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid.GridPoint value) {
-        private boolean isMissing() {
-            return this.value == null;
         }
     }
 }
