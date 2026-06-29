@@ -17,4 +17,6 @@ commands:
 
   roundqueuetest:
 
+  throwdisc:
+    aliases: [tdisc]
 
