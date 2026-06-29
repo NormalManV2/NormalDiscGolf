@@ -64,8 +64,8 @@ public class DefaultRoundTeamManager implements DelegateRoundTeamManager, Wirabl
             }
             return false;
         }
-        this.teams.add(team);
-        return this.getRoundTeamManager().addTeam(team);
+
+        return this.teams.add(team);
     }
 
     @Override
@@ -75,7 +75,7 @@ public class DefaultRoundTeamManager implements DelegateRoundTeamManager, Wirabl
 
     @Override
     public boolean isFull() {
-        return this.teams.size() >= this.round.getSettings().maxTeams();
+        return this.round != null && this.teams.size() >= this.round.getSettings().maxTeams();
     }
 
     @Override
@@ -85,12 +85,12 @@ public class DefaultRoundTeamManager implements DelegateRoundTeamManager, Wirabl
 
     @Override
     public boolean containsTeam(Team team) {
-        return DelegateRoundTeamManager.super.containsTeam(team);
+        return this.teams.contains(team);
     }
 
     @Override
     public boolean containsPlayer(UUID playerId) {
-        return DelegateRoundTeamManager.super.containsPlayer(playerId);
+        return this.teams.stream().anyMatch(team -> team.contains(playerId));
     }
 
     @Override
@@ -98,15 +98,16 @@ public class DefaultRoundTeamManager implements DelegateRoundTeamManager, Wirabl
         Iterator<Team> it = this.teams.iterator();
         while (it.hasNext()) {
             Team team = it.next();
-            Iterator<UUID> members = team.getTeamMembers().iterator();
+            Set<UUID> disconnectedPlayers = new HashSet<>();
 
-            while (members.hasNext()) {
-                UUID playerId = members.next();
+            for (UUID playerId : team.getTeamMembers()) {
                 Player player = Bukkit.getPlayer(playerId);
                 if (player == null) {
-                    members.remove();
+                    disconnectedPlayers.add(playerId);
                 }
             }
+
+            disconnectedPlayers.forEach(team::removePlayer);
 
             if (team.getTeamMembers().isEmpty()) {
                 it.remove();
