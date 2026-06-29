@@ -5,7 +5,6 @@ import normalmanv2.normalDiscGolf.api.round.delegate.settings.DelegateRoundSetti
 import normalmanv2.normalDiscGolf.api.round.settings.RoundType;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.common.round.*;
-import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.creator.CourseCreator;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
@@ -40,20 +39,31 @@ public class RoundQueueManager {
     }
 
     public void addPlayerToQueue(UUID player, String roundFormat) {
-        PlayerData playerData = NDGManager.getInstance().getPlayerDataManager().getDataByPlayer(player);
-        Division division = playerData.getRating().getDivision();
+        PlayerData playerData = this.playerDataManager.getDataByPlayer(player);
+        if (playerData == null) {
+            return;
+        }
 
+        Division division = playerData.getRating().getDivision();
         this.playerQueue.get(division).put(player, roundFormat);
     }
 
     public void removePlayerFromQueue(UUID player) {
         PlayerData playerData = playerDataManager.getDataByPlayer(player);
+        if (playerData == null) {
+            return;
+        }
+
         Division division = playerData.getRating().getDivision();
         this.playerQueue.get(division).remove(player);
     }
 
     public boolean isPlayerQueued(UUID player) {
         PlayerData playerData = playerDataManager.getDataByPlayer(player);
+        if (playerData == null) {
+            return false;
+        }
+
         Division division = playerData.getRating().getDivision();
         return this.playerQueue.get(division).containsKey(player);
     }
@@ -101,6 +111,7 @@ public class RoundQueueManager {
                     settings = (DefaultRoundSettings) DelegateRoundSettings.create(Constants.DOUBLES_ROUND_MAX_TEAMS, RoundType.RECREATIONAL, division, false);
                 }
 
+                String worldName = "ndg_" + playerId + "_" + System.currentTimeMillis();
                 GameRound round = findOrCreateRoundForDivision(
                         roundFormat,
                         RoundType.RECREATIONAL,
@@ -111,8 +122,8 @@ public class RoundQueueManager {
                                         16,
                                         Arrays.stream(TileTypes.values()).toList(),
                                         18),
-                                playerId + "." + roundFormat),
-                        player.getDisplayName(),
+                                worldName),
+                        worldName,
                         settings);
 
                 if (round == null)
@@ -137,20 +148,32 @@ public class RoundQueueManager {
     }
 
     public void tickRoundQueue() {
-        for (GameRound round : this.queuedRounds) {
+        Iterator<GameRound> iterator = this.queuedRounds.iterator();
+        while (iterator.hasNext()) {
+            GameRound round = iterator.next();
 
-            if (round.isPrivate()) {
-                round.start();
-                this.queuedRounds.remove(round);
-                return;
+            if (!this.shouldStartRound(round)) {
+                continue;
             }
 
-            if (round.getTeams().stream().allMatch(Team::isFull) && round.isFull()) {
-                round.start();
-                this.queuedRounds.remove(round);
-                return;
-            }
+            iterator.remove();
+            this.roundHandler.startRound(round);
+            return;
         }
+    }
+
+    private boolean shouldStartRound(GameRound round) {
+        if (round.isPrivate()) {
+            return true;
+        }
+
+        if (round instanceof FFARound) {
+            return !round.getTeams().isEmpty();
+        }
+
+        return !round.getTeams().isEmpty()
+                && round.getTeams().stream().allMatch(Team::isFull)
+                && round.isFull();
     }
 
     private GameRound findOrCreateRoundForDivision(
