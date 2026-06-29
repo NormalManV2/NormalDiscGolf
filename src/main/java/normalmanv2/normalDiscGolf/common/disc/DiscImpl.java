@@ -3,14 +3,13 @@ package normalmanv2.normalDiscGolf.common.disc;
 import normalmanv2.normalDiscGolf.api.disc.Disc;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
-import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-public abstract class DiscImpl implements Disc {
+public abstract class DiscImpl implements Disc, Cloneable {
 
     private final int speed;
     private final int glide;
