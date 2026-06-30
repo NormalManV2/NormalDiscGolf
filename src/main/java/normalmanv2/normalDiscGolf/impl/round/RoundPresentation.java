@@ -11,6 +11,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -159,7 +160,10 @@ public final class RoundPresentation {
     }
 
     private static Location faceLocation(Location from, Location target) {
-        from.setDirection(target.toVector().subtract(from.toVector()));
+        Vector direction = target.toVector().subtract(from.toVector());
+        if (direction.lengthSquared() > 0.0) {
+            from.setDirection(direction);
+        }
         return from;
     }
 }
