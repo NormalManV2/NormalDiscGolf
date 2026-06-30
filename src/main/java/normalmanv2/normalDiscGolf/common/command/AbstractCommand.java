@@ -31,7 +31,7 @@ public abstract class AbstractCommand extends BukkitCommand {
     @Override
     public boolean execute(CommandSender commandSender, String s, String[] strings) {
         execute(commandSender, strings);
-        return false;
+        return true;
     }
 
     public abstract void execute(CommandSender sender, String[] args);
