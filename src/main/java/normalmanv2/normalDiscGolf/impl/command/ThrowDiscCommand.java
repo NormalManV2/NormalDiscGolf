@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.command;
 
 import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.common.command.AbstractCommand;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
@@ -34,12 +35,23 @@ public class ThrowDiscCommand extends AbstractCommand {
             return;
         }
 
+        if (!this.isPlayersTurn(round, player)) {
+            player.sendMessage(ChatColor.RED + "It is not your turn to throw.");
+            return;
+        }
+
         String discName = this.resolveDiscName(args.length > 0 ? args[0] : "putter");
         String technique = args.length > 1 ? args[1].toLowerCase() : "backhand";
+
+        if (!NDGManager.getInstance().getThrowTechniqueRegistry().getBackingMap().containsKey(technique)) {
+            player.sendMessage(ChatColor.RED + "Unknown throw technique. Use backhand or forehand.");
+            return;
+        }
 
         try {
             DiscImpl disc = NDGManager.getInstance().getDiscRegistry().getDiscByName(discName);
             new ThrowMechanicImpl(player.getUniqueId(), this.plugin, disc, round, technique);
+            player.sendMessage(ChatColor.GREEN + "Throw meter started for " + discName + " (" + technique + ").");
         } catch (CloneNotSupportedException exception) {
             player.sendMessage(ChatColor.RED + "That disc could not be prepared for throwing.");
         } catch (RuntimeException exception) {
@@ -65,6 +77,16 @@ public class ThrowDiscCommand extends AbstractCommand {
                 .filter(round -> round.containsPlayer(player.getUniqueId()))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private boolean isPlayersTurn(GameRound round, Player player) {
+        for (Team team : round.getTeams()) {
+            if (team.contains(player.getUniqueId())) {
+                return round.isTurn(team);
+            }
+        }
+
+        return false;
     }
 
     private String resolveDiscName(String requestedDisc) {
