@@ -86,8 +86,9 @@ public class ThrowMechanicImpl implements ThrowMechanic {
         Player player = Bukkit.getPlayer(playerId);
         if (player == null) return;
 
-        this.bossBar = Bukkit.createBossBar("Throw Power", BarColor.BLUE, BarStyle.SOLID);
-        this.bossBar.setProgress(0.0);
+        this.power = new AtomicDouble(0.15);
+        this.bossBar = Bukkit.createBossBar("Throw Power: 15%", BarColor.BLUE, BarStyle.SEGMENTED_10);
+        this.bossBar.setProgress(this.power.get());
         this.bossBar.setVisible(true);
         this.bossBar.addPlayer(player);
 
@@ -103,18 +104,19 @@ public class ThrowMechanicImpl implements ThrowMechanic {
                 }
             } else {
                 newProgress = currentProgress - this.step;
-                if (newProgress <= 0.0) {
-                    newProgress = 0.0;
+                if (newProgress <= 0.15) {
+                    newProgress = 0.15;
                     this.increasing = true;
                 }
             }
 
             this.bossBar.setProgress(newProgress);
-            this.power = new AtomicDouble(newProgress);
+            this.bossBar.setTitle("Throw Power: " + Math.round(newProgress * 100) + "%");
+            this.power.set(newProgress);
 
         }, 0, 8);
 
-        player.sendMessage(ChatColor.translateAlternateColorCodes('&', "&Click to lock in your power!"));
+        player.sendMessage(ChatColor.YELLOW + "Aim your throw, then click once to release.");
 
         TaskManager.registerTask(task, playerId);
         Bukkit.getPluginManager().callEvent(new ThrowMechanicEvent(ThrowState.POWER, player, this));
