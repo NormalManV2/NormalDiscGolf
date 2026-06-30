@@ -8,9 +8,9 @@ import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
 import normalmanv2.normalDiscGolf.impl.player.score.PDGARating;
 import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
+import normalmanv2.normalDiscGolf.impl.round.RoundPresentation;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -86,10 +86,11 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                     continue;
                 }
 
-                Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
-                    Location startingLocation = this.round.getNextTeeLocation(world);
-                    player.teleport(startingLocation);
-                }, 20);
+                Bukkit.getScheduler().runTaskLater(
+                        this.plugin,
+                        () -> RoundPresentation.teleportToCurrentTee(this.plugin, player, this.round, true),
+                        20L
+                );
             }
 
             missingPlayers.forEach(team::removePlayer);

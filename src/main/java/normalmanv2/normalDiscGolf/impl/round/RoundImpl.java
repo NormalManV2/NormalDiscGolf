@@ -121,7 +121,7 @@ public class RoundImpl implements GameRound {
             throw new IllegalStateException("This round is already wired!");
         }
 
-        this.roundTurnManager.wire(this, null);
+        this.roundTurnManager.wire(this, plugin);
         this.roundTeamManager.wire(this, null);
         this.roundLifecycle.wire(this, plugin);
         this.strokeManager.wire(this, null);

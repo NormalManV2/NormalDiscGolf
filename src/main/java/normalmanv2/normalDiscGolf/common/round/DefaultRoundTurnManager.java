@@ -7,6 +7,7 @@ import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTurnMa
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.round.RoundPresentation;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -19,6 +20,7 @@ import java.util.*;
 
 public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirable {
     private GameRound round;
+    private Plugin plugin;
     private boolean isWired = false;
     private List<Team> turnOrder;
 
@@ -38,6 +40,7 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
         }
 
         this.round = round;
+        this.plugin = plugin;
         this.isWired = true;
         this.init();
     }
@@ -49,6 +52,7 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
         }
 
         this.round = null;
+        this.plugin = null;
         this.turnOrder = null;
         this.isWired = false;
     }
@@ -165,8 +169,7 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
                     continue;
                 }
 
-                Location tee = this.getNextTeeLocation(player.getWorld());
-                player.teleport(tee);
+                RoundPresentation.teleportToCurrentTee(this.plugin, player, this.round, true);
             }
         }
     }

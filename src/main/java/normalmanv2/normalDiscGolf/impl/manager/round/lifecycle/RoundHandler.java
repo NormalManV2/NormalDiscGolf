@@ -25,7 +25,7 @@ import java.util.function.Supplier;
 
 public class RoundHandler {
 
-    private static final int OBSTACLE_TILES_PER_TICK = 4;
+    private static final int OBSTACLE_TILES_PER_TICK = 16;
     private static final long OBSTACLE_START_DELAY_TICKS = 40L;
     private static final long OBSTACLE_BAR_HIDE_DELAY_TICKS = 60L;
 

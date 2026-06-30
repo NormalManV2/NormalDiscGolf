@@ -121,7 +121,7 @@ public class ObstacleGenerator {
                     }
                 }
             }
-        }.runTaskTimer(plugin, 1L, 1L);
+        }.runTaskTimer(plugin, 1L, 4L);
     }
 
     private void placeObstacle(Tile tile, World world) {
