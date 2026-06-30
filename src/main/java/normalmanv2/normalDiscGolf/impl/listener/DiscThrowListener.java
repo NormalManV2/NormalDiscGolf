@@ -35,6 +35,17 @@ public class DiscThrowListener implements Listener {
             }
         }
 
-        roundImpl.handleStroke(event.getThrowMechanic());
+        try {
+            if (roundImpl.handleStroke(event.getThrowMechanic())) {
+                player.sendMessage(ChatColor.GREEN + "Disc released.");
+            } else {
+                event.setCancelled(true);
+                player.sendMessage(ChatColor.RED + "The throw could not be released.");
+            }
+        } catch (RuntimeException exception) {
+            event.setCancelled(true);
+            player.sendMessage(ChatColor.RED + "Throw failed: " + exception.getMessage());
+            exception.printStackTrace();
+        }
     }
 }

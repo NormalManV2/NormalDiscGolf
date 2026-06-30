@@ -3,6 +3,7 @@ package normalmanv2.normalDiscGolf.impl.manager.round.lifecycle;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundResult;
+import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
@@ -12,15 +13,21 @@ import normalmanv2.normalDiscGolf.impl.round.DoublesRound;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.World;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
+import org.bukkit.entity.Player;
 
 import java.util.*;
 import java.util.function.Supplier;
 
 public class RoundHandler {
 
-    private static final int OBSTACLE_TILES_PER_TICK = 1;
+    private static final int OBSTACLE_TILES_PER_TICK = 4;
     private static final long OBSTACLE_START_DELAY_TICKS = 40L;
+    private static final long OBSTACLE_BAR_HIDE_DELAY_TICKS = 60L;
 
     private final Set<GameRound> activeRounds;
     private final NormalDiscGolfPlugin plugin;
@@ -80,10 +87,6 @@ public class RoundHandler {
 
         if (world == null) throw new RuntimeException("World is null!");
 
-        if (generateObstacles) {
-            scheduleObstacleGeneration(course, world, settings, courseName);
-        }
-
         Supplier<GameRound> roundSupplier = switch (roundFormat.toLowerCase()) {
             case "ffa" -> () -> createFFARound(course, courseName, settings);
             case "doubles" -> () -> createDoublesRound(course, courseName, settings);
@@ -92,6 +95,11 @@ public class RoundHandler {
 
         GameRound round = roundSupplier.get();
         round.wire(round, this.plugin);
+
+        if (generateObstacles) {
+            scheduleObstacleGeneration(course, world, settings, courseName, round);
+        }
+
         return round;
     }
 
@@ -99,7 +107,8 @@ public class RoundHandler {
             CourseImpl course,
             World world,
             DefaultRoundSettings settings,
-            String courseName) {
+            String courseName,
+            GameRound round) {
         Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
             World activeWorld = Bukkit.getWorld(world.getName());
             if (activeWorld == null) {
@@ -107,13 +116,63 @@ public class RoundHandler {
                 return;
             }
 
+            BossBar loadingBar = Bukkit.createBossBar("Preparing course: 0%", BarColor.GREEN, BarStyle.SEGMENTED_10);
+            loadingBar.setProgress(0.0);
+            loadingBar.setVisible(true);
+            this.addRoundPlayersToBossBar(round, loadingBar);
+            this.sendRoundMessage(round, ChatColor.YELLOW + "Preparing course obstacles...");
+
             new ObstacleGenerator(course.grid(), settings.division()).generateObstaclesIncrementally(
                     this.plugin,
                     activeWorld,
                     OBSTACLE_TILES_PER_TICK,
-                    () -> this.plugin.getLogger().info("Obstacle generation completed for " + courseName)
+                    (completedTiles, totalTiles) -> {
+                        this.addRoundPlayersToBossBar(round, loadingBar);
+                        double progress = totalTiles <= 0 ? 1.0 : Math.min(1.0, completedTiles / (double) totalTiles);
+                        loadingBar.setProgress(progress);
+                        loadingBar.setTitle("Preparing course: " + Math.round(progress * 100) + "%");
+                    },
+                    () -> {
+                        this.addRoundPlayersToBossBar(round, loadingBar);
+                        loadingBar.setProgress(1.0);
+                        loadingBar.setTitle("Course ready");
+                        this.sendRoundMessage(round, ChatColor.GREEN + "Course obstacles are ready.");
+                        Bukkit.getScheduler().runTaskLater(this.plugin, loadingBar::removeAll, OBSTACLE_BAR_HIDE_DELAY_TICKS);
+                        this.plugin.getLogger().info("Obstacle generation completed for " + courseName);
+                    }
             );
         }, OBSTACLE_START_DELAY_TICKS);
+    }
+
+    private void addRoundPlayersToBossBar(GameRound round, BossBar bossBar) {
+        if (round.isOver()) {
+            bossBar.removeAll();
+            return;
+        }
+
+        for (Team team : round.getTeams()) {
+            for (UUID playerId : team.getTeamMembers()) {
+                Player player = Bukkit.getPlayer(playerId);
+                if (player != null && !bossBar.getPlayers().contains(player)) {
+                    bossBar.addPlayer(player);
+                }
+            }
+        }
+    }
+
+    private void sendRoundMessage(GameRound round, String message) {
+        if (round.isOver()) {
+            return;
+        }
+
+        for (Team team : round.getTeams()) {
+            for (UUID playerId : team.getTeamMembers()) {
+                Player player = Bukkit.getPlayer(playerId);
+                if (player != null) {
+                    player.sendMessage(message);
+                }
+            }
+        }
     }
 
     private GameRound createFFARound(

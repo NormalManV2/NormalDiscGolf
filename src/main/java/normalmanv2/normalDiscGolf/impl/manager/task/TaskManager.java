@@ -16,6 +16,7 @@ public class TaskManager {
 
     public static void unregisterTask(BukkitTask task) {
         ACTIVE_TASKS.remove(task);
+        task.cancel();
     }
 
     public static UUID getUserTask(BukkitTask task) {

@@ -41,7 +41,7 @@ public class MidRange extends DiscImpl {
 
         World world = player.getWorld();
         Vector direction = player.getEyeLocation().getDirection().normalize();
-        Location throwLoc = player.getEyeLocation().add(direction.multiply(2));
+        Location throwLoc = player.getEyeLocation().clone().add(direction.clone().multiply(2));
         ThrowMechanicImpl tm = (ThrowMechanicImpl) throwMechanic;
 
         ItemDisplay textDisplay = world.spawn(throwLoc, ItemDisplay.class, display -> {
@@ -54,6 +54,7 @@ public class MidRange extends DiscImpl {
             display.setBillboard(Display.Billboard.CENTER);
             display.setCustomName(ChatColor.translateAlternateColorCodes('&', this.getName()));
             display.setCustomNameVisible(true);
+            display.setPersistent(false);
         });
 
         int accuracyLevel = skills.getAccuracy().getLevel();
@@ -65,7 +66,7 @@ public class MidRange extends DiscImpl {
         double baseVelocity = discBaseSpeed * (1 + (powerLevel * Constants.POWER_ADJUSTMENT));
         double finalVelocity = baseVelocity * (1 + (formLevel * Constants.FORM_ADJUSTMENT));
 
-        Vector velocity = direction.multiply(finalVelocity);
+        Vector velocity = direction.clone().multiply(finalVelocity);
 
         double maxSpread = Math.max(0.0, 0.05 - (accuracyLevel * Constants.ACCURACY_ADJUSTMENT));
         velocity.setX(velocity.getX() + (Math.random() * maxSpread - maxSpread / 2));
