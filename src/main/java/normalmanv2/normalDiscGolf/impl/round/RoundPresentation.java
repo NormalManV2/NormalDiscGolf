@@ -3,6 +3,7 @@ package normalmanv2.normalDiscGolf.impl.round;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
@@ -139,7 +140,9 @@ public final class RoundPresentation {
         for (int i = 0; i < steps; i++) {
             int routeIndex = steps == 1 ? 0 : (int) Math.round(i * (lastIndex / (double) (steps - 1)));
             CourseGrid.GridPoint point = routePoints.get(routeIndex);
-            Location routeLocation = round.getCourse().toLocation(world, point);
+            Location routeLocation = round.getCourse()
+                    .toLocation(world, point)
+                    .add(Constants.DEFAULT_TILE_SIZE / 2.0, 0, Constants.DEFAULT_TILE_SIZE / 2.0);
             previewPath.add(getGroundedLocation(world, routeLocation, PREVIEW_Y_OFFSET));
         }
 
