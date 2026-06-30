@@ -19,6 +19,7 @@ public class GuiListener implements Listener {
     public void onClick(InventoryClickEvent event) {
         System.out.println("Clicked");
         this.guiManager.handleClick(event);
+        event.setCancelled(true);
     }
 
     @EventHandler

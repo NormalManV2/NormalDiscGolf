@@ -117,11 +117,7 @@ public class RoundQueueManager {
                         RoundType.RECREATIONAL,
                         new CourseCreator().create(
                                 division,
-                                new CourseGrid(
-                                        16,
-                                        16,
-                                        Arrays.stream(TileTypes.values()).toList(),
-                                        18),
+                                Constants.DEFAULT_COURSE_GRID,
                                 worldName),
                         worldName,
                         settings);
