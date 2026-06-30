@@ -6,10 +6,11 @@ import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundResult;
 import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGridWorldCreator;
+import normalmanv2.normalDiscGolf.impl.course.obstacle.generator.ObstacleGenerator;
 import normalmanv2.normalDiscGolf.impl.round.DoublesRound;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
-import normalmanv2.normalDiscGolf.impl.course.grid.CourseGridWorldCreator;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 
@@ -17,6 +18,9 @@ import java.util.*;
 import java.util.function.Supplier;
 
 public class RoundHandler {
+
+    private static final int OBSTACLE_TILES_PER_TICK = 1;
+    private static final long OBSTACLE_START_DELAY_TICKS = 40L;
 
     private final Set<GameRound> activeRounds;
     private final NormalDiscGolfPlugin plugin;
@@ -62,10 +66,23 @@ public class RoundHandler {
             CourseImpl course,
             String courseName,
             DefaultRoundSettings settings) {
+        return createRound(roundFormat, course, courseName, settings, true);
+    }
+
+    public GameRound createRound(
+            String roundFormat,
+            CourseImpl course,
+            String courseName,
+            DefaultRoundSettings settings,
+            boolean generateObstacles) {
 
         World world = Bukkit.createWorld(new CourseGridWorldCreator(courseName, course, settings.division()));
 
         if (world == null) throw new RuntimeException("World is null!");
+
+        if (generateObstacles) {
+            scheduleObstacleGeneration(course, world, settings, courseName);
+        }
 
         Supplier<GameRound> roundSupplier = switch (roundFormat.toLowerCase()) {
             case "ffa" -> () -> createFFARound(course, courseName, settings);
@@ -76,6 +93,27 @@ public class RoundHandler {
         GameRound round = roundSupplier.get();
         round.wire(round, this.plugin);
         return round;
+    }
+
+    private void scheduleObstacleGeneration(
+            CourseImpl course,
+            World world,
+            DefaultRoundSettings settings,
+            String courseName) {
+        Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            World activeWorld = Bukkit.getWorld(world.getName());
+            if (activeWorld == null) {
+                this.plugin.getLogger().warning("Skipping obstacle generation for unloaded world " + courseName);
+                return;
+            }
+
+            new ObstacleGenerator(course.grid(), settings.division()).generateObstaclesIncrementally(
+                    this.plugin,
+                    activeWorld,
+                    OBSTACLE_TILES_PER_TICK,
+                    () -> this.plugin.getLogger().info("Obstacle generation completed for " + courseName)
+            );
+        }, OBSTACLE_START_DELAY_TICKS);
     }
 
     private GameRound createFFARound(

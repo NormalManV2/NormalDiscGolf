@@ -1,7 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.course.obstacle.generator;
 
 import com.sk89q.worldedit.math.BlockVector3;
-import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
@@ -15,6 +14,8 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.BoundingBox;
 import org.normal.impl.registry.RegistryImpl;
 
@@ -56,6 +57,53 @@ public class ObstacleGenerator {
                 placeObstacle(courseGrid.getTile(x, z), world);
             }
         }
+    }
+
+    public void generateObstaclesIncrementally(Plugin plugin, World world, int tilesPerTick, Runnable onComplete) {
+        if (plugin == null) throw new IllegalArgumentException("Plugin cannot be null");
+        if (world == null) throw new IllegalArgumentException("World cannot be null");
+
+        final int tilesPerBatch = Math.max(1, tilesPerTick);
+
+        new BukkitRunnable() {
+            private int x;
+            private int z;
+
+            @Override
+            public void run() {
+                int processedTiles = 0;
+
+                while (processedTiles < tilesPerBatch && x < courseGrid.getWidth()) {
+                    Tile tile = courseGrid.getTile(x, z);
+
+                    try {
+                        if (tile != null) {
+                            placeObstacle(tile, world);
+                        }
+                    } catch (RuntimeException exception) {
+                        String message = exception.getMessage() == null
+                                ? exception.getClass().getSimpleName()
+                                : exception.getMessage();
+                        plugin.getLogger().warning("Skipping obstacle tile " + x + "," + z + ": " + message);
+                    }
+
+                    processedTiles++;
+                    z++;
+
+                    if (z >= courseGrid.getDepth()) {
+                        z = 0;
+                        x++;
+                    }
+                }
+
+                if (x >= courseGrid.getWidth()) {
+                    cancel();
+                    if (onComplete != null) {
+                        onComplete.run();
+                    }
+                }
+            }
+        }.runTaskTimer(plugin, 1L, 1L);
     }
 
     private void placeObstacle(Tile tile, World world) {
