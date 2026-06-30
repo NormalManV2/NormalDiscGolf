@@ -1,20 +1,21 @@
 package normalmanv2.normalDiscGolf.test;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
+import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.api.round.settings.RoundType;
 import normalmanv2.normalDiscGolf.common.command.AbstractCommand;
 import normalmanv2.normalDiscGolf.common.division.Division;
+import normalmanv2.normalDiscGolf.common.round.DefaultRoundSettings;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.course.creator.CourseCreator;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
-import normalmanv2.normalDiscGolf.impl.course.grid.CourseGridWorldCreator;
 import normalmanv2.normalDiscGolf.impl.course.tile.Tile;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
+import normalmanv2.normalDiscGolf.impl.player.PlayerData;
+import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.World;
-import org.bukkit.WorldCreator;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -48,12 +49,16 @@ public class WFCIntegrationTest extends AbstractCommand {
         }
 
         UUID playerId = player.getUniqueId();
-
-        Division division = NDGManager.getInstance()
+        PlayerData playerData = NDGManager.getInstance()
                 .getPlayerDataManager()
-                .getDataByPlayer(playerId)
-                .getRating()
-                .getDivision();
+                .getDataByPlayer(playerId);
+
+        if (playerData == null || playerData.getRating() == null) {
+            player.sendMessage(ChatColor.RED + "Could not find your disc golf player data.");
+            return;
+        }
+
+        Division division = playerData.getRating().getDivision();
 
         int size = readIntArg(args, 0, Constants.DEFAULT_FFA_COURSE_SIZE);
         int holes = readIntArg(args, 1, Constants.DEFAULT_COURSE_HOLES);
@@ -61,7 +66,7 @@ public class WFCIntegrationTest extends AbstractCommand {
 
         String worldName = "wfc_test_" + player.getName().toLowerCase() + "_" + System.currentTimeMillis();
 
-        player.sendMessage(ChatColor.YELLOW + "Creating WFC integration test world...");
+        player.sendMessage(ChatColor.YELLOW + "Creating WFC integration test round...");
         player.sendMessage(ChatColor.GRAY + "World: " + worldName);
         player.sendMessage(ChatColor.GRAY + "Size: " + size + "x" + size);
         player.sendMessage(ChatColor.GRAY + "Holes: " + holes);
@@ -83,11 +88,12 @@ public class WFCIntegrationTest extends AbstractCommand {
                 worldName
         );
 
-        WorldCreator worldCreator = new CourseGridWorldCreator(worldName, course, division);
-        World world = Bukkit.createWorld(worldCreator);
-
-        if (world == null) {
-            player.sendMessage(ChatColor.RED + "Failed to create test world.");
+        try {
+            player.sendMessage(ChatColor.YELLOW + "Generating and validating course layout...");
+            grid.generate(division);
+        } catch (Exception exception) {
+            player.sendMessage(ChatColor.RED + "Course layout generation failed: " + exception.getMessage());
+            exception.printStackTrace();
             return;
         }
 
@@ -103,31 +109,37 @@ public class WFCIntegrationTest extends AbstractCommand {
 
         sendValidationSummary(player, grid, validationResult);
 
-        Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
-            if (generateObstacles) {
-                try {
-                    player.sendMessage(ChatColor.YELLOW + "Generating obstacles...");
-                    grid.generateObstacles(world);
-                    player.sendMessage(ChatColor.GREEN + "Obstacle generation completed.");
-                } catch (Exception exception) {
-                    player.sendMessage(ChatColor.RED + "Obstacle generation failed: " + exception.getMessage());
-                    exception.printStackTrace();
-                    return;
-                }
+        DefaultRoundSettings settings = new DefaultRoundSettings(
+                1,
+                RoundType.RECREATIONAL,
+                division,
+                false
+        );
+
+        try {
+            GameRound round = NDGManager.getInstance()
+                    .getRoundHandler()
+                    .createRound("ffa", course, worldName, settings, generateObstacles);
+
+            if (!round.addTeam(new TeamImpl(playerId, 1))) {
+                player.sendMessage(ChatColor.RED + "Could not add you to the generated solo round.");
+                return;
             }
 
-            Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
-                CourseGrid.GridPoint startingPoint = grid.getTeePoints().get(0);
+            NDGManager.getInstance().getRoundHandler().startRound(round);
+        } catch (Exception exception) {
+            player.sendMessage(ChatColor.RED + "Failed to start generated solo round: " + exception.getMessage());
+            exception.printStackTrace();
+            return;
+        }
 
-                if (startingPoint == null) {
-                    player.sendMessage(ChatColor.RED + "Could not teleport: missing tee for hole 0.");
-                    return;
-                }
+        player.sendMessage(ChatColor.GREEN + "Started a playable solo FFA round on the generated course.");
+        player.sendMessage(ChatColor.GRAY + "You will be teleported to hole 1's tee shortly.");
+        player.sendMessage(ChatColor.GRAY + "Use /throwdisc putter backhand when you are ready.");
 
-                player.teleport(grid.toLocation(world, startingPoint));
-                player.sendMessage(ChatColor.GREEN + "Teleported to generated course starting tee.");
-            }, 20L);
-        }, 40L);
+        if (generateObstacles) {
+            player.sendMessage(ChatColor.GRAY + "Obstacles are being generated gradually after round start.");
+        }
     }
 
     @Override
