@@ -1,6 +1,10 @@
 package normalmanv2.normalDiscGolf.impl.util;
 
 import normalmanv2.normalDiscGolf.common.division.Division;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
+
+import java.util.Arrays;
 
 public class Constants {
     public static final double STRAIGHT_PHASE_END = 0.2;
@@ -39,4 +43,11 @@ public class Constants {
     public static final int DEFAULT_OBSTACLE_CLUSTER_RADIUS = 6;
 
     public static final int DEFAULT_MAX_OBSTACLE_GENERATION_ATTEMPTS = 4;
+
+    public static final int DEFAULT_COURSE_SIZE = 16;
+    public static final CourseGrid DEFAULT_COURSE_GRID = new CourseGrid(
+            DEFAULT_COURSE_SIZE,
+            DEFAULT_TILE_SIZE,
+            Arrays.stream(TileTypes.values()).toList(),
+            DEFAULT_COURSE_HOLES);
 }
