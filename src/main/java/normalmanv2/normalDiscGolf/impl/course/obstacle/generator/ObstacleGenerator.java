@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.function.BiConsumer;
 
 public class ObstacleGenerator {
 
@@ -60,14 +61,25 @@ public class ObstacleGenerator {
     }
 
     public void generateObstaclesIncrementally(Plugin plugin, World world, int tilesPerTick, Runnable onComplete) {
+        this.generateObstaclesIncrementally(plugin, world, tilesPerTick, null, onComplete);
+    }
+
+    public void generateObstaclesIncrementally(
+            Plugin plugin,
+            World world,
+            int tilesPerTick,
+            BiConsumer<Integer, Integer> onProgress,
+            Runnable onComplete) {
         if (plugin == null) throw new IllegalArgumentException("Plugin cannot be null");
         if (world == null) throw new IllegalArgumentException("World cannot be null");
 
         final int tilesPerBatch = Math.max(1, tilesPerTick);
+        final int totalTiles = courseGrid.getWidth() * courseGrid.getDepth();
 
         new BukkitRunnable() {
             private int x;
             private int z;
+            private int completedTiles;
 
             @Override
             public void run() {
@@ -88,6 +100,12 @@ public class ObstacleGenerator {
                     }
 
                     processedTiles++;
+                    completedTiles++;
+
+                    if (onProgress != null) {
+                        onProgress.accept(completedTiles, totalTiles);
+                    }
+
                     z++;
 
                     if (z >= courseGrid.getDepth()) {
