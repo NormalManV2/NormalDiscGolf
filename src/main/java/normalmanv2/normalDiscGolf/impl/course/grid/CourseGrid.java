@@ -99,10 +99,6 @@ public class CourseGrid {
         this.obstacleGenerator.generateObstacles(world);
     }
 
-    /* ------------------------
-       Tee/pin placement helpers
-       ------------------------ */
-
     private void placeTeesAndPins() {
         int availablePlacementTiles = countPlacementTiles();
         if (numHoles * 2 > availablePlacementTiles) {
@@ -287,6 +283,7 @@ public class CourseGrid {
                     path.add(grid[node.x][node.z]);
                     node = node.parent;
                 }
+
                 Collections.reverse(path);
                 return path;
             }
@@ -497,8 +494,8 @@ public class CourseGrid {
     private Tile tileAtPoint(GridPoint point) {
         int x = (point.x / TILE_SIZE);
         int z = (point.z / TILE_SIZE);
-        x = Math.max(0, Math.min(width - 1, x));
-        z = Math.max(0, Math.min(depth - 1, z));
+        x = Math.clamp(x, 0, width - 1);
+        z = Math.clamp(z, 0, depth - 1);
         return grid[x][z];
     }
 
