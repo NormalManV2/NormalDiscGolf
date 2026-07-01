@@ -357,7 +357,7 @@ public class CourseGrid {
 
             double t = (n == 1) ? 0.0 : (i / (double) (n - 1));
             double widen = landingZoneWeight(t);
-            int fairwayR = (int) Math.round(lerp(2.0, 4.0, widen));
+            int fairwayR = (int) Math.round(lerp(1.0, 2.0, widen));
             int lightR = fairwayR + 2;
             int heavyR = fairwayR + 3;
 
