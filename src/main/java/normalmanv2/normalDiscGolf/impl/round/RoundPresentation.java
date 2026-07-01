@@ -11,6 +11,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
@@ -18,8 +19,9 @@ import java.util.List;
 
 public final class RoundPresentation {
 
-    private static final int PREVIEW_STEPS = 7;
-    private static final long PREVIEW_STEP_TICKS = 14L;
+    private static final int PREVIEW_CONTROL_POINTS = 10;
+    private static final int PREVIEW_STEPS_PER_SEGMENT = 5;
+    private static final long PREVIEW_STEP_TICKS = 2L;
     private static final double TEE_Y_OFFSET = 1.0;
     private static final double PREVIEW_Y_OFFSET = 10.0;
 
@@ -65,7 +67,7 @@ public final class RoundPresentation {
         Location pinLocation = getGroundedLocation(world, round.getCourse().toLocation(world, pinPoint), TEE_Y_OFFSET);
         List<Location> previewPath = buildPreviewPath(round, world, hole, pinLocation);
 
-        if (previewPath.isEmpty()) {
+        if (previewPath.size() < 2) {
             return;
         }
 
@@ -76,23 +78,32 @@ public final class RoundPresentation {
         player.sendTitle(
                 ChatColor.GREEN + "Hole " + (hole + 1),
                 ChatColor.WHITE + "Previewing the fairway",
-                10,
-                45,
+                8,
+                55,
                 10
         );
         player.setGameMode(GameMode.SPECTATOR);
 
-        for (int i = 0; i < previewPath.size(); i++) {
-            int index = i;
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        new BukkitRunnable() {
+            private int index;
+
+            @Override
+            public void run() {
                 if (!player.isOnline() || round.isOver()) {
+                    cancel();
                     return;
                 }
 
+                Location current = previewPath.get(index).clone();
                 Location target = previewPath.get(Math.min(index + 1, previewPath.size() - 1));
-                player.teleport(faceLocation(previewPath.get(index).clone(), target));
-            }, i * PREVIEW_STEP_TICKS);
-        }
+                player.teleport(faceLocation(current, target));
+
+                index++;
+                if (index >= previewPath.size()) {
+                    cancel();
+                }
+            }
+        }.runTaskTimer(plugin, 0L, PREVIEW_STEP_TICKS);
 
         long restoreDelay = previewPath.size() * PREVIEW_STEP_TICKS + 8L;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -126,17 +137,16 @@ public final class RoundPresentation {
 
     private static List<Location> buildPreviewPath(GameRound round, World world, int hole, Location pinLocation) {
         List<CourseGrid.GridPoint> routePoints = getRoutePoints(round, hole);
-        List<Location> previewPath = new ArrayList<>();
+        List<Location> controlPath = new ArrayList<>();
 
         if (routePoints.isEmpty()) {
-            Location tee = getGroundedCurrentTee(round, world).add(0, PREVIEW_Y_OFFSET, 0);
-            previewPath.add(tee);
-            previewPath.add(pinLocation.clone().add(0, PREVIEW_Y_OFFSET, 0));
-            return previewPath;
+            controlPath.add(getGroundedCurrentTee(round, world).add(0, PREVIEW_Y_OFFSET, 0));
+            controlPath.add(pinLocation.clone().add(0, PREVIEW_Y_OFFSET, 0));
+            return interpolatePath(controlPath);
         }
 
         int lastIndex = routePoints.size() - 1;
-        int steps = Math.min(PREVIEW_STEPS, routePoints.size());
+        int steps = Math.min(PREVIEW_CONTROL_POINTS, routePoints.size());
 
         for (int i = 0; i < steps; i++) {
             int routeIndex = steps == 1 ? 0 : (int) Math.round(i * (lastIndex / (double) (steps - 1)));
@@ -144,11 +154,46 @@ public final class RoundPresentation {
             Location routeLocation = round.getCourse()
                     .toLocation(world, point)
                     .add(Constants.DEFAULT_TILE_SIZE / 2.0, 0, Constants.DEFAULT_TILE_SIZE / 2.0);
-            previewPath.add(getGroundedLocation(world, routeLocation, PREVIEW_Y_OFFSET));
+            controlPath.add(getGroundedLocation(world, routeLocation, PREVIEW_Y_OFFSET));
         }
 
-        previewPath.add(pinLocation.clone().add(0, PREVIEW_Y_OFFSET, 0));
+        controlPath.add(pinLocation.clone().add(0, PREVIEW_Y_OFFSET, 0));
+        return interpolatePath(controlPath);
+    }
+
+    private static List<Location> interpolatePath(List<Location> controlPath) {
+        if (controlPath.size() < 2) {
+            return controlPath;
+        }
+
+        List<Location> previewPath = new ArrayList<>();
+        for (int i = 0; i < controlPath.size() - 1; i++) {
+            Location start = controlPath.get(i);
+            Location end = controlPath.get(i + 1);
+
+            for (int step = 0; step < PREVIEW_STEPS_PER_SEGMENT; step++) {
+                double t = step / (double) PREVIEW_STEPS_PER_SEGMENT;
+                previewPath.add(interpolate(start, end, t));
+            }
+        }
+
+        previewPath.add(controlPath.get(controlPath.size() - 1).clone());
         return previewPath;
+    }
+
+    private static Location interpolate(Location start, Location end, double t) {
+        return new Location(
+                start.getWorld(),
+                lerp(start.getX(), end.getX(), t),
+                lerp(start.getY(), end.getY(), t),
+                lerp(start.getZ(), end.getZ(), t),
+                start.getYaw(),
+                start.getPitch()
+        );
+    }
+
+    private static double lerp(double start, double end, double t) {
+        return start + (end - start) * t;
     }
 
     private static List<CourseGrid.GridPoint> getRoutePoints(GameRound round, int hole) {
