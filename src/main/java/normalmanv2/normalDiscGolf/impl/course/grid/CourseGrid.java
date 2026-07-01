@@ -56,7 +56,6 @@ public class CourseGrid {
     }
 
     private void initializeSuperposition() {
-
         int y = 64;
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
@@ -70,6 +69,7 @@ public class CourseGrid {
         if (this.generated) return;
 
         initializeSuperposition();
+
         placeTeesAndPins();
 
         for (int holeId = 0; holeId < numHoles; holeId++) {
@@ -81,15 +81,17 @@ public class CourseGrid {
             if (path == null || path.isEmpty()) {
                 path = straightLine(teeTile, pinTile);
             }
+
             storeRoute(holeId, path);
             carveCorridor(path);
             assignPar(holeId, path);
-
         }
+
+        reinforceFairwayRoutes();
         finalizeUnresolvedTiles();
+
         this.generated = true;
         this.obstacleGenerator = new ObstacleGenerator(this, division);
-
     }
 
     public void generateObstacles(World world) {
@@ -98,82 +100,152 @@ public class CourseGrid {
     }
 
     private void placeTeesAndPins() {
-        List<int[]> anchors = sampleAnchors(numHoles * 2, Math.max(8, Math.min(width, depth) / 8));
-        List<int[]> tees = new ArrayList<>();
-        List<int[]> pins = new ArrayList<>();
-
-
-        for (int[] anchor : anchors) {
-            if (anchor[0] < width / 2) tees.add(anchor);
-            else pins.add(anchor);
+        int availablePlacementTiles = countPlacementTiles();
+        if (numHoles * 2 > availablePlacementTiles) {
+            throw new IllegalStateException("Grid is too small for " + numHoles + " unique tee/pin pairs");
         }
 
-        while (tees.size() < numHoles) tees.add(new int[]{random.nextInt(width), random.nextInt(depth)});
-        while (pins.size() < numHoles) pins.add(new int[]{random.nextInt(width), random.nextInt(depth)});
+        Set<Long> reservedTiles = new HashSet<>();
+        int minDistance = Math.max(6, Math.min(width, depth) / 4);
+        int maxDistance = Math.max(minDistance + 8, (int) Math.round(Math.hypot(width, depth) * 0.65));
 
-        Collections.shuffle(tees, random);
-        Collections.shuffle(pins, random);
+        for (int holeId = 0; holeId < numHoles; holeId++) {
+            int[] tee = findTeeTile(holeId, reservedTiles);
+            if (tee == null) {
+                throw new IllegalStateException("Could not place tee for hole " + (holeId + 1));
+            }
+            reservedTiles.add(tileKey(tee[0], tee[1]));
 
-        int minDistance = Math.max(6, Math.min(width, depth) / 5);
-        int maxDistance = Math.max(minDistance + 8, Math.max(width, depth) / 2);
+            int[] pin = findPinForTee(tee, reservedTiles, minDistance, maxDistance);
+            if (pin == null) {
+                throw new IllegalStateException("Could not place pin for hole " + (holeId + 1));
+            }
+            reservedTiles.add(tileKey(pin[0], pin[1]));
 
-        for (int i = 0; i < numHoles; i++) {
-            int[] tee = tees.get(i % tees.size());
-            int[] pin = findPinForTee(tee, pins, minDistance, maxDistance);
+            GridPoint teeLoc = centerPoint(tee[0], tee[1]);
+            GridPoint pinLoc = centerPoint(pin[0], pin[1]);
 
-            GridPoint teeLoc = new GridPoint((int) (tee[0] * TILE_SIZE + TILE_SIZE / 2.0), 64, (int) (tee[1] * TILE_SIZE + TILE_SIZE / 2.0));
-            GridPoint pinLoc = new GridPoint((int) (pin[0] * TILE_SIZE + TILE_SIZE / 2.0), 64, (int) (pin[1] * TILE_SIZE + TILE_SIZE / 2.0));
-
-            this.teeLocations.put(i, teeLoc);
-            this.holeLocations.put(i, pinLoc);
+            this.teeLocations.put(holeId, teeLoc);
+            this.holeLocations.put(holeId, pinLoc);
 
             tileAtPoint(teeLoc).collapseTo(TileTypes.TEE);
             tileAtPoint(pinLoc).collapseTo(TileTypes.PIN);
         }
     }
 
-    private int[] findPinForTee(int[] tee, List<int[]> pins, int minDistance, int maxDistance) {
-        int[] bestPin = pins.get(random.nextInt(pins.size()));
-        int bestPenalty = Integer.MAX_VALUE;
+    private int[] findTeeTile(int holeId, Set<Long> reservedTiles) {
+        List<int[]> candidates = collectOpenPlacementTiles(reservedTiles);
+        if (candidates.isEmpty()) return null;
 
-        for (int[] candidate : pins) {
-            int dx = tee[0] - candidate[0];
-            int dz = tee[1] - candidate[1];
-            int distance = (int) Math.hypot(dx, dz);
-            int penalty = 0;
+        double lane = (holeId + 0.5) / numHoles;
+        double targetZ = (depth - 1) * lane;
+        double targetX = holeId % 2 == 0 ? (width - 1) * 0.18 : (width - 1) * 0.82;
 
-            if (distance < minDistance) {
-                penalty = minDistance - distance;
-            } else if (distance > maxDistance) {
-                penalty = distance - maxDistance;
-            }
+        int[] best = null;
+        double bestScore = Double.MAX_VALUE;
+        for (int[] candidate : candidates) {
+            double score = distance(candidate[0], candidate[1], targetX, targetZ);
+            score += edgePenalty(candidate[0], candidate[1]) * 0.35;
+            score += random.nextDouble() * 0.5;
 
-            if (penalty < bestPenalty) {
-                bestPenalty = penalty;
-                bestPin = candidate;
+            if (score < bestScore) {
+                bestScore = score;
+                best = candidate;
             }
         }
 
-        return bestPin;
+        return best;
     }
 
-    private List<int[]> sampleAnchors(int count, int minDist) {
-        List<int[]> out = new ArrayList<>();
-        int attempts = 0, maxAttempts = count * 200;
-        while (out.size() < count && attempts++ < maxAttempts) {
-            int x = random.nextInt(width);
-            int z = random.nextInt(depth);
-            boolean ok = true;
-            for (int[] h : out) {
-                int dx = x - h[0], dz = z - h[1];
-                if (dx * dx + dz * dz < minDist * minDist) {
-                    ok = false;
-                    break;
+    private int[] findPinForTee(int[] tee, Set<Long> reservedTiles, int minDistance, int maxDistance) {
+        List<int[]> candidates = collectOpenPlacementTiles(reservedTiles);
+        if (candidates.isEmpty()) return null;
+
+        boolean teeOnLeft = tee[0] < width / 2.0;
+        double targetX = teeOnLeft ? (width - 1) * 0.82 : (width - 1) * 0.18;
+        double targetZ = (depth - 1) - tee[1];
+        double idealDistance = (minDistance + maxDistance) / 2.0;
+
+        int[] best = null;
+        double bestScore = Double.MAX_VALUE;
+        for (int[] candidate : candidates) {
+            double holeDistance = distance(tee[0], tee[1], candidate[0], candidate[1]);
+            double distancePenalty;
+            if (holeDistance < minDistance) {
+                distancePenalty = Math.pow(minDistance - holeDistance, 2) * 4.0;
+            } else if (holeDistance > maxDistance) {
+                distancePenalty = Math.pow(holeDistance - maxDistance, 2) * 2.0;
+            } else {
+                distancePenalty = Math.abs(holeDistance - idealDistance) * 0.18;
+            }
+
+            double sideScore = distance(candidate[0], candidate[1], targetX, targetZ) * 0.45;
+            double diagonalBonus = Math.min(Math.abs(candidate[0] - tee[0]), Math.abs(candidate[1] - tee[1])) * 0.2;
+            double score = distancePenalty + sideScore + edgePenalty(candidate[0], candidate[1]) * 0.2 - diagonalBonus;
+            score += random.nextDouble() * 0.75;
+
+            if (score < bestScore) {
+                bestScore = score;
+                best = candidate;
+            }
+        }
+
+        return best;
+    }
+
+    private List<int[]> collectOpenPlacementTiles(Set<Long> reservedTiles) {
+        List<int[]> candidates = new ArrayList<>();
+        for (int x = placementMinX(); x <= placementMaxX(); x++) {
+            for (int z = placementMinZ(); z <= placementMaxZ(); z++) {
+                if (!reservedTiles.contains(tileKey(x, z))) {
+                    candidates.add(new int[]{x, z});
                 }
             }
-            if (ok) out.add(new int[]{x, z});
         }
-        return out;
+        return candidates;
+    }
+
+    private int countPlacementTiles() {
+        int count = 0;
+        for (int x = placementMinX(); x <= placementMaxX(); x++) {
+            for (int z = placementMinZ(); z <= placementMaxZ(); z++) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private int placementMinX() {
+        return width > 2 ? 1 : 0;
+    }
+
+    private int placementMaxX() {
+        return width > 2 ? width - 2 : width - 1;
+    }
+
+    private int placementMinZ() {
+        return depth > 2 ? 1 : 0;
+    }
+
+    private int placementMaxZ() {
+        return depth > 2 ? depth - 2 : depth - 1;
+    }
+
+    private GridPoint centerPoint(int tileX, int tileZ) {
+        return new GridPoint(tileX * TILE_SIZE + TILE_SIZE / 2, 64, tileZ * TILE_SIZE + TILE_SIZE / 2);
+    }
+
+    private long tileKey(int x, int z) {
+        return (((long) x) << 32) ^ (z & 0xffffffffL);
+    }
+
+    private double edgePenalty(int x, int z) {
+        int nearestEdge = Math.min(Math.min(x, width - 1 - x), Math.min(z, depth - 1 - z));
+        return Math.max(0, 3 - nearestEdge);
+    }
+
+    private double distance(double ax, double az, double bx, double bz) {
+        return Math.hypot(ax - bx, az - bz);
     }
 
     /* ------------------------
@@ -194,7 +266,6 @@ public class CourseGrid {
         PriorityQueue<Node> open = new PriorityQueue<>(Comparator.comparingDouble(node -> node.f));
         boolean[][][] closed = new boolean[width][depth][4];
 
-        // seed all four directions from start
         for (int d = 0; d < 4; d++) {
             double h = Math.abs(sx - gx) + Math.abs(sz - gz);
             open.add(new Node(sx, sz, d, 0, h, null));
@@ -224,7 +295,6 @@ public class CourseGrid {
 
                 double turnCost = (nd == cur.dir) ? 0.0 : 0.8;
                 double hazardCost = tileHazardCost(nx, nz);
-
                 double g = cur.g + 1.0 + turnCost + hazardCost;
                 double h = Math.abs(nx - gx) + Math.abs(nz - gz);
                 double f = g + h;
@@ -238,9 +308,7 @@ public class CourseGrid {
         TileTypes type = grid[x][z].getCollapsedState();
         if (type == TileTypes.WATER) return 6.0;
         if (type == TileTypes.OUT_OF_BOUNDS) return 10.0;
-        if (type == TileTypes.PIN || type == TileTypes.TEE) return 2.0;
-        if (type == TileTypes.FAIRWAY) return 3.0;
-        if (type == TileTypes.HEAVY_ROUGH) return 4.0;
+        if (type == TileTypes.PIN || type == TileTypes.TEE) return 8.0;
         return 0.0;
     }
 
@@ -251,6 +319,7 @@ public class CourseGrid {
         int bz = (b.getGridPoint().z / TILE_SIZE);
         List<Tile> path = new ArrayList<>();
         int x = ax, z = az;
+
         path.add(grid[x][z]);
         while (x != bx || z != bz) {
             if (Math.abs(bx - x) >= Math.abs(bz - z) && x != bx) {
@@ -285,7 +354,7 @@ public class CourseGrid {
 
             double t = (n == 1) ? 0.0 : (i / (double) (n - 1));
             double widen = landingZoneWeight(t);
-            int fairwayR = (int) Math.round(lerp(2.0, 4.0, widen));
+            int fairwayR = (int) Math.round(lerp(1.0, 2.0, widen));
             int lightR = fairwayR + 2;
             int heavyR = fairwayR + 3;
 
@@ -293,12 +362,14 @@ public class CourseGrid {
             paintDisk(cx, cz, lightR, TileTypes.LIGHT_ROUGH);
             paintDisk(cx, cz, fairwayR, TileTypes.FAIRWAY);
         }
+
+        paintPathCenterline(path);
     }
 
     private double landingZoneWeight(double t) {
         double primaryLanding = Math.exp(-Math.pow((t - 0.45) / 0.18, 2));
         double approachLanding = Math.exp(-Math.pow((t - 0.78) / 0.16, 2));
-        return Math.clamp(primaryLanding, approachLanding, 1.0);
+        return Math.min(1.0, Math.max(primaryLanding, approachLanding));
     }
 
     private void paintDisk(int cx, int cz, int r, TileTypes setTo) {
@@ -309,11 +380,41 @@ public class CourseGrid {
                 int dx = x - cx, dz = z - cz;
                 if (dx * dx + dz * dz <= r2) {
                     Tile tile = grid[x][z];
-                    if (tile.isCollapsed() && (tile.getCollapsedState() == TileTypes.TEE || tile.getCollapsedState() == TileTypes.PIN)) {
+                    TileTypes current = tile.getCollapsedState();
+                    if (current == TileTypes.TEE || current == TileTypes.PIN) {
+                        continue;
+                    }
+                    if (setTo == TileTypes.HEAVY_ROUGH && (current == TileTypes.FAIRWAY || current == TileTypes.LIGHT_ROUGH)) {
+                        continue;
+                    }
+                    if (setTo == TileTypes.LIGHT_ROUGH && current == TileTypes.FAIRWAY) {
                         continue;
                     }
                     tile.collapseTo(setTo);
                 }
+            }
+        }
+    }
+
+    private void paintPathCenterline(List<Tile> path) {
+        for (Tile tile : path) {
+            TileTypes current = tile.getCollapsedState();
+            if (current == TileTypes.TEE || current == TileTypes.PIN) {
+                continue;
+            }
+            tile.collapseTo(TileTypes.FAIRWAY);
+        }
+    }
+
+    private void reinforceFairwayRoutes() {
+        for (List<GridPoint> route : holeRoutePoints.values()) {
+            for (GridPoint point : route) {
+                Tile tile = tileAtPoint(point);
+                TileTypes current = tile.getCollapsedState();
+                if (current == TileTypes.TEE || current == TileTypes.PIN) {
+                    continue;
+                }
+                tile.collapseTo(TileTypes.FAIRWAY);
             }
         }
     }
@@ -331,7 +432,7 @@ public class CourseGrid {
             holePars.put(holeId, 3);
             return;
         }
-        double meters = path.size() * (TILE_SIZE * 0.25); // rough mapping: 1 tile -> ~4m (adjust as you want)
+        double meters = path.size() * (TILE_SIZE * 0.25);
         int par;
         if (meters < 95) par = 3;
         else if (meters < 160) par = 4;
@@ -354,7 +455,7 @@ public class CourseGrid {
             int cz = (path.get(i).getGridPoint().z / TILE_SIZE);
             int dx1 = bx - ax, dz1 = bz - az;
             int dx2 = cx - bx, dz2 = cz - bz;
-            if (dx1 * dz2 != dz1 * dx2) { // direction changed
+            if (dx1 * dz2 != dz1 * dx2) {
                 count++;
             }
         }
@@ -373,10 +474,10 @@ public class CourseGrid {
                 }
 
                 double r = random.nextDouble();
-                if (r < 0.03) tile.collapseTo(TileTypes.WATER);
-                else if (r < 0.08) tile.collapseTo(TileTypes.SAND);
-                else if (r < 0.55) tile.collapseTo(TileTypes.LIGHT_ROUGH);
-                else if (r < 0.78) tile.collapseTo(TileTypes.HEAVY_ROUGH);
+                if (r < 0.02) tile.collapseTo(TileTypes.WATER);
+                else if (r < 0.06) tile.collapseTo(TileTypes.SAND);
+                else if (r < 0.68) tile.collapseTo(TileTypes.LIGHT_ROUGH);
+                else if (r < 0.86) tile.collapseTo(TileTypes.HEAVY_ROUGH);
                 else tile.collapseTo(TileTypes.OBSTACLE);
             }
         }
@@ -385,7 +486,6 @@ public class CourseGrid {
     private boolean isEdgeTile(int x, int z) {
         return x == 0 || z == 0 || x == width - 1 || z == depth - 1;
     }
-
 
     /* ------------------------
        Utilities
@@ -447,5 +547,4 @@ public class CourseGrid {
     public Tile[][] getGrid() {
         return this.grid;
     }
-
 }

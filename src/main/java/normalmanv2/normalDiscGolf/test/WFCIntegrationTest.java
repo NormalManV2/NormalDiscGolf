@@ -192,6 +192,8 @@ public class WFCIntegrationTest extends AbstractCommand {
     private static CourseValidationResult validateCourseGrid(CourseGrid grid, int expectedHoles) {
         List<String> errors = new java.util.ArrayList<>();
         Map<TileTypes, Integer> tileCounts = new EnumMap<>(TileTypes.class);
+        Map<Integer, Integer> routeLengths = new java.util.TreeMap<>();
+        Map<Integer, List<CourseGrid.GridPoint>> routePoints = grid.getHoleRoutePoints();
 
         for (TileTypes type : TileTypes.values()) {
             tileCounts.put(type, 0);
@@ -209,20 +211,48 @@ public class WFCIntegrationTest extends AbstractCommand {
             errors.add("Expected " + expectedHoles + " hole pars, found " + grid.getHolePars().size());
         }
 
+        if (routePoints.size() != expectedHoles) {
+            errors.add("Expected " + expectedHoles + " mapped routes, found " + routePoints.size());
+        }
+
         for (int hole = 0; hole < expectedHoles; hole++) {
-            if (!grid.getTeePoints().containsKey(hole)) {
-                errors.add("Missing tee point for hole " + hole);
+            CourseGrid.GridPoint teePoint = grid.getTeePoints().get(hole);
+            CourseGrid.GridPoint pinPoint = grid.getHolePoints().get(hole);
+
+            if (teePoint == null) {
+                errors.add("Missing tee point for hole " + (hole + 1));
             }
 
-            if (!grid.getHolePoints().containsKey(hole)) {
-                errors.add("Missing pin point for hole " + hole);
+            if (pinPoint == null) {
+                errors.add("Missing pin point for hole " + (hole + 1));
             }
 
             Integer par = grid.getHolePars().get(hole);
             if (par == null) {
-                errors.add("Missing par for hole " + hole);
+                errors.add("Missing par for hole " + (hole + 1));
             } else if (par < 3 || par > 6) {
-                errors.add("Invalid par for hole " + hole + ": " + par);
+                errors.add("Invalid par for hole " + (hole + 1) + ": " + par);
+            }
+
+            List<CourseGrid.GridPoint> route = routePoints.get(hole);
+            if (route == null || route.size() < 2) {
+                errors.add("Missing route from tee to pin for hole " + (hole + 1));
+                continue;
+            }
+
+            routeLengths.put(hole + 1, route.size());
+
+            if (teePoint != null && !sameTile(route.get(0), teePoint)) {
+                errors.add("Hole " + (hole + 1) + " route does not start on its tee tile");
+            }
+
+            if (pinPoint != null && !sameTile(route.get(route.size() - 1), pinPoint)) {
+                errors.add("Hole " + (hole + 1) + " route does not end on its pin tile");
+            }
+
+            String routeError = validateRouteCenterline(grid, route);
+            if (routeError != null) {
+                errors.add("Hole " + (hole + 1) + " " + routeError);
             }
         }
 
@@ -270,19 +300,66 @@ public class WFCIntegrationTest extends AbstractCommand {
         int pinTiles = tileCounts.getOrDefault(TileTypes.PIN, 0);
         int fairwayTiles = tileCounts.getOrDefault(TileTypes.FAIRWAY, 0);
 
-        if (teeTiles <= 0) {
-            errors.add("No TEE tiles were generated");
+        if (teeTiles != expectedHoles) {
+            errors.add("Expected " + expectedHoles + " actual TEE tiles, found " + teeTiles);
         }
 
-        if (pinTiles <= 0) {
-            errors.add("No PIN tiles were generated");
+        if (pinTiles != expectedHoles) {
+            errors.add("Expected " + expectedHoles + " actual PIN tiles, found " + pinTiles);
         }
 
         if (fairwayTiles <= 0) {
             errors.add("No FAIRWAY tiles were generated");
         }
 
-        return new CourseValidationResult(errors.isEmpty(), errors, tileCounts);
+        return new CourseValidationResult(errors.isEmpty(), errors, tileCounts, routeLengths);
+    }
+
+    private static String validateRouteCenterline(CourseGrid grid, List<CourseGrid.GridPoint> route) {
+        for (int i = 0; i < route.size(); i++) {
+            CourseGrid.GridPoint point = route.get(i);
+            int tileX = tileX(point);
+            int tileZ = tileZ(point);
+            Tile tile = grid.getTile(tileX, tileZ);
+
+            if (tile == null) {
+                return "route leaves the generated grid at " + formatTile(tileX, tileZ);
+            }
+
+            if (i > 0) {
+                CourseGrid.GridPoint previous = route.get(i - 1);
+                int previousX = tileX(previous);
+                int previousZ = tileZ(previous);
+                int manhattanDistance = Math.abs(tileX - previousX) + Math.abs(tileZ - previousZ);
+                if (manhattanDistance != 1) {
+                    return "route has a gap between " + formatTile(previousX, previousZ) + " and " + formatTile(tileX, tileZ);
+                }
+            }
+
+            TileTypes state = tile.getCollapsedState();
+            boolean endpoint = i == 0 || i == route.size() - 1;
+            if (!endpoint && state != TileTypes.FAIRWAY) {
+                return "route centerline is broken at " + formatTile(tileX, tileZ) + " by " + state;
+            }
+        }
+
+        return null;
+    }
+
+    private static boolean sameTile(CourseGrid.GridPoint a, CourseGrid.GridPoint b) {
+        return tileX(a) == tileX(b) && tileZ(a) == tileZ(b);
+    }
+
+    private static int tileX(CourseGrid.GridPoint point) {
+        return Math.floorDiv(point.x(), Constants.DEFAULT_TILE_SIZE);
+    }
+
+    private static int tileZ(CourseGrid.GridPoint point) {
+        return Math.floorDiv(point.z(), Constants.DEFAULT_TILE_SIZE);
+    }
+
+    private static String formatTile(int x, int z) {
+        return "(" + x + "," + z + ")";
     }
 
     private static void sendValidationSummary(Player player, CourseGrid grid, CourseValidationResult result) {
@@ -292,6 +369,7 @@ public class WFCIntegrationTest extends AbstractCommand {
         player.sendMessage(ChatColor.GRAY + "Tees: " + grid.getTeePoints().size());
         player.sendMessage(ChatColor.GRAY + "Pins: " + grid.getHolePoints().size());
         player.sendMessage(ChatColor.GRAY + "Pars: " + grid.getHolePars());
+        player.sendMessage(ChatColor.GRAY + "Routes: " + result.routeLengths());
 
         player.sendMessage(ChatColor.YELLOW + "Tile counts:");
         for (Map.Entry<TileTypes, Integer> entry : result.tileCounts().entrySet()) {
@@ -302,7 +380,8 @@ public class WFCIntegrationTest extends AbstractCommand {
     private record CourseValidationResult(
             boolean success,
             List<String> errors,
-            Map<TileTypes, Integer> tileCounts
+            Map<TileTypes, Integer> tileCounts,
+            Map<Integer, Integer> routeLengths
     ) {
     }
 }
