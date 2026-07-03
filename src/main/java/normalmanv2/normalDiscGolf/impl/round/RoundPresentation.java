@@ -19,9 +19,9 @@ import java.util.List;
 
 public final class RoundPresentation {
 
-    private static final int PREVIEW_CONTROL_POINTS = 10;
-    private static final int PREVIEW_STEPS_PER_SEGMENT = 5;
-    private static final long PREVIEW_STEP_TICKS = 2L;
+    private static final int PREVIEW_CONTROL_POINTS = 20;
+    private static final int PREVIEW_STEPS_PER_SEGMENT = 40;
+    private static final long PREVIEW_STEP_TICKS = 1L;
     private static final double TEE_Y_OFFSET = 1.0;
     private static final double PREVIEW_Y_OFFSET = 10.0;
 

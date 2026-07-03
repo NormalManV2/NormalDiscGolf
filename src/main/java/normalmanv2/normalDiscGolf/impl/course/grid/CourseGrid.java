@@ -369,7 +369,7 @@ public class CourseGrid {
     private double landingZoneWeight(double t) {
         double primaryLanding = Math.exp(-Math.pow((t - 0.45) / 0.18, 2));
         double approachLanding = Math.exp(-Math.pow((t - 0.78) / 0.16, 2));
-        return Math.min(1.0, Math.max(primaryLanding, approachLanding));
+        return Math.clamp(primaryLanding, approachLanding, 1.0);
     }
 
     private void paintDisk(int cx, int cz, int r, TileTypes setTo) {
