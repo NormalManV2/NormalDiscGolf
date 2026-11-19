@@ -1,8 +1,8 @@
 package normalmanv2.normalDiscGolf.impl.manager.party;
 
 import normalmanv2.normalDiscGolf.api.team.Team;
-import org.bukkit.entity.Player;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -24,7 +24,7 @@ public class PartyManager {
     }
 
     public Set<Team> getParties() {
-        return this.parties;
+        return Collections.unmodifiableSet(this.parties);
     }
 
     public void addPlayerToParty(Team team, UUID playerId) {
@@ -40,6 +40,25 @@ public class PartyManager {
             if (team.contains(id)) return team;
         }
         return null;
+    }
+
+    public boolean isPartyOwner(UUID playerId) {
+        Team party = this.getPartyById(playerId);
+        return party != null && party.getOwner().equals(playerId);
+    }
+
+    public void leaveParty(UUID playerId) {
+        Team party = this.getPartyById(playerId);
+        if (party == null) {
+            return;
+        }
+
+        if (party.getOwner().equals(playerId)) {
+            this.removeParty(party);
+            return;
+        }
+
+        party.removePlayer(playerId);
     }
 
 }

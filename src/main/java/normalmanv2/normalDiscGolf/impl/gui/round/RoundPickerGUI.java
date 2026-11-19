@@ -1,20 +1,28 @@
 package normalmanv2.normalDiscGolf.impl.gui.round;
 
 import normalmanv2.normalDiscGolf.common.button.Button;
+import normalmanv2.normalDiscGolf.common.item.ItemBuilder;
 import normalmanv2.normalDiscGolf.impl.gui.InventoryGUI;
+import normalmanv2.normalDiscGolf.impl.gui.round.button.DoublesButton;
 import normalmanv2.normalDiscGolf.impl.gui.round.button.FFAButton;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
 
 public class RoundPickerGUI extends InventoryGUI {
 
     public RoundPickerGUI() {
         super();
-        this.addButton(11, new FFAButton(new ItemStack(Material.EMERALD)));
+        this.addButton(11, new FFAButton(new ItemBuilder(Material.EMERALD)
+                .setDisplayName("&aFFA")
+                .setLore("&7Queue for a free-for-all round.")
+                .build()));
+        this.addButton(15, new DoublesButton(new ItemBuilder(Material.DIAMOND)
+                .setDisplayName("&bDoubles")
+                .setLore("&7Queue for a two-player team round.")
+                .build()));
     }
 
     @Override

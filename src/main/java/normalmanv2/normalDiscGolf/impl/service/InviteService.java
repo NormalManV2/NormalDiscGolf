@@ -20,26 +20,36 @@ public class InviteService {
 
     public void createInvite(UUID inviter, UUID invitee, Duration duration) {
         Instant expiryTime = Instant.now().plus(duration);
-        Invite invite = new Invite(inviter, invitee, expiryTime);
+        Invite invite = new Invite(invitee, inviter, expiryTime);
 
         this.invites.computeIfAbsent(invitee, id ->
                 ConcurrentHashMap.newKeySet()).add(invite);
     }
 
     public boolean acceptInvite(UUID invitee) {
+        return this.consumeInvite(invitee).isPresent();
+    }
+
+    public Optional<Invite> consumeInvite(UUID invitee) {
         Set<Invite> inviteSet = this.invites.get(invitee);
         if (inviteSet == null) {
-            return false;
+            return Optional.empty();
         }
+
+        inviteSet.removeIf(Invite::isExpired);
         Optional<Invite> inviteOpt = inviteSet.stream().findFirst();
-        if (inviteOpt.isEmpty() || inviteOpt.get().isExpired()) {
-            return false;
+        if (inviteOpt.isEmpty()) {
+            if (inviteSet.isEmpty()) {
+                this.invites.remove(invitee);
+            }
+            return Optional.empty();
         }
+
         inviteSet.remove(inviteOpt.get());
         if (inviteSet.isEmpty()) {
             this.invites.remove(invitee);
         }
-        return true;
+        return inviteOpt;
     }
 
     public boolean rejectInvite(UUID invitee) {

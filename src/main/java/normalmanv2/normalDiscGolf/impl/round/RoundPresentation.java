@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
 import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
@@ -9,13 +10,17 @@ import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public final class RoundPresentation {
 
@@ -45,6 +50,26 @@ public final class RoundPresentation {
     public static Location getGroundedCurrentTee(GameRound round, World world) {
         Location teeLocation = round.getNextTeeLocation(world);
         return getGroundedLocation(world, teeLocation, TEE_Y_OFFSET);
+    }
+
+    public static void teleportTeamToLie(Player thrower, GameRound round, Location lieLocation) {
+        Team team = findTeam(round, thrower.getUniqueId());
+        if (team == null) {
+            thrower.teleport(lieLocation);
+            return;
+        }
+
+        for (UUID playerId : team.getTeamMembers()) {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player == null) {
+                continue;
+            }
+
+            Location playerLie = lieLocation.clone();
+            playerLie.setYaw(thrower.getLocation().getYaw());
+            playerLie.setPitch(thrower.getLocation().getPitch());
+            player.teleport(playerLie);
+        }
     }
 
     public static void playHolePreview(Plugin plugin, Player player, GameRound round) {
@@ -83,6 +108,18 @@ public final class RoundPresentation {
                 10
         );
         player.setGameMode(GameMode.SPECTATOR);
+        TextDisplay display = world.spawn(previewPath.getFirst(), TextDisplay.class, d -> {
+            d.setBillboard(Display.Billboard.CENTER);
+            d.setInvulnerable(true);
+            d.setVisibleByDefault(false);
+            d.setPersistent(false);
+            d.setGravity(false);
+            d.setSilent(true);
+            d.setText("");
+            d.setTextOpacity((byte) 0);
+            d.setTeleportDuration((int) Math.min(59, PREVIEW_STEP_TICKS + 1));
+        });
+       player.addPassenger(display);
 
         new BukkitRunnable() {
             private int index;
@@ -90,13 +127,14 @@ public final class RoundPresentation {
             @Override
             public void run() {
                 if (!player.isOnline() || round.isOver()) {
+                    cleanupPreviewCarrier(player, display);
                     cancel();
                     return;
                 }
 
                 Location current = previewPath.get(index).clone();
                 Location target = previewPath.get(Math.min(index + 1, previewPath.size() - 1));
-                player.teleport(faceLocation(current, target));
+                display.teleport(faceLocation(current, target));
 
                 index++;
                 if (index >= previewPath.size()) {
@@ -107,7 +145,8 @@ public final class RoundPresentation {
 
         long restoreDelay = previewPath.size() * PREVIEW_STEP_TICKS + 8L;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (!player.isOnline()) {
+            if (!player.isOnline() || round.isOver()) {
+                cleanupPreviewCarrier(player, display);
                 return;
             }
 
@@ -118,7 +157,22 @@ public final class RoundPresentation {
             }
             player.teleport(faceLocation(returnLocation.clone(), pinLocation));
             player.sendMessage(ChatColor.GRAY + "Throw toward the red pin marker.");
+            display.removePassenger(player);
+            display.remove();
         }, restoreDelay);
+    }
+
+    private static void cleanupPreviewCarrier(Player player, TextDisplay display) {
+        if (display == null || display.isDead()) {
+            return;
+        }
+
+        if (player != null && player.isOnline()) {
+            player.leaveVehicle();
+            player.removePassenger(display);
+        }
+
+        display.remove();
     }
 
     private static Location getGroundedLocation(World world, Location baseLocation, double yOffset) {
@@ -202,6 +256,16 @@ public final class RoundPresentation {
         }
 
         return List.of();
+    }
+
+    private static Team findTeam(GameRound round, UUID playerId) {
+        for (Team team : round.getTeams()) {
+            if (team.contains(playerId)) {
+                return team;
+            }
+        }
+
+        return null;
     }
 
     private static Location faceLocation(Location from, Location target) {

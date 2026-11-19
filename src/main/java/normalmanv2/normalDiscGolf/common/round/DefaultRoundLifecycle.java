@@ -5,19 +5,26 @@ import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundLifecycle;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundResult;
 import normalmanv2.normalDiscGolf.api.round.delegate.lifecycle.DelegateRoundLifecycle;
 import normalmanv2.normalDiscGolf.api.team.Team;
+import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
 import normalmanv2.normalDiscGolf.impl.player.score.PDGARating;
 import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
 import normalmanv2.normalDiscGolf.impl.round.RoundPresentation;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.UUID;
 
 public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
@@ -75,6 +82,8 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
             throw new IllegalStateException("World " + this.round.getId() + " does not exist");
         }
 
+        NDGManager.getInstance().getPlayerSessionManager().beginRound(this.round);
+
         for (Team team : this.round.getTeams()) {
             this.round.getRoundScoreCardManager().addScoreCard(team, new ScoreCard());
             Set<UUID> missingPlayers = new HashSet<>();
@@ -113,6 +122,17 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
         this.ended = true;
         this.state = RoundState.END;
 
+        try {
+            this.updatePlayerRatings();
+            this.sendRoundResults();
+        } finally {
+            this.restoreRoundPlayers();
+            this.round.dispose();
+        }
+        return RoundResult.ENDED;
+    }
+
+    private void updatePlayerRatings() {
         for (Team team : this.round.getTeams()) {
             ScoreCard scoreCard = this.round.getScoreCardByTeam(team);
             if (scoreCard == null) {
@@ -128,10 +148,9 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                 PDGARating rating = playerData.getRating();
                 rating.handleRoundEnd(scoreCard.getTotalScore());
                 rating.updateRating(this.round.getSettings().division().getDifficulty());
+                this.round.getPlayerDataManager().savePlayerData(playerId);
             }
         }
-        this.round.dispose();
-        return RoundResult.ENDED;
     }
 
     @Override
@@ -154,7 +173,97 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
         if (!this.started) return RoundResult.INVALID;
         this.ended = true;
         this.state = RoundState.CANCEL;
-        this.round.dispose();
+        try {
+            this.sendRoundMessage(ChatColor.RED + "Round canceled.");
+        } finally {
+            this.restoreRoundPlayers();
+            this.round.dispose();
+        }
         return RoundResult.CANCELED;
+    }
+
+    private void restoreRoundPlayers() {
+        NDGManager.getInstance().getPlayerSessionManager().restoreRoundSessions(this.round);
+    }
+
+    private void sendRoundResults() {
+        List<Map.Entry<Team, ScoreCard>> standings = new ArrayList<>(this.round.getScoreCards().entrySet());
+        standings.sort(Comparator
+                .comparingInt((Map.Entry<Team, ScoreCard> entry) -> entry.getValue().getTotalScore())
+                .thenComparingInt(entry -> entry.getValue().getTotalStrokes())
+                .thenComparing(entry -> this.formatTeamMembers(entry.getKey())));
+
+        for (Team team : this.round.getTeams()) {
+            for (UUID playerId : team.getTeamMembers()) {
+                Player player = Bukkit.getPlayer(playerId);
+                if (player == null) {
+                    continue;
+                }
+
+                PlayerData playerData = this.round.getPlayerDataManager().getDataByPlayer(playerId);
+                player.sendMessage(ChatColor.GREEN + "Round complete!");
+                player.sendMessage(ChatColor.GRAY + "Final standings:");
+
+                for (int index = 0; index < standings.size(); index++) {
+                    Map.Entry<Team, ScoreCard> entry = standings.get(index);
+                    ScoreCard scoreCard = entry.getValue();
+                    player.sendMessage(ChatColor.GRAY.toString()
+                            + (index + 1)
+                            + ". "
+                            + this.formatTeamMembers(entry.getKey())
+                            + " - "
+                            + this.formatRelativeScore(scoreCard.getTotalScore())
+                            + " ("
+                            + scoreCard.getTotalStrokes()
+                            + " strokes)");
+                }
+
+                if (playerData != null) {
+                    PDGARating rating = playerData.getRating();
+                    player.sendMessage(ChatColor.GRAY
+                            + "Rating: "
+                            + rating.getRating()
+                            + " after "
+                            + rating.getTotalRounds()
+                            + " rounds.");
+                }
+            }
+        }
+    }
+
+    private void sendRoundMessage(String message) {
+        for (Team team : this.round.getTeams()) {
+            for (UUID playerId : team.getTeamMembers()) {
+                Player player = Bukkit.getPlayer(playerId);
+                if (player != null) {
+                    player.sendMessage(message);
+                }
+            }
+        }
+    }
+
+    private String formatTeamMembers(Team team) {
+        StringJoiner joiner = new StringJoiner(", ");
+        for (UUID playerId : team.getTeamMembers()) {
+            joiner.add(this.formatPlayerName(playerId));
+        }
+        return joiner.toString();
+    }
+
+    private String formatPlayerName(UUID playerId) {
+        Player player = Bukkit.getPlayer(playerId);
+        if (player != null) {
+            return player.getName();
+        }
+
+        String playerName = Bukkit.getOfflinePlayer(playerId).getName();
+        return playerName != null ? playerName : playerId.toString();
+    }
+
+    private String formatRelativeScore(int score) {
+        if (score > 0) {
+            return "+" + score;
+        }
+        return String.valueOf(score);
     }
 }

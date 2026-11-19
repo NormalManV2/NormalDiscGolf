@@ -15,12 +15,13 @@ public class ForehandTechnique extends ThrowTechnique {
     @Override
     public void applyTechniquePhysics(DiscImpl discImpl, Vector discVelocity, int tick, TechniquePhysicsData techniquePhysicsData, BlockFace direction) {
         final double turn = discImpl.getTurn();
+        final double fade = discImpl.getFade();
         final double flightPhase = techniquePhysicsData.flightPhase();
         final double turnFactor = techniquePhysicsData.turnFactor();
         final double fadeFactor = techniquePhysicsData.fadeFactor();
         final double gravityFactor = (double) discImpl.getGlide() / 220;
         final double turnAdjustment = turn * turnFactor * Constants.TURN_ADJUSTMENT;
-        final double fadeAdjustment = turn * fadeFactor * Constants.FADE_ADJUSTMENT;
+        final double fadeAdjustment = fade * fadeFactor * Constants.FADE_ADJUSTMENT;
 
         if (flightPhase <= Constants.STRAIGHT_PHASE_END) {
             return;

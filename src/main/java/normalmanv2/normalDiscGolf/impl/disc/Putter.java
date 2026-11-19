@@ -3,12 +3,11 @@ package normalmanv2.normalDiscGolf.impl.disc;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
-import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
-import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil;
+import normalmanv2.normalDiscGolf.impl.manager.flight.DiscFlightManager;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.technique.ThrowTechnique;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
@@ -99,41 +98,20 @@ public class Putter extends DiscImpl {
 
             tickCount[0]++;
         }, 0, 1);
+        DiscFlightManager.registerFlight(this.discTask, player.getUniqueId(), DiscFlightResolver.findActiveRound(player), discDisplay);
     }
 
     private void resolveFlight(Player player, ItemDisplay discDisplay, Location currentLocation, Vector initialVelocity, boolean goalScored) {
-        GameRound round = this.getActiveRound(player);
-        if (round != null && goalScored) {
-            this.handleGoalScore(player, round);
-        } else if (!goalScored) {
-            Vector throwDirection = initialVelocity.clone().normalize();
-            Location teleportLocation = currentLocation.clone().subtract(throwDirection.multiply(1.5));
-            player.teleport(teleportLocation);
-        }
-
+        DiscFlightResolver.resolveFlight(player, currentLocation, initialVelocity, goalScored);
         this.cleanupDiscFlight(discDisplay);
-
-        if (round != null && !round.isOver()) {
-            round.nextTurn();
-        }
-    }
-
-    private GameRound getActiveRound(Player player) {
-        return NDGManager.getInstance().getRoundHandler().getActiveRounds().stream()
-                .filter(round -> round.containsPlayer(player.getUniqueId()))
-                .findFirst()
-                .orElse(null);
     }
 
     private void cleanupDiscFlight(ItemDisplay discDisplay) {
         if (this.discTask != null) {
-            this.discTask.cancel();
+            DiscFlightManager.completeFlight(this.discTask, this.plugin, 100L);
             this.discTask = null;
+            return;
         }
-        Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100);
-    }
-
-    private void handleGoalScore(Player player, GameRound round) {
-        Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, round.getCurrentHole(), round));
+        Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100L);
     }
 }

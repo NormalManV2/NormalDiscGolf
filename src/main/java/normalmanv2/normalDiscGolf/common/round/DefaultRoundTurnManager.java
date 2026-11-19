@@ -96,7 +96,12 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
             return;
         }
 
-        this.currentIndex = (this.currentIndex + 1) % teams.size();
+        int nextIndex = this.findNextUnscoredTeamIndex(teams);
+        if (nextIndex == -1) {
+            return;
+        }
+
+        this.currentIndex = nextIndex;
     }
 
     @Override
@@ -115,7 +120,9 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
     @Override
     public boolean isTurn(Team team) {
         List<Team> teams = this.getTurnOrder();
-        return !teams.isEmpty() && teams.get(this.currentIndex).equals(team);
+        return !teams.isEmpty()
+                && teams.get(this.currentIndex).equals(team)
+                && !this.hasTeamScoredCurrentHole(team);
     }
 
     @Override
@@ -158,6 +165,22 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
     private boolean allTeamsScoredCurrentHole(List<Team> teams) {
         Set<Team> scoredTeams = this.scoredGoals.getOrDefault(this.hole, Collections.emptySet());
         return !teams.isEmpty() && teams.stream().allMatch(scoredTeams::contains);
+    }
+
+    private int findNextUnscoredTeamIndex(List<Team> teams) {
+        Set<Team> scoredTeams = this.scoredGoals.getOrDefault(this.hole, Collections.emptySet());
+        for (int offset = 1; offset <= teams.size(); offset++) {
+            int candidateIndex = (this.currentIndex + offset) % teams.size();
+            if (!scoredTeams.contains(teams.get(candidateIndex))) {
+                return candidateIndex;
+            }
+        }
+
+        return -1;
+    }
+
+    private boolean hasTeamScoredCurrentHole(Team team) {
+        return this.scoredGoals.getOrDefault(this.hole, Collections.emptySet()).contains(team);
     }
 
     private void teleportTeamsToCurrentTee(List<Team> teams) {

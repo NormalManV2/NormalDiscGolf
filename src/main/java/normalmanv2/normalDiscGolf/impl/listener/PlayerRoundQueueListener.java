@@ -18,12 +18,27 @@ public class PlayerRoundQueueListener implements Listener {
 
     @EventHandler
     public void onRoundQueue(PlayerQueueRoundEvent event) {
-        this.queueManager.addPlayerToQueue(event.getPlayerId(), event.getRoundFormat());
         Player player = Bukkit.getPlayer(event.getPlayerId());
         if (player == null) {
             return;
         }
-        player.sendMessage(ChatColor.GREEN + "You have been queued!");
+
+        if (!NDGManager.getInstance().getFileManager().areRequiredObstaclesAvailable()) {
+            player.sendMessage(ChatColor.RED + "Disc golf courses are not ready: "
+                    + NDGManager.getInstance().getFileManager().getMissingRequiredObstaclesMessage());
+            return;
+        }
+
+        if (this.queueManager.addPlayerToQueue(event.getPlayerId(), event.getRoundFormat())) {
+            player.sendMessage(ChatColor.GREEN + "You have been queued for " + this.displayFormat(event.getRoundFormat()) + ".");
+            return;
+        }
+
+        player.sendMessage(ChatColor.YELLOW + "You are already queued, in a round, or this round format is unavailable.");
+    }
+
+    private String displayFormat(String roundFormat) {
+        return roundFormat.equalsIgnoreCase("doubles") ? "Doubles" : "FFA";
     }
 
 }

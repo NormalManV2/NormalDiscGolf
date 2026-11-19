@@ -4,6 +4,12 @@ import normalmanv2.normalDiscGolf.impl.skill.*;
 
 public class PlayerSkills {
 
+    public java.util.Map<String, Skill> asMap() {
+        return java.util.Map.of("accuracy", accuracy, "backhand", backhand, "flex", flex,
+                "forehand", forehand, "form", form, "power", power, "roller", roller,
+                "s-curve", sCurve, "thumber", thumber, "tomahawk", tomahawk);
+    }
+
     private final Accuracy accuracy;
     private final Backhand backhand;
     private final Flex flex;

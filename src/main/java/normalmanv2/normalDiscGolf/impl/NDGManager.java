@@ -18,11 +18,14 @@ import normalmanv2.normalDiscGolf.impl.resourcepack.PackedIntegration;
 import normalmanv2.normalDiscGolf.impl.service.InviteService;
 import normalmanv2.normalDiscGolf.impl.registry.DiscRegistry;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
+import normalmanv2.normalDiscGolf.impl.player.profile.PlayerProfileStore;
+import normalmanv2.normalDiscGolf.impl.player.session.PlayerSessionManager;
 import normalmanv2.normalDiscGolf.impl.manager.round.lifecycle.RoundHandler;
 import normalmanv2.normalDiscGolf.impl.registry.ThrowTechniqueRegistry;
 import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.normal.impl.registry.RegistryImpl;
 
 import java.io.IOException;
@@ -31,7 +34,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class NDGManager {
-    private final PlayerDataManager playerDataManager = new PlayerDataManager();
+    private final PlayerDataManager playerDataManager;
+    private final PlayerSessionManager playerSessionManager = new PlayerSessionManager();
     private final RoundHandler roundHandler;
     private final DiscRegistry discRegistry = new DiscRegistry();
     private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
@@ -51,6 +55,7 @@ public class NDGManager {
 
     private NDGManager() {
         this.plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
+        this.playerDataManager = new PlayerDataManager(new PlayerProfileStore(this.plugin));
         this.obstacleRegistry = new ObstacleRegistry();
         this.fileManager = new FileManager(plugin);
         this.obstacleManager = new ObstacleManager(this.fileManager);
@@ -95,6 +100,10 @@ public class NDGManager {
 
     public PlayerDataManager getPlayerDataManager() {
         return this.playerDataManager;
+    }
+
+    public PlayerSessionManager getPlayerSessionManager() {
+        return this.playerSessionManager;
     }
 
     public RoundHandler getRoundHandler() {
@@ -147,5 +156,12 @@ public class NDGManager {
                 ));
 
         this.divisionCourseRegistry.set(defaultMapping);
+    }
+
+    public void initializeOnlinePlayers() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            this.playerDataManager.getOrCreatePlayerData(player.getUniqueId());
+            this.playerSessionManager.restorePlayer(player);
+        }
     }
 }

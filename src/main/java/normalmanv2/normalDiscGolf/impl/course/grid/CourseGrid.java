@@ -544,6 +544,17 @@ public class CourseGrid {
         return this.grid[x][z];
     }
 
+    public Tile getTileAtLocation(Location location) {
+        int tileX = Math.floorDiv(location.getBlockX(), TILE_SIZE);
+        int tileZ = Math.floorDiv(location.getBlockZ(), TILE_SIZE);
+        return this.getTile(tileX, tileZ);
+    }
+
+    public TileTypes getTileTypeAtLocation(Location location) {
+        Tile tile = this.getTileAtLocation(location);
+        return tile == null ? TileTypes.OUT_OF_BOUNDS : tile.getCollapsedState();
+    }
+
     public Tile[][] getGrid() {
         return this.grid;
     }

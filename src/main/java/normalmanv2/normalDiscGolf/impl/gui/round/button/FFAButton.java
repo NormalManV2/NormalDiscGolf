@@ -19,5 +19,6 @@ public class FFAButton extends Button {
                         event.getWhoClicked().getUniqueId(),
                 NDGManager.getInstance().getRoundQueueManager().getQueuedRounds(),
                 "ffa"));
+        event.getWhoClicked().closeInventory();
     }
 }

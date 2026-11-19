@@ -11,7 +11,6 @@ import normalmanv2.normalDiscGolf.impl.player.PlayerData;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
 import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
-import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -71,15 +70,17 @@ public class DefaultRoundStrokeManager implements DelegateRoundStrokeManager, Wi
         }
 
         PlayerData playerData = this.getPlayerDataManager().getDataByPlayer(throwMechanic.getPlayerId());
+        if (playerData == null) {
+            return false;
+        }
+
         PlayerSkills skills = playerData.getSkills();
 
-
-        if (this.round instanceof FFARound) {
-            ScoreCard card = this.round.getRoundScoreCardManager().getScoreCardById(player.getUniqueId());
-            if (card == null)
-                throw new RuntimeException("No score card found for player " + player.getDisplayName() + ". This is a major issue, please report!");
-            card.trackStroke();
+        ScoreCard card = this.round.getRoundScoreCardManager().getScoreCardById(player.getUniqueId());
+        if (card == null) {
+            throw new RuntimeException("No score card found for player " + player.getDisplayName() + ". This is a major issue, please report!");
         }
+        card.trackStroke();
 
         DiscImpl disc = (DiscImpl) throwMechanic.getDisc();
 

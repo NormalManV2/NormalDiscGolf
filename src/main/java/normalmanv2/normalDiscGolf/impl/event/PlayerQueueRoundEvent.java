@@ -5,7 +5,6 @@ import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -20,7 +19,6 @@ public class PlayerQueueRoundEvent extends Event {
         this.playerId = playerId;
         this.roundQueue = roundQueue;
         this.roundFormat = roundFormat;
-        System.out.println("PlayerQueueRoundEvent: " + playerId + " roundQueue " + roundQueue + " roundType " + roundFormat);
     }
 
     public UUID getPlayerId() {

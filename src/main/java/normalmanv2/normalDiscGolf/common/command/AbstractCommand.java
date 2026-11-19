@@ -30,6 +30,10 @@ public abstract class AbstractCommand extends BukkitCommand {
 
     @Override
     public boolean execute(CommandSender commandSender, String s, String[] strings) {
+        if (!this.testPermission(commandSender)) {
+            return true;
+        }
+
         execute(commandSender, strings);
         return true;
     }

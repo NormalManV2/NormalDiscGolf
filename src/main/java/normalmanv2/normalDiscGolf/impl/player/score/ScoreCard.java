@@ -34,7 +34,7 @@ public class ScoreCard {
     }
 
     public void addPenalty(int penaltyStrokes) {
-        this.totalStrokes += penaltyStrokes;
+        this.currentStrokes += penaltyStrokes;
     }
 
     public int getTotalScore() {

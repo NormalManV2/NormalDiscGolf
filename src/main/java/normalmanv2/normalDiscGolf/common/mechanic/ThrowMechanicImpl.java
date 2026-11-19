@@ -28,6 +28,8 @@ public class ThrowMechanicImpl implements ThrowMechanic {
     private final DiscImpl disc;
     private final GameRound round;
     private final String throwTechnique;
+    private BukkitTask task;
+    private boolean disposed;
 
     private boolean increasing = true;
     private final double step = 0.05;
@@ -81,6 +83,22 @@ public class ThrowMechanicImpl implements ThrowMechanic {
         return this.power;
     }
 
+    public void dispose() {
+        if (this.disposed) {
+            return;
+        }
+
+        this.disposed = true;
+        TaskManager.unregisterTask(this.task);
+        this.task = null;
+
+        if (this.bossBar != null) {
+            this.bossBar.removeAll();
+            this.bossBar.setVisible(false);
+            this.bossBar = null;
+        }
+    }
+
     // Intentional power algo
     protected void use() {
         Player player = Bukkit.getPlayer(playerId);
@@ -92,7 +110,11 @@ public class ThrowMechanicImpl implements ThrowMechanic {
         this.bossBar.setVisible(true);
         this.bossBar.addPlayer(player);
 
-        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+        this.task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (this.disposed || this.bossBar == null) {
+                return;
+            }
+
             double currentProgress = this.bossBar.getProgress();
             double newProgress;
 
@@ -118,8 +140,13 @@ public class ThrowMechanicImpl implements ThrowMechanic {
 
         player.sendMessage(ChatColor.YELLOW + "Aim your throw, then click once to release.");
 
-        TaskManager.registerTask(task, playerId);
-        Bukkit.getPluginManager().callEvent(new ThrowMechanicEvent(ThrowState.POWER, player, this));
+        TaskManager.registerTask(this.task, playerId);
+
+        ThrowMechanicEvent event = new ThrowMechanicEvent(ThrowState.POWER, player, this);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            this.dispose();
+        }
     }
 
     public BossBar getBossBar() {

@@ -18,12 +18,23 @@ public class Skill {
     public int getLevel() {
         return this.level;
     }
-       public int getMaxLevel() {
+
+    public int getMaxLevel() {
         return this.maxLevel;
     }
 
     public double getXp() {
         return this.xp;
+    }
+
+    public double getXpToNext() {
+        return this.xpToNext;
+    }
+
+    public void restoreProgress(int level, double xp) {
+        this.level = Math.max(1, Math.min(level, this.maxLevel));
+        this.xpToNext = this.computeXpNeeded(this.level);
+        this.xp = this.level >= this.maxLevel ? 0 : Math.max(0, Math.min(xp, this.xpToNext));
     }
 
     protected void incrLevel() {

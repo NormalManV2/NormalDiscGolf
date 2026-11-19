@@ -37,8 +37,27 @@ public class PDGARating {
         this.division = division;
     }
 
+    public void setRating(int rating) {
+        if (rating < 0) {
+            throw new IllegalArgumentException("Rating must be nonnegative.");
+        }
+        this.rating = rating;
+    }
+
+    public void restore(int totalRounds, double totalScore, double averageScore, int rating, Division division) {
+        this.totalRounds = Math.max(0, totalRounds);
+        this.totalScore = totalScore;
+        this.averageScore = this.totalRounds == 0 ? 0 : averageScore;
+        this.rating = Math.max(0, rating);
+        this.division = division == null ? Division.JUNIOR : division;
+    }
+
     public double getAverageScore() {
         return this.averageScore;
+    }
+
+    public double getTotalScore() {
+        return this.totalScore;
     }
 
     public int getRating() {

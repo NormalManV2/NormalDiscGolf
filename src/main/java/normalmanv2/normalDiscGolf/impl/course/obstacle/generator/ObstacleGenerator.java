@@ -16,6 +16,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.BoundingBox;
 import org.normal.impl.registry.RegistryImpl;
 
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 public class ObstacleGenerator {
 
@@ -60,23 +62,33 @@ public class ObstacleGenerator {
         }
     }
 
-    public void generateObstaclesIncrementally(Plugin plugin, World world, int tilesPerTick, Runnable onComplete) {
-        this.generateObstaclesIncrementally(plugin, world, tilesPerTick, null, onComplete);
+    public BukkitTask generateObstaclesIncrementally(Plugin plugin, World world, int tilesPerTick, Runnable onComplete) {
+        return this.generateObstaclesIncrementally(plugin, world, tilesPerTick, null, onComplete);
     }
 
-    public void generateObstaclesIncrementally(
+    public BukkitTask generateObstaclesIncrementally(
             Plugin plugin,
             World world,
             int tilesPerTick,
             BiConsumer<Integer, Integer> onProgress,
             Runnable onComplete) {
+        return this.generateObstaclesIncrementally(plugin, world, tilesPerTick, onProgress, onComplete, null);
+    }
+
+    public BukkitTask generateObstaclesIncrementally(
+            Plugin plugin,
+            World world,
+            int tilesPerTick,
+            BiConsumer<Integer, Integer> onProgress,
+            Runnable onComplete,
+            Consumer<RuntimeException> onFailure) {
         if (plugin == null) throw new IllegalArgumentException("Plugin cannot be null");
         if (world == null) throw new IllegalArgumentException("World cannot be null");
 
         final int tilesPerBatch = Math.max(1, tilesPerTick);
         final int totalTiles = courseGrid.getWidth() * courseGrid.getDepth();
 
-        new BukkitRunnable() {
+        return new BukkitRunnable() {
             private int x;
             private int z;
             private int completedTiles;
@@ -97,6 +109,11 @@ public class ObstacleGenerator {
                                 ? exception.getClass().getSimpleName()
                                 : exception.getMessage();
                         plugin.getLogger().warning("Skipping obstacle tile " + x + "," + z + ": " + message);
+                        if (onFailure != null) {
+                            cancel();
+                            onFailure.accept(exception);
+                            return;
+                        }
                     }
 
                     processedTiles++;
@@ -210,6 +227,10 @@ public class ObstacleGenerator {
                 placed++;
                 //NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class).getLogger().info("Obstacle generated: " + obstacle.getSchematicName());
             }
+        }
+
+        if ((tileType == TileTypes.PIN || tileType == TileTypes.TEE) && placed == 0) {
+            throw new RuntimeException("Could not place required " + tileType + " schematic at tile " + tileBase.x() + "," + tileBase.z());
         }
     }
 
