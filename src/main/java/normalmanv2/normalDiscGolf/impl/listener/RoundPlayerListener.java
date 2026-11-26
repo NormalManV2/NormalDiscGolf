@@ -4,6 +4,7 @@ import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.disc.DiscFlightResolver;
+import normalmanv2.normalDiscGolf.impl.disc.DiscModel;
 import normalmanv2.normalDiscGolf.impl.resourcepack.DiscItems;
 import normalmanv2.normalDiscGolf.impl.round.*;
 import org.bukkit.*;
@@ -31,14 +32,25 @@ public final class RoundPlayerListener implements Listener {
     }
     public static void giveKit(Player player) {
         player.getInventory().clear();
-        player.getInventory().setItem(0,control(DiscItems.discItem(DiscType.PUTTER,"Putter",player,false),"putter"));
-        player.getInventory().setItem(1,control(DiscItems.discItem(DiscType.MID_RANGE,"Midrange",player,false),"midrange"));
-        player.getInventory().setItem(2,control(DiscItems.discItem(DiscType.DRIVER,"Driver",player,false),"driver"));
+        var bag = NDGManager.getInstance().getPlayerDataManager().getOrCreatePlayerData(player.getUniqueId()).getDiscBag();
+        player.getInventory().setItem(0, kitDisc(player, bag.equipped(DiscType.PUTTER), "putter"));
+        player.getInventory().setItem(1, kitDisc(player, bag.equipped(DiscType.MID_RANGE), "midrange"));
+        player.getInventory().setItem(2, kitDisc(player, bag.equipped(DiscType.DRIVER), "driver"));
         player.getInventory().setItem(6,tool(Material.COMPASS,"§eReturn to lie","lie"));
         player.getInventory().setItem(7,tool(Material.FEATHER,"§eSkip preview","skip"));
         player.getInventory().setItem(8,tool(Material.BOOK,"§aScorecard","score"));
         player.getInventory().setHeldItemSlot(0);
         player.sendMessage("§aChoose a disc, right-click to aim, then click to release. Swap hands changes backhand / forehand.");
+    }
+
+    private static ItemStack kitDisc(Player player, DiscModel model, String action) {
+        ItemStack item = control(DiscItems.discItem(model.type(), model.displayName(), player, false), action);
+        var meta = item.getItemMeta();
+        var lore = new ArrayList<>(meta.getLore());
+        lore.addFirst(ChatColor.GRAY + model.flightStats());
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
     }
     @EventHandler public void interact(PlayerInteractEvent event) {
         if (NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class).released(event)) return;

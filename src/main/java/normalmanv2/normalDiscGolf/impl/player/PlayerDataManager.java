@@ -63,6 +63,8 @@ public class PlayerDataManager {
                 rating.getAverageScore(), rating.getRating(), rating.getDivision());
         loaded.getSkills().asMap().forEach((name, skill) ->
                 current.getSkills().asMap().get(name).restoreProgress(skill.getLevel(), skill.getXp()));
+        current.setDiscBag(loaded.getDiscBag());
+        current.setDecalLocker(loaded.getDecalLocker());
     }
 
     public void saveAll() {

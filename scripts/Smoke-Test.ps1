@@ -42,7 +42,7 @@ generator-settings={"layers":[{"block":"minecraft:bedrock","height":1},{"block":
     @'
 resource-pack:
   enabled: true
-  url: "http://127.0.0.1:18088/ndg/pack.zip"
+  url: ""
   serve: true
   port: 18088
   required: false

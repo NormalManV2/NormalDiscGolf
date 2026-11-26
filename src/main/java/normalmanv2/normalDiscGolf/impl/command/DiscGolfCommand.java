@@ -5,6 +5,10 @@ import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.common.command.AbstractCommand;
 import normalmanv2.normalDiscGolf.common.invite.Invite;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
+import normalmanv2.normalDiscGolf.impl.cosmetic.ScoreDecal;
+import normalmanv2.normalDiscGolf.impl.disc.DiscModel;
+import normalmanv2.normalDiscGolf.impl.gui.DiscShop;
+import normalmanv2.normalDiscGolf.impl.gui.DecalShop;
 import normalmanv2.normalDiscGolf.impl.event.PlayerQueueRoundEvent;
 import normalmanv2.normalDiscGolf.impl.gui.round.RoundPickerGUI;
 import normalmanv2.normalDiscGolf.impl.manager.party.PartyManager;
@@ -65,6 +69,8 @@ public class DiscGolfCommand extends AbstractCommand {
             case "status" -> this.sendStatus(player);
             case "score", "scorecard" -> this.sendScore(player);
             case "profile", "stats" -> this.sendProfile(player);
+            case "shop" -> this.shop(player, args);
+            case "decals" -> this.decals(player, args);
             case "party" -> this.handleParty(player, args);
             case "cancel" -> this.cancelRound(player);
             case "skip" -> normalmanv2.normalDiscGolf.impl.round.RoundPresentation.cancel(player);
@@ -92,7 +98,16 @@ public class DiscGolfCommand extends AbstractCommand {
             return ProfileAdminCommand.complete(sender, args);
         }
         if (args.length == 1) {
-            return this.matching(args[0], List.of("queue", "leave", "menu", "status", "score", "profile", "party", "cancel", "skip", "lie", "concede", "quit", "help"));
+            return this.matching(args[0], List.of("queue", "leave", "menu", "status", "score", "profile", "shop", "decals", "party", "cancel", "skip", "lie", "concede", "quit", "help"));
+        }
+
+        if (args[0].equalsIgnoreCase("shop")) {
+            if (args.length == 2) return matching(args[1], List.of("buy", "equip"));
+            if (args.length == 3) return matching(args[2], Arrays.stream(DiscModel.values()).map(DiscModel::id).toList());
+        }
+        if (args[0].equalsIgnoreCase("decals")) {
+            if (args.length == 2) return matching(args[1], List.of("buy", "equip", "preview"));
+            if (args.length == 3) return matching(args[2], Arrays.stream(ScoreDecal.values()).map(ScoreDecal::id).toList());
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("queue")) {
@@ -112,6 +127,42 @@ public class DiscGolfCommand extends AbstractCommand {
         }
 
         return List.of();
+    }
+
+    private void shop(Player player, String[] args) {
+        if (args.length == 1) {
+            DiscShop.open(player);
+            return;
+        }
+        boolean buy = args[1].equalsIgnoreCase("buy");
+        if (args.length != 3 || (!buy && !args[1].equalsIgnoreCase("equip"))) {
+            player.sendMessage(ChatColor.YELLOW + "Use /ndg shop or /ndg shop <buy|equip> <disc>.");
+            return;
+        }
+        DiscModel model = DiscModel.find(args[2]);
+        if (model == null) {
+            player.sendMessage(ChatColor.RED + "Unknown disc. Open /ndg shop to see available discs.");
+            return;
+        }
+        DiscShop.change(player, model, buy);
+    }
+
+    private void decals(Player player, String[] args) {
+        if (args.length == 1) {
+            DecalShop.open(player);
+            return;
+        }
+        if (args.length != 3 || !List.of("buy", "equip", "preview").contains(args[1].toLowerCase(Locale.ROOT))) {
+            player.sendMessage(ChatColor.YELLOW + "Use /ndg decals or /ndg decals <buy|equip|preview> <decal>.");
+            return;
+        }
+        ScoreDecal decal = ScoreDecal.find(args[2]);
+        if (decal == null) {
+            player.sendMessage(ChatColor.RED + "Unknown score decal. Open /ndg decals to see the selection.");
+            return;
+        }
+        if (args[1].equalsIgnoreCase("preview")) DecalShop.preview(player, decal);
+        else DecalShop.change(player, decal, args[1].equalsIgnoreCase("buy"));
     }
 
     private void queuePlayer(Player player, String[] args) {
@@ -280,6 +331,7 @@ public class DiscGolfCommand extends AbstractCommand {
         player.sendMessage(ChatColor.GRAY + "Division: " + this.formatEnumName(rating.getDivision().name()));
         player.sendMessage(ChatColor.GRAY + "Rating: " + rating.getRating());
         player.sendMessage(ChatColor.GRAY + "Rounds: " + rating.getTotalRounds());
+        player.sendMessage(ChatColor.GOLD + "Disc shop balance: " + playerData.getDiscBag().credits() + " credits");
         player.sendMessage(ChatColor.GRAY + "Average score: " + this.formatDecimal(rating.getAverageScore()));
         player.sendMessage(ChatColor.GRAY + "Skills:");
         this.sendSkillSummary(player, playerData.getSkills());
@@ -288,14 +340,9 @@ public class DiscGolfCommand extends AbstractCommand {
     private void sendSkillSummary(Player player, PlayerSkills playerSkills) {
         this.sendSkill(player, "Accuracy", playerSkills.getAccuracy());
         this.sendSkill(player, "Backhand", playerSkills.getBackhand());
-        this.sendSkill(player, "Flex", playerSkills.getFlex());
         this.sendSkill(player, "Forehand", playerSkills.getForehand());
         this.sendSkill(player, "Form", playerSkills.getForm());
         this.sendSkill(player, "Power", playerSkills.getPower());
-        this.sendSkill(player, "Roller", playerSkills.getRoller());
-        this.sendSkill(player, "S-Curve", playerSkills.getSCurve());
-        this.sendSkill(player, "Thumber", playerSkills.getThumber());
-        this.sendSkill(player, "Tomahawk", playerSkills.getTomahawk());
     }
 
     private void sendSkill(Player player, String name, Skill skill) {
@@ -591,6 +638,8 @@ public class DiscGolfCommand extends AbstractCommand {
         sender.sendMessage(ChatColor.GRAY + "/ndg status - Show your queue or round status.");
         sender.sendMessage(ChatColor.GRAY + "/ndg score - Show your scorecard.");
         sender.sendMessage(ChatColor.GRAY + "/ndg profile - Show your rating and skills.");
+        sender.sendMessage(ChatColor.GRAY + "/ndg shop - Unlock and equip discs.");
+        sender.sendMessage(ChatColor.GRAY + "/ndg decals - Preview, unlock, and equip score decals.");
         if (sender.hasPermission(ProfileAdminCommand.PERMISSION)) {
             ProfileAdminCommand.help(sender);
         }

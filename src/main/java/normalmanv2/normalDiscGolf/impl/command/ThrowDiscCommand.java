@@ -1,7 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.command;
 
 import normalmanv2.normalDiscGolf.api.round.GameRound;
-import normalmanv2.normalDiscGolf.api.team.Team;
+import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.common.command.AbstractCommand;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
@@ -12,6 +12,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.util.List;
+import java.util.Locale;
 
 public class ThrowDiscCommand extends AbstractCommand {
 
@@ -41,8 +42,19 @@ public class ThrowDiscCommand extends AbstractCommand {
             return;
         }
 
-        String discName = this.resolveDiscName(args.length > 0 ? args[0] : "putter");
-        String technique = args.length > 1 ? args[1].toLowerCase() : "backhand";
+        DiscType type = switch ((args.length > 0 ? args[0] : "putter").toLowerCase(Locale.ROOT)) {
+            case "driver" -> DiscType.DRIVER;
+            case "mid", "midrange" -> DiscType.MID_RANGE;
+            case "putter" -> DiscType.PUTTER;
+            default -> null;
+        };
+        if (type == null) {
+            player.sendMessage(ChatColor.RED + "Choose your equipped putter, midrange, or driver.");
+            return;
+        }
+        var data = NDGManager.getInstance().getPlayerDataManager().getOrCreatePlayerData(player.getUniqueId());
+        String discName = data.getDiscBag().equipped(type).displayName();
+        String technique = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "backhand";
 
         if (!NDGManager.getInstance().getThrowTechniqueRegistry().getBackingMap().containsKey(technique)) {
             player.sendMessage(ChatColor.RED + "Unknown throw technique. Use backhand or forehand.");
@@ -80,21 +92,4 @@ public class ThrowDiscCommand extends AbstractCommand {
                 .orElse(null);
     }
 
-    private boolean isPlayersTurn(GameRound round, Player player) {
-        for (Team team : round.getTeams()) {
-            if (team.contains(player.getUniqueId())) {
-                return round.isTurn(team);
-            }
-        }
-
-        return false;
-    }
-
-    private String resolveDiscName(String requestedDisc) {
-        return switch (requestedDisc.toLowerCase()) {
-            case "driver" -> "Starter Driver";
-            case "mid", "midrange" -> "Starter Midrange";
-            default -> "Starter Putter";
-        };
-    }
 }

@@ -63,7 +63,8 @@ public class CourseImpl implements Course {
     public Location tee(World world, int hole) {
         var point = teeLocations().get(hole);
         Location location = new Location(world, point.x() + .5, grid.surfaceHeight(point.x(), point.z()) + 1, point.z() + .5);
-        location.setDirection(basket(world, hole).toVector().subtract(location.toVector()));
+        var opening = grid.openingTarget(hole);
+        location.setDirection(new org.bukkit.util.Vector(opening.x() - point.x(), 0, opening.z() - point.z()));
         return location;
     }
     public Location basket(World world, int hole) {

@@ -10,6 +10,7 @@ public class ScoreCard {
     private int totalScore;
     private final Map<Integer, Integer> holeScores;
     private int currentStrokes;
+    private int holedOutCount;
 
     public ScoreCard() {
         this.totalStrokes = 0;
@@ -28,6 +29,13 @@ public class ScoreCard {
     }
 
     public void undoStroke() { this.currentStrokes = Math.max(0, this.currentStrokes - 1); }
+
+    public void recordBasket(int holeNumber, int strokes, int par) {
+        recordHoleScore(holeNumber, strokes, par);
+        holedOutCount++;
+    }
+
+    public int getHoledOutCount() { return holedOutCount; }
 
     public void trackStroke() {
         this.currentStrokes++;

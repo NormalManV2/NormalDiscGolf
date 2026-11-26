@@ -19,7 +19,7 @@ public class ForehandTechnique extends ThrowTechnique {
         final double flightPhase = techniquePhysicsData.flightPhase();
         final double turnFactor = techniquePhysicsData.turnFactor();
         final double fadeFactor = techniquePhysicsData.fadeFactor();
-        final double gravityFactor = (double) discImpl.getGlide() / 220;
+        final double gravityFactor = gravity(discImpl);
         final double turnAdjustment = turn * turnFactor * Constants.TURN_ADJUSTMENT;
         final double fadeAdjustment = fade * fadeFactor * Constants.FADE_ADJUSTMENT;
 
@@ -29,8 +29,9 @@ public class ForehandTechnique extends ThrowTechnique {
 
         discVelocity.setY(discVelocity.getY() - gravityFactor);
 
-        Vector currentDirection = new Vector(discVelocity.getX(), 0, discVelocity.getZ()).normalize();
-        Vector leftwardDrift = new Vector(-currentDirection.getZ(), 0, currentDirection.getX()).normalize();
+        Vector leftwardDrift = new Vector(-discVelocity.getZ(), 0, discVelocity.getX());
+        if (leftwardDrift.lengthSquared() < 1e-8) return;
+        leftwardDrift.normalize();
         if (flightPhase <= Constants.TURN_PHASE_END) {
             discVelocity.subtract(leftwardDrift.clone().multiply(turnAdjustment));
         }

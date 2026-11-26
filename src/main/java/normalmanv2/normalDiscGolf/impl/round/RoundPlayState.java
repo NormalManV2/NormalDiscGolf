@@ -1,13 +1,16 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
+import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
+import normalmanv2.normalDiscGolf.impl.cosmetic.ScoreDecal;
 import normalmanv2.normalDiscGolf.impl.event.GoalScoreEvent;
 import normalmanv2.normalDiscGolf.impl.manager.flight.DiscFlightManager;
 import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 import java.util.*;
 
@@ -17,6 +20,7 @@ public final class RoundPlayState {
     private final Map<Team, Location> lies = new HashMap<>();
     private final Map<Team, UUID> lastThrower = new HashMap<>();
     private Shot shot;
+    private BukkitTask decalPause;
     private long deadline;
     private int hole = -1;
     private final RoundHud hud;
@@ -64,6 +68,7 @@ public final class RoundPlayState {
         if (round.isOver() || round.getState() != RoundState.START) return "This round is not accepting throws.";
         if (RoundPresentation.isPreviewing(round)) return "Wait for the preview, or use /ndg skip.";
         if (shot != null) return "Wait for the disc to land.";
+        if (decalPause != null) return "Wait for the basket celebration.";
         Team team = team(player.getUniqueId());
         if (team == null || !round.isTurn(team)) return "It is not your team's turn.";
         if (!player.getUniqueId().equals(thrower(team))) return "Your teammate throws next (alternate shot).";
@@ -81,17 +86,26 @@ public final class RoundPlayState {
     }
     public void failedShot() { shot = null; turnChanged(); }
     public void resolve(Player player, Location landing, boolean goal) {
+        resolve(player, landing, goal, null, null);
+    }
+
+    public void resolve(Player player, Location landing, boolean goal, DiscType disc, String technique) {
         Shot completed = shot;
         if (completed == null || !completed.player().equals(player.getUniqueId()) || completed.hole() != round.getCurrentHole() || round.isOver()) return;
         shot = null;
         lastThrower.put(completed.team(), completed.player());
         ScoreCard card = round.getScoreCardByTeam(completed.team());
+        var type = round.getCourse().grid().getTileTypeAtLocation(landing);
+        boolean hazard = !goal && (type == normalmanv2.normalDiscGolf.impl.course.tile.TileTypes.WATER
+                || type == normalmanv2.normalDiscGolf.impl.course.tile.TileTypes.OUT_OF_BOUNDS);
+        if (disc != null) awardPractice(player, disc, technique, hazard, goal);
         if (goal) {
+            boolean scoredBefore = card.getHoleScores().containsKey(completed.hole());
             Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, completed.hole(), round));
+            if (!scoredBefore && card.getHoleScores().containsKey(completed.hole()) && celebrate(player, landing.getWorld())) {
+                return;
+            }
         } else {
-            var type = round.getCourse().grid().getTileTypeAtLocation(landing);
-            boolean hazard = type == normalmanv2.normalDiscGolf.impl.course.tile.TileTypes.WATER
-                    || type == normalmanv2.normalDiscGolf.impl.course.tile.TileTypes.OUT_OF_BOUNDS;
             Location next = hazard ? completed.origin() : safeLie(landing, completed.origin());
             if (hazard) { card.addPenalty(1); message("§cWater / out of bounds: one penalty stroke. Replay the previous lie."); }
             lies.put(completed.team(), next);
@@ -99,6 +113,39 @@ public final class RoundPlayState {
             if (card.getCurrentStrokes() >= maxStrokes()) finishHole(completed.team(), "Stroke limit");
         }
         round.nextTurn();
+    }
+
+    private boolean celebrate(Player player, World world) {
+        var data = round.getPlayerDataManager().getDataByPlayer(player.getUniqueId());
+        if (data == null || world == null || round.isOver()) return false;
+        ScoreDecal decal = data.getDecalLocker().equipped();
+        if (decal == ScoreDecal.NONE) return false;
+        try {
+            decal.show(round.getCourse().basket(world, hole).add(0, 1.45, 0));
+        } catch (RuntimeException failure) {
+            plugin().getLogger().log(java.util.logging.Level.WARNING, "Could not render basket decal", failure);
+            return false;
+        }
+        // Give viewers a moment before a hole transition or round-end teleport.
+        decalPause = Bukkit.getScheduler().runTaskLater(plugin(), () -> {
+            decalPause = null;
+            if (!round.isOver()) round.nextTurn();
+        }, 12L);
+        return true;
+    }
+
+    private void awardPractice(Player player, DiscType disc, String technique, boolean hazard, boolean goal) {
+        var data = NDGManager.getInstance().getPlayerDataManager().getOrCreatePlayerData(player.getUniqueId());
+        var gains = data.getSkills().practice(disc, technique, hazard, goal);
+        if (gains.isEmpty()) return;
+        var summary = new StringJoiner(", ");
+        for (var gain : gains) {
+            summary.add(gain.skill() + " +" + gain.xp());
+            if (gain.leveledUp()) {
+                player.sendMessage(ChatColor.GREEN + "Level up! " + gain.skill() + " is now level " + gain.level() + ".");
+            }
+        }
+        player.sendMessage(ChatColor.GRAY + "Skill XP: " + summary);
     }
     private Location safeLie(Location landing, Location fallback) {
         World world = landing.getWorld();
@@ -125,6 +172,7 @@ public final class RoundPlayState {
         message("§e" + reason + ": hole recorded at the stroke limit.");
     }
     public void concede(Player player) {
+        if (decalPause != null) { player.sendMessage("§cWait for the basket celebration."); return; }
         if (shot != null || RoundPresentation.isPreviewing(round)) { player.sendMessage("§cWait for the shot or preview to finish."); return; }
         Team team = team(player.getUniqueId());
         if (team == null || !round.isTurn(team)) { player.sendMessage("§cConcede on your team's turn."); return; }
@@ -148,6 +196,9 @@ public final class RoundPlayState {
         }
         if (round.getTeams().isEmpty()) {
             NDGManager.getInstance().getRoundHandler().cancelRound(round);
+        } else if (decalPause != null) {
+            // The scheduled turn change will use the remaining teams.
+            return;
         } else if ((current == team || interrupted) && shot == null) {
             round.nextTurn();
         } else {
@@ -175,5 +226,15 @@ public final class RoundPlayState {
             Player player = Bukkit.getPlayer(id); if (player != null) player.sendMessage(text);
         }
     }
-    public void dispose() { for (Team team : round.getTeams()) for (UUID id : team.getTeamMembers()) plugin().cancelMeter(id); shot = null; lies.clear(); lastThrower.clear(); hud.dispose(); }
+    public void dispose() {
+        if (decalPause != null) {
+            decalPause.cancel();
+            decalPause = null;
+        }
+        for (Team team : round.getTeams()) for (UUID id : team.getTeamMembers()) plugin().cancelMeter(id);
+        shot = null;
+        lies.clear();
+        lastThrower.clear();
+        hud.dispose();
+    }
 }

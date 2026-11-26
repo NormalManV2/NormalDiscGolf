@@ -10,6 +10,10 @@ import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.generator.ObstacleGenerator;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil;
+import normalmanv2.normalDiscGolf.impl.disc.DiscModel;
+import normalmanv2.normalDiscGolf.impl.cosmetic.ScoreDecal;
+import normalmanv2.normalDiscGolf.api.disc.DiscType;
+import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundResult;
 import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
 import normalmanv2.normalDiscGolf.impl.round.RoundImpl;
 import org.bukkit.*;
@@ -40,6 +44,7 @@ public final class ServerSmokeChecks extends JavaPlugin {
         Location tee=course.tee(world,0);
         check(world.getBlockAt(tee.clone().subtract(0,1,0)).getType()==Material.SMOOTH_STONE,"tee anchor matches rendered tee");
         Location basket=course.basket(world,0);
+        for (ScoreDecal decal : ScoreDecal.values()) decal.show(basket.clone().add(0, 1.45, 0));
         var goal=MathUtil.trace(round,basket.clone().add(-3,0,0),new Vector(6,0,0));
         check(goal!=null && goal.goal(),"current basket scores along swept segment");
         var other=course.basket(world,1);
@@ -50,6 +55,12 @@ public final class ServerSmokeChecks extends JavaPlugin {
         var slab=MathUtil.trace(round,start,new Vector(4,0,0));
         check(slab!=null && !slab.goal() && slab.location().getX()<start.getX()+3,"non-basket slab blocks shot without scoring");
         world.getBlockAt(start.clone().add(2,0,0)).setType(Material.AIR);
+        var water = world.getBlockAt(start.clone().add(2,0,0));
+        water.setType(Material.WATER, false);
+        var splash = MathUtil.trace(round, start, new Vector(4,0,0));
+        check(splash != null && !splash.goal() && splash.location().getBlock().getType() == Material.WATER,
+                "passable water stops the disc");
+        water.setType(Material.AIR, false);
         var queue=manager.getRoundQueueManager();
         queue.addRoundToQueue(round);
         var commit=RoundQueueManager.class.getDeclaredMethod("commitParty",GameRound.class,List.class,String.class); commit.setAccessible(true);
@@ -71,12 +82,14 @@ public final class ServerSmokeChecks extends JavaPlugin {
         checkRules(round, world, false);
         checkRules(doubles, Bukkit.getWorld(doubles.getId()), true);
         finishRound(round,world);
+        verifyRoundRewards(round, players);
         var limitedTeam=doubles.play().currentTeam();
         var limitedCard=doubles.getScoreCardByTeam(limitedTeam);
         limitedCard.addPenalty(doubles.play().maxStrokes()+5);
         var limit=doubles.play().getClass().getDeclaredMethod("finishHole",normalmanv2.normalDiscGolf.api.team.Team.class,String.class);
         limit.setAccessible(true);limit.invoke(doubles.play(),limitedTeam,"Test timeout");
         check(limitedCard.getHoleScores().get(0)==doubles.play().maxStrokes(),"stroke limit caps penalties and concessions");
+        check(limitedCard.getHoledOutCount() == 0, "a stroke-limit score earns no basket credit");
         manager.getRoundHandler().discardRound(doubles);queue.removeRoundFromQueue(doubles);
         queue.removeRoundFromQueue(round);manager.getRoundHandler().discardRound(round);
         check(Bukkit.getWorld(name)==null,"discard unloads world");
@@ -86,6 +99,10 @@ public final class ServerSmokeChecks extends JavaPlugin {
         check(Arrays.equals(java.security.MessageDigest.getInstance("SHA-1").digest(manager.getPacked().getBytes()),manager.getPacked().getHash()),"resource pack hash matches bytes");
         var delivered=java.net.http.HttpClient.newHttpClient().send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(manager.getPacked().getPackUrl())).build(),java.net.http.HttpResponse.BodyHandlers.ofByteArray());
         check(delivered.statusCode()==200 && Arrays.equals(delivered.body(),manager.getPacked().getBytes()),"HTTP resource pack delivery");
+        byte[] hash = manager.getPacked().getHash().clone();
+        manager.getPacked().savePack();
+        check(Arrays.equals(hash, manager.getPacked().getHash()), "unchanged pack bytes keep the same hash");
+        verifySkillPersistence();
         try(ZipFile pack=new ZipFile(zip.toFile())) {
             for(String type:List.of("putter","midrange","driver")) check(pack.getEntry("assets/ndg/items/"+type+".json")!=null,"pack contains "+type);
             for(var entries=pack.entries();entries.hasMoreElements();) {
@@ -93,6 +110,65 @@ public final class ServerSmokeChecks extends JavaPlugin {
                 try(var reader=new java.io.InputStreamReader(pack.getInputStream(entry),java.nio.charset.StandardCharsets.UTF_8)) {
                     check(com.google.gson.JsonParser.parseReader(reader).isJsonObject(),"valid JSON: "+entry.getName());
                 }
+            }
+        }
+    }
+
+    private void verifySkillPersistence() throws Exception {
+        var plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
+        var store = new normalmanv2.normalDiscGolf.impl.player.profile.PlayerProfileStore(plugin);
+        var data = new normalmanv2.normalDiscGolf.impl.player.PlayerData();
+        UUID id = UUID.randomUUID();
+        try {
+            var legacy = new org.bukkit.configuration.file.YamlConfiguration();
+            legacy.set("schema-version", 1);
+            legacy.set("skills.form.level", 2);
+            legacy.set("score-decals.equipped", "retired-test-decal");
+            legacy.save(plugin.getDataFolder().toPath().resolve("player-profiles").resolve(id + ".yml").toFile());
+            var migrated = store.load(id);
+            check(migrated.getSkills().getForm().getLevel() == 2
+                    && migrated.getDiscBag().equipped(DiscType.PUTTER) == DiscModel.STARTER_PUTTER
+                    && migrated.getDecalLocker().equipped() == ScoreDecal.NONE,
+                    "old profiles keep skills and receive the starter bag");
+            for (int i = 0; i < 14; i++)
+                data.getSkills().practice(DiscType.DRIVER, "backhand", false, false);
+            data.setDiscBag(data.getDiscBag().earn(160).unlock(DiscModel.FLOAT).equip(DiscModel.FLOAT)
+                    .spend(ScoreDecal.GOLD_RING.price()));
+            data.setDecalLocker(data.getDecalLocker().unlock(ScoreDecal.GOLD_RING).equip(ScoreDecal.GOLD_RING));
+            check(store.save(id, "SmokeSkillProfile", data), "persist skill gains");
+            var loaded = store.reload(id);
+            var restored = loaded.getSkills();
+            check(restored.getBackhand().getLevel() == 2 && restored.getBackhand().getXp() == 5, "skill level and carried XP survive reload");
+            check(loaded.getDiscBag().credits() == 40 && loaded.getDiscBag().owns(DiscModel.FLOAT)
+                    && loaded.getDiscBag().equipped(DiscType.PUTTER) == DiscModel.FLOAT, "credits, unlock, and equipment survive reload");
+            check(loaded.getDecalLocker().owns(ScoreDecal.GOLD_RING)
+                    && loaded.getDecalLocker().equipped() == ScoreDecal.GOLD_RING, "decal ownership and selection survive reload");
+        } finally {
+            Files.deleteIfExists(plugin.getDataFolder().toPath().resolve("player-profiles").resolve(id + ".yml"));
+        }
+    }
+
+    private void verifyRoundRewards(RoundImpl round, List<UUID> ids) throws Exception {
+        var plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
+        var profiles = round.getPlayerDataManager();
+        var lifecycle = round.getRoundLifecycle();
+        // This fixture uses simulated players, so mark start after completing the simulated scorecards.
+        ids.forEach(profiles::getOrCreatePlayerData);
+        var started = lifecycle.getClass().getDeclaredField("started");
+        started.setAccessible(true);
+        started.setBoolean(lifecycle, true);
+        try {
+            check(lifecycle.end() == RoundResult.ENDED, "completed round applies the rewards");
+            check(lifecycle.end() == RoundResult.INVALID, "a second finish cannot award credits");
+            for (UUID id : ids) {
+                profiles.reloadPlayerData(id);
+                check(profiles.getDataByPlayer(id).getDiscBag().credits() == round.getCourse().holes() * 10L,
+                        "basket reward persisted exactly once per player");
+            }
+        } finally {
+            for (UUID id : ids) {
+                profiles.unregisterPlayerData(id);
+                Files.deleteIfExists(plugin.getDataFolder().toPath().resolve("player-profiles").resolve(id + ".yml"));
             }
         }
     }

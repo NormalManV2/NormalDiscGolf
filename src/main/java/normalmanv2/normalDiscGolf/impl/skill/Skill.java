@@ -34,7 +34,7 @@ public class Skill {
     public void restoreProgress(int level, double xp) {
         this.level = Math.max(1, Math.min(level, this.maxLevel));
         this.xpToNext = this.computeXpNeeded(this.level);
-        this.xp = this.level >= this.maxLevel ? 0 : Math.max(0, Math.min(xp, this.xpToNext));
+        this.xp = this.level >= this.maxLevel || !Double.isFinite(xp) ? 0 : Math.max(0, Math.min(xp, this.xpToNext));
     }
 
     protected void incrLevel() {
@@ -43,7 +43,7 @@ public class Skill {
     }
 
     public void addXp(double amount) {
-        if (this.level >= this.maxLevel) return;
+        if (this.level >= this.maxLevel || !Double.isFinite(amount) || amount <= 0) return;
 
         this.xp += amount;
         while (this.xp >= this.xpToNext && level < this.maxLevel) {
@@ -51,6 +51,7 @@ public class Skill {
             this.incrLevel();
             this.xpToNext = this.computeXpNeeded(this.level);
         }
+        if (this.level == this.maxLevel) this.xp = 0;
     }
 
     protected double computeXpNeeded(int currentLevel) {

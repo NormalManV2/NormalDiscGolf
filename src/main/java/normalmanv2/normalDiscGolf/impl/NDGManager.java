@@ -5,9 +5,7 @@ import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.creator.CourseCreator;
 import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
-import normalmanv2.normalDiscGolf.impl.disc.Driver;
-import normalmanv2.normalDiscGolf.impl.disc.MidRange;
-import normalmanv2.normalDiscGolf.impl.disc.Putter;
+import normalmanv2.normalDiscGolf.impl.disc.DiscModel;
 import normalmanv2.normalDiscGolf.impl.manager.file.FileManager;
 import normalmanv2.normalDiscGolf.impl.manager.gui.GuiManager;
 import normalmanv2.normalDiscGolf.impl.manager.course.ObstacleManager;
@@ -145,9 +143,9 @@ public class NDGManager {
     }
 
     private void registerDefaultDiscs() {
-        this.discRegistry.register("Starter Putter", new Putter(2, 4, 0, 1, "Starter Putter"));
-        this.discRegistry.register("Starter Midrange", new MidRange(5, 5, -1, 1, "Starter Midrange"));
-        this.discRegistry.register("Starter Driver", new Driver(9, 5, -2, 2, "Starter Driver"));
+        for (DiscModel model : DiscModel.values()) {
+            this.discRegistry.register(model.displayName(), model.createDisc());
+        }
     }
 
     private void registerDefaultCourseDifficulty() {

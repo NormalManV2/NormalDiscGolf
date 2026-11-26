@@ -1,9 +1,12 @@
 const mineflayer = require('mineflayer')
 const fs = require('node:fs')
 const assert = require('node:assert/strict')
-const { Vec3 } = require('vec3')
+const { createHash } = require('node:crypto')
 const format = process.argv[2] || 'ffa'
 const expectedHoles = Number(process.argv[3] || 18)
+const expectLocalPack = process.argv.includes('--expect-local-pack')
+const expectSkillXp = process.argv.includes('--expect-skill-xp')
+const port = Number(process.env.NDG_TEST_PORT || 25569)
 const names = format === 'doubles' ? ['NDG_Alice','NDG_Bob','NDG_Cara','NDG_Drew'] : ['NDG_Alice','NDG_Bob']
 const bots = [], transcript = [], states = new Map(), results = []
 const pause = ms => new Promise(r => setTimeout(r,ms))
@@ -14,11 +17,25 @@ const until = async (predicate, label, ms=90000) => {
 const command = (bot,text) => bot.chat('/ndg '+text)
 let finished = false
 function connect(name) {
-  const bot=mineflayer.createBot({host:'127.0.0.1',port:25569,username:name,version:'1.21.8',auth:'offline',physicsEnabled:false})
+  const bot=mineflayer.createBot({host:'127.0.0.1',port,username:name,version:'1.21.8',auth:'offline',physicsEnabled:false})
   const state={messages:[],ready:false,active:false,hole:0,shots:new Map(),completed:false,lock:false,previewFrames:0,maxPreviewPitch:0}
   states.set(bot,state);bots.push(bot)
   bot.on('error',error=>{state.error=error.message})
   bot.on('kicked',reason=>{state.error=JSON.stringify(reason)})
+  if (expectLocalPack) bot._client.on('add_resource_pack', async pack => {
+    try {
+      const url = new URL(pack.url)
+      assert.equal(url.hostname, '127.0.0.1', 'pack uses the local server')
+      assert.equal(pack.forced, true, 'pack is required')
+      const response = await fetch(url)
+      assert.ok(response.ok, 'pack available over HTTP')
+      const bytes = Buffer.from(await response.arrayBuffer())
+      assert.equal(createHash('sha1').update(bytes).digest('hex'), pack.hash, 'download matches advertised hash')
+      bot._client.write('resource_pack_receive', {uuid: pack.uuid, result: 3})
+      bot._client.write('resource_pack_receive', {uuid: pack.uuid, result: 0})
+      state.packReady = true
+    } catch (error) { state.error = error.message }
+  })
   bot.on('move',()=>{
     if(bot.game.gameMode==='spectator') {
       state.previewFrames++
@@ -57,10 +74,8 @@ async function playTurn(bot) {
       return
     }
     command(bot,'lie');await pause(350)
-    const targetX=(1+((hole-1)%3)*7+5)*16+.5+8
-    const targetZ=(1+Math.floor((hole-1)/3)*7+((hole-1)%2===0?5:1))*16+.5+8
     bot.setQuickBarSlot(2)
-    await bot.lookAt(new Vec3(targetX,bot.entity.position.y+18,targetZ),true)
+    await bot.look(bot.entity.yaw, Math.PI / 15, true)
     const armed=state.messages.length
     bot.activateItem()
     await until(()=>state.messages.slice(armed).some(m=>m.includes('Throw meter started')), 'hotbar meter',10000)
@@ -73,18 +88,32 @@ async function playTurn(bot) {
     bot.chat('/throwdisc putter')
     await until(()=>state.messages.slice(overlapping).some(m=>m.includes('Wait for the disc to land.')||m.includes('not your')), 'in-flight rejection',10000)
     results.push({player:bot.username,hole,shot:'released',overlap:'rejected'})
-    await pause(5500)
+    if (expectSkillXp) {
+      await until(()=>state.messages.slice(armed).filter(m=>m.startsWith('Skill XP:')).length===1,
+        'one XP award for the resolved throw',10000)
+    } else await pause(5500)
   } finally {state.lock=false}
 }
 async function main() {
   names.forEach(connect)
   await until(()=>bots.every(b=>states.get(b).ready), 'client connections')
+  if (expectLocalPack) await until(()=>{
+    for (const state of states.values()) if (state.error) throw Error(state.error)
+    return bots.every(b=>states.get(b).packReady)
+  }, 'required local pack', 15000)
   await pause(1200)
   for(const b of bots.slice(1)) {
     command(bots[0],'party invite '+b.username);await pause(350)
     command(b,'party accept');await pause(350)
   }
   command(bots[0],'queue '+format)
+  await until(()=> {
+    const state = states.get(bots[0])
+    if (state.error) throw Error(state.error)
+    const rejected = state.messages.find(m=>m.includes('must finish loading the server resource pack'))
+    if (rejected) throw Error(rejected)
+    return state.messages.some(m=>m.startsWith('Your party has been queued') || m.startsWith('You have been queued'))
+  }, 'queue confirmation',10000)
   const deadline=Date.now()+Math.max(240000,expectedHoles*(format==='doubles'?60000:35000))
   while(!bots.every(b=>states.get(b).completed)) {
     if(Date.now()>deadline) throw Error('Round did not complete')

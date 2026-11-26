@@ -37,7 +37,7 @@ public class GoalScoreListener implements Listener {
             return false;
         }
 
-        scoreCard.recordHoleScore(holeNumber, scoreCard.getCurrentStrokes(), par);
+        scoreCard.recordBasket(holeNumber, scoreCard.getCurrentStrokes(), par);
         scoreCard.resetCurrentStrokes();
         return true;
     }

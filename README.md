@@ -8,6 +8,8 @@ Use Java 21 and run `./gradlew build`. Install `build/libs/NormalDiscGolf-1.0-SN
 
 The default round has 18 holes. Set `course.holes: 3` in `plugins/NormalDiscGolf/config.yml` for a shorter round. The supported range is 1–18. The seed controls repeatable ground layout. Settings apply to subsequently created rounds; restart after changing configuration.
 
+The 18-hole course alternates six layouts with tee distances from roughly 36 to 115 blocks and pars 3 through 5. The seed controls the order within each group, the orientation of the holes, and obstacle placement. Look for spruce stands, birch groves, rock clusters, sand bunkers, and pond bends. Tees face the opening fairway on doglegs.
+
 ## Play
 
 - Use `/ndg party invite <player>` and have friends run `/ndg party accept`. The leader runs `/ndg queue ffa` or `/ndg queue doubles`. Mixed rating divisions can play together.
@@ -20,14 +22,29 @@ The default round has 18 holes. Set `course.holes: 3` in `plugins/NormalDiscGolf
 - `/ndg concede` finishes the current hole at the stroke limit on your team's turn. `/ndg quit` forfeits the round. Disconnects forfeit the departing player's membership; remaining players continue.
 - Turns time out after 90 seconds; the default maximum is 12 strokes per hole. Both are configurable. A timeout records the hole at the stroke limit.
 - After the last hole, standings are announced and original inventory, location, game mode, scoreboard, and player state are restored. Generated course worlds are unloaded and removed.
+- Resolved throws earn skill XP. Holing out earns bonus accuracy, form, and technique XP. Longer discs give more power XP, and penalty shots give a small amount of practice XP. Use `/ndg profile` to see progress. Higher power increases launch speed, accuracy tightens release spread, form preserves speed in flight, and each technique level reduces that technique's late fade.
 
-## Optional disc models
+## Disc shop
 
-The plugin builds `plugins/NormalDiscGolf/NormalDiscGolfPack.zip` at startup. Labeled vanilla items remain playable without the pack.
+Open `/ndg shop` between rounds. The menu shows your credit balance, each disc's speed, glide, turn and fade, and whether it's locked, owned, or equipped. Click a locked disc to unlock it, then click the owned disc to equip it. You can also use `/ndg shop buy <disc>` and `/ndg shop equip <disc>`, with tab completion for disc names.
+
+The three starter discs are always available. You can equip one putter, one midrange, and one driver, which appear in your next round's hotbar. Speed changes release velocity, glide changes how quickly the disc drops, and turn and fade shape its early and late curve.
+
+By default, completing a round awards 10 credits for each hole successfully finished in the basket. An 18-hole round with every basket made pays 180 credits. Doubles partners each earn the full reward for their team's baskets. Conceded, timed out, and stroke-limit holes earn zero credits, and leaving or canceling the round forfeits the reward. Set `disc-shop.credits-per-basket` to adjust the payout. Balances, unlocks, and loadouts are saved in player profiles.
+
+## Score decals
+
+Open `/ndg decals` between rounds or select **Score Decals** in `/ndg shop`. Right-click an effect to preview it privately. Left-click to unlock it with round credits, then left-click again to equip it. Choose **No Decal** to clear your selection. Gold Ring costs 60 credits, Aurora Spiral costs 90, and Ember Bloom costs 120.
+
+When a throw sinks in the basket, the thrower's equipped effect appears above it for nearby players. In doubles, the teammate who makes the shot provides the decal. Each effect uses vanilla particles and works without the disc resource pack. Unlocks and your equipped decal are saved alongside your discs and credits.
+
+## Disc model resource pack
+
+The plugin builds `plugins/NormalDiscGolf/NormalDiscGolfPack.zip` at startup. With an empty `resource-pack.url`, the built-in server automatically offers a required pack to players who connect from the server machine. In Minecraft, connect to `127.0.0.1` and accept the pack or enable Server Resource Packs for that server entry. The local HTTP port defaults to 8088. Change `resource-pack.port` if that port is in use. Set `resource-pack.local-required: false` to make the local pack optional or `resource-pack.local-auto: false` to disable automatic local delivery. Restart after changing pack settings.
 
 For remote delivery, set `resource-pack.url` to a publicly reachable URL, such as `https://your-host.example/ndg/pack.zip`. The built-in HTTP server serves `/ndg/pack.zip` on port 8088 when a URL is configured; route that port or use a reverse proxy. To host the ZIP elsewhere, set `resource-pack.serve: false` and point the URL at the hosted file. No public address or firewall configuration is inferred automatically.
 
-Set `resource-pack.required: true` only when delivery is configured. Required-pack players must finish loading it before queueing. With optional packs, flight models use vanilla items if anyone viewing the course lacks the pack.
+Set `resource-pack.required: true` to require a configured remote pack at login. Required-pack players must finish loading it before queueing. With optional packs, labeled vanilla items remain playable and flight models use vanilla items if anyone viewing the course lacks the pack.
 
 ## Verification
 
@@ -52,6 +69,8 @@ node scripts/multiplayer/disconnect-flow.cjs
 ```
 
 Match the server's configured hole count to the final argument. Keep the six-second preview enabled and allow enough turn time for automation. The clients use offline test identities with ordinary player permissions; use a loopback-only test server. Run FFA and doubles sequentially because they share client names. JSON transcripts are written under `build/multiplayer-*.json`.
+
+For a server using automatic local delivery, add `--expect-local-pack` to verify the required login pack and its download hash. Add `--expect-skill-xp` with fresh test profiles to check that each resolved shot earns one XP award. The round script reads `NDG_TEST_PORT` if set.
 
 Each full-round check queues a party, makes a real networked throw per player per hole, rejects a second throw during flight, then concedes to advance predictably through every hole. It checks final standings and restores each client's inventory, game mode, and location. Basket completion and swept collision are covered separately by the real-server rule harness. The disconnect check exercises the 1.21.8 sneak input to skip previews, out-of-turn rejection, departure during flight, continued play, and restoration after quitting. These checks do not claim that automated clients skillfully played every hole into the basket.
 

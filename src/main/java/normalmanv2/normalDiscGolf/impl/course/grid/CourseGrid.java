@@ -16,11 +16,15 @@ public class CourseGrid {
     private final int width, depth;
     private final List<TileTypes> tileTypes;
     private final Random random;
+    private final long seed;
     private final int numHoles;
     private final Map<Integer, GridPoint> teeLocations;
     private final Map<Integer, GridPoint> holeLocations;
     private final Map<Integer, Integer> holePars;
     private final Map<Integer, List<GridPoint>> holeRoutePoints;
+    private final List<ParklandHole> layouts = new ArrayList<>();
+    private final Map<Integer, List<Tile>> plannedRoutes = new HashMap<>();
+    private final Map<Tile, TileTypes> plannedHazards = new HashMap<>();
     private ObstacleGenerator obstacleGenerator;
 
     private boolean generated;
@@ -44,6 +48,7 @@ public class CourseGrid {
         this.tileTypes = List.copyOf(tileTypes);
         this.grid = new Tile[width][depth];
         this.random = new Random(seed);
+        this.seed = seed;
         this.numHoles = numHoles;
         this.teeLocations = new HashMap<>();
         this.holeLocations = new HashMap<>();
@@ -77,17 +82,21 @@ public class CourseGrid {
             GridPoint pinLoc = holeLocations.get(holeId);
             Tile teeTile = tileAtPoint(teeLoc);
             Tile pinTile = tileAtPoint(pinLoc);
-            List<Tile> path = route(teeTile, pinTile);
+            List<Tile> path = plannedRoutes.get(holeId);
+            if (path == null) path = route(teeTile, pinTile);
             if (path == null || path.isEmpty()) {
                 path = straightLine(teeTile, pinTile);
             }
 
             storeRoute(holeId, path);
             carveCorridor(path);
-            assignPar(holeId, path);
+            if (layouts.isEmpty()) assignPar(holeId, path);
         }
 
         reinforceFairwayRoutes();
+        plannedHazards.forEach(Tile::collapseTo);
+        plannedRoutes.clear();
+        plannedHazards.clear();
         finalizeUnresolvedTiles();
 
         this.generated = true;
@@ -102,13 +111,41 @@ public class CourseGrid {
 
     private void placeTeesAndPins() {
         if (width >= 23 && depth >= ((numHoles + 2) / 3) * 7 + 2) {
+            List<ParklandHole> rotation = new ArrayList<>(List.of(ParklandHole.values()));
+            // Every three-hole row contains a short, a medium and a longer look.
+            Collections.shuffle(rotation.subList(0, 3), random);
+            Collections.shuffle(rotation.subList(3, 6), random);
             for (int i = 0; i < numHoles; i++) {
                 int cellX = 1 + (i % 3) * 7, cellZ = 1 + (i / 3) * 7;
-                int teeX = cellX + 1, pinX = cellX + 5;
-                int teeZ = cellZ + (i % 2 == 0 ? 1 : 5), pinZ = cellZ + (i % 2 == 0 ? 5 : 1);
-                GridPoint tee = centerPoint(teeX, teeZ), pin = centerPoint(pinX, pinZ);
+                ParklandHole layout = rotation.get(i % rotation.size());
+                layouts.add(layout);
+                int orientation = random.nextInt(8);
+                List<Tile> path = new ArrayList<>();
+                int[] last = null;
+                for (int[] waypoint : layout.waypoints) {
+                    int[] next = ParklandHole.transform(waypoint[0], waypoint[1], orientation);
+                    if (last != null) {
+                        int steps = Math.max(Math.abs(next[0] - last[0]), Math.abs(next[1] - last[1]));
+                        for (int step = 0; step < steps; step++) {
+                            double progress = step / (double) steps;
+                            int x = (int) Math.round(lerp(last[0], next[0], progress));
+                            int z = (int) Math.round(lerp(last[1], next[1], progress));
+                            path.add(grid[cellX + x][cellZ + z]);
+                        }
+                    }
+                    last = next;
+                }
+                path.add(grid[cellX + last[0]][cellZ + last[1]]);
+                plannedRoutes.put(i, path);
+                Tile first = path.getFirst(), end = path.getLast();
+                GridPoint tee = centerPoint(first.getGridPoint().x / TILE_SIZE, first.getGridPoint().z / TILE_SIZE);
+                GridPoint pin = centerPoint(end.getGridPoint().x / TILE_SIZE, end.getGridPoint().z / TILE_SIZE);
                 teeLocations.put(i, tee); holeLocations.put(i, pin);
                 tileAtPoint(tee).collapseTo(TileTypes.TEE); tileAtPoint(pin).collapseTo(TileTypes.PIN);
+                holePars.put(i, layout.par);
+                int[] hazard = ParklandHole.transform(layout.hazardX, layout.hazardZ, orientation);
+                Tile hazardTile = grid[cellX + hazard[0]][cellZ + hazard[1]];
+                if (!path.contains(hazardTile)) plannedHazards.put(hazardTile, layout.hazard);
             }
             return;
         }
@@ -388,7 +425,7 @@ public class CourseGrid {
         int r2 = r * r;
         for (int x = cx - r; x <= cx + r; x++) {
             for (int z = cz - r; z <= cz + r; z++) {
-                if (!isInBounds(x, z)) continue;
+                if (!isInBounds(x, z) || isEdgeTile(x, z)) continue;
                 int dx = x - cx, dz = z - cz;
                 if (dx * dx + dz * dz <= r2) {
                     Tile tile = grid[x][z];
@@ -563,8 +600,39 @@ public class CourseGrid {
     }
 
     public TileTypes getTileTypeAtLocation(Location location) {
-        Tile tile = this.getTileAtLocation(location);
-        return tile == null ? TileTypes.OUT_OF_BOUNDS : tile.getCollapsedState();
+        return surfaceType(location.getBlockX(), location.getBlockZ());
+    }
+
+    public TileTypes surfaceType(int x, int z) {
+        Tile tile = getTile(Math.floorDiv(x, TILE_SIZE), Math.floorDiv(z, TILE_SIZE));
+        if (tile == null) return TileTypes.OUT_OF_BOUNDS;
+        TileTypes type = tile.getCollapsedState();
+        if (type == TileTypes.WATER || type == TileTypes.SAND) {
+            double dx = Math.floorMod(x, TILE_SIZE) - 7.5;
+            double dz = Math.floorMod(z, TILE_SIZE) - 7.5;
+            double radius = Math.hypot(dx, dz);
+            if (radius > 7.3 || protectedLane(x, z)) return TileTypes.LIGHT_ROUGH;
+            if (type == TileTypes.WATER && radius > 5.5) return TileTypes.SAND;
+        }
+        return type;
+    }
+
+    public long seed() { return seed; }
+
+    public String holeName(int hole) {
+        return layouts.isEmpty() ? "Parkland" : layouts.get(hole).title;
+    }
+
+    public GridPoint openingTarget(int hole) {
+        List<GridPoint> route = holeRoutePoints.get(hole);
+        GridPoint target = route.get(Math.min(2, route.size() - 1));
+        return new GridPoint(target.x() + TILE_SIZE / 2, target.y(), target.z() + TILE_SIZE / 2);
+    }
+
+    public ParklandHole landscapeAt(int tileX, int tileZ) {
+        if (layouts.isEmpty() || tileX < 1 || tileZ < 1 || tileX > 21) return ParklandHole.MEADOW;
+        int index = ((tileZ - 1) / 7) * 3 + (tileX - 1) / 7;
+        return index < layouts.size() ? layouts.get(index) : ParklandHole.MEADOW;
     }
 
     public int surfaceHeight(int x, int z) {

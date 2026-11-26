@@ -51,16 +51,21 @@ public final class RoundPresentation {
         Location destination = teePosition(round, player, world), basket = course.basket(world, hole);
         List<Location> path = new ArrayList<>();
         path.add(course.tee(world, hole));
-        for (var point : course.grid().getHoleRoutePoints().getOrDefault(hole, List.of()))
-            path.add(course.toLocation(world, point).add(8, 0, 8));
-        path.add(basket.clone());
+        var route = course.grid().getHoleRoutePoints().getOrDefault(hole, List.of());
+        for (int i = 1; i < route.size() - 1; i++) {
+            var point = route.get(i);
+            int x = point.x() + 8, z = point.z() + 8;
+            path.add(new Location(world, x + .5, course.grid().surfaceHeight(x, z) + 1, z + .5));
+        }
+        path.add(basket);
         int ticks = Math.clamp(plugin.getConfig().getInt("preview.seconds", 6), 2, 10) * 20;
         HolePreviewPath flightPath = new HolePreviewPath(path);
         GameMode mode = player.getGameMode();
         boolean allowFlight = player.getAllowFlight(), flying = player.isFlying();
         player.setGameMode(GameMode.SPECTATOR);
         player.teleport(flightPath.frame(0));
-        player.sendTitle("§aHole " + (hole + 1), "§fPar " + course.holePars().get(hole) + " • Sneak to skip", 5, 60, 10);
+        player.sendTitle("§aHole " + (hole + 1) + " • " + course.grid().holeName(hole),
+                "§fPar " + course.holePars().get(hole) + " • Sneak to skip", 5, 60, 10);
         BukkitTask task = new BukkitRunnable() {
             private int elapsed;
             public void run() {
@@ -125,7 +130,13 @@ public final class RoundPresentation {
         Player thrower = Bukkit.getPlayer(active);
         if (thrower != null) {
             Location destination = lie.clone();
-            destination.setDirection(round.getCourse().basket(lie.getWorld(),round.getCurrentHole()).toVector().subtract(lie.toVector()));
+            var tee = round.getCourse().tee(lie.getWorld(), round.getCurrentHole());
+            if (lie.distanceSquared(tee) < .01) {
+                destination.setYaw(tee.getYaw());
+                destination.setPitch(tee.getPitch());
+            } else {
+                destination.setDirection(round.getCourse().basket(lie.getWorld(),round.getCurrentHole()).toVector().subtract(lie.toVector()));
+            }
             thrower.teleport(destination);
         }
     }

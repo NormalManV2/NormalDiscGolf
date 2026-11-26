@@ -6,6 +6,8 @@ public class PlayerData {
 
     private final PlayerSkills skills;
     private final PDGARating rating;
+    private DiscBag discBag = new DiscBag();
+    private DecalLocker decalLocker = new DecalLocker();
 
     public PlayerData() {
         this.skills = new PlayerSkills(1, 5);
@@ -20,6 +22,9 @@ public class PlayerData {
         return this.rating;
     }
 
-
+    public DiscBag getDiscBag() { return discBag; }
+    public void setDiscBag(DiscBag discBag) { this.discBag = discBag; }
+    public DecalLocker getDecalLocker() { return decalLocker; }
+    public void setDecalLocker(DecalLocker decalLocker) { this.decalLocker = decalLocker; }
 
 }

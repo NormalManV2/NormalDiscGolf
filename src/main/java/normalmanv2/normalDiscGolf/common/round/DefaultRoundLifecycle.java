@@ -101,6 +101,7 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                 player.setCollidable(false);
                 player.setFoodLevel(20);
                 player.setFireTicks(0);
+                player.closeInventory();
                 normalmanv2.normalDiscGolf.impl.listener.RoundPlayerListener.giveKit(player);
             }
 
@@ -131,7 +132,7 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
         this.state = RoundState.END;
 
         try {
-            this.updatePlayerRatings();
+            this.applyRoundRewards();
             this.sendRoundResults();
         } finally {
             this.restoreRoundPlayers();
@@ -140,10 +141,11 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
         return RoundResult.ENDED;
     }
 
-    private void updatePlayerRatings() {
+    private void applyRoundRewards() {
+        int creditsPerBasket = Math.max(0, plugin.getConfig().getInt("disc-shop.credits-per-basket", 10));
         for (Team team : this.round.getTeams()) {
             ScoreCard scoreCard = this.round.getScoreCardByTeam(team);
-            if (scoreCard == null) {
+            if (scoreCard == null || scoreCard.getHoleScores().size() != this.round.getCourse().holes()) {
                 continue;
             }
 
@@ -154,10 +156,16 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                 }
 
                 PDGARating rating = playerData.getRating();
-                if (scoreCard.getHoleScores().size() != this.round.getCourse().holes()) continue;
                 rating.handleRoundEnd(scoreCard.getTotalScore() * 18.0 / this.round.getCourse().holes());
                 rating.updateRating(this.round.getSettings().division().getDifficulty());
+                long credits = (long) scoreCard.getHoledOutCount() * creditsPerBasket;
+                playerData.setDiscBag(playerData.getDiscBag().earn(credits));
                 this.round.getPlayerDataManager().savePlayerData(playerId);
+                Player player = Bukkit.getPlayer(playerId);
+                if (player != null && credits > 0) {
+                    player.sendMessage(ChatColor.GOLD + "Round reward: +" + credits + " credits. Balance: "
+                            + playerData.getDiscBag().credits() + ". Open /ndg shop.");
+                }
             }
         }
     }
