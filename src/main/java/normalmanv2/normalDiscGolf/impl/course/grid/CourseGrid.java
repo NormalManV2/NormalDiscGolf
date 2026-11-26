@@ -91,15 +91,27 @@ public class CourseGrid {
         finalizeUnresolvedTiles();
 
         this.generated = true;
-        this.obstacleGenerator = new ObstacleGenerator(this, division);
+        // Obstacle generation is initialized lazily, keeping layout generation deterministic and testable.
     }
 
     public void generateObstacles(World world) {
-        if (this.obstacleGenerator == null) throw new IllegalStateException("Call generate() first");
+        if (!this.generated) throw new IllegalStateException("Call generate() first");
+        if (this.obstacleGenerator == null) this.obstacleGenerator = new ObstacleGenerator(this, Division.JUNIOR);
         this.obstacleGenerator.generateObstacles(world);
     }
 
     private void placeTeesAndPins() {
+        if (width >= 23 && depth >= ((numHoles + 2) / 3) * 7 + 2) {
+            for (int i = 0; i < numHoles; i++) {
+                int cellX = 1 + (i % 3) * 7, cellZ = 1 + (i / 3) * 7;
+                int teeX = cellX + 1, pinX = cellX + 5;
+                int teeZ = cellZ + (i % 2 == 0 ? 1 : 5), pinZ = cellZ + (i % 2 == 0 ? 5 : 1);
+                GridPoint tee = centerPoint(teeX, teeZ), pin = centerPoint(pinX, pinZ);
+                teeLocations.put(i, tee); holeLocations.put(i, pin);
+                tileAtPoint(tee).collapseTo(TileTypes.TEE); tileAtPoint(pin).collapseTo(TileTypes.PIN);
+            }
+            return;
+        }
         int availablePlacementTiles = countPlacementTiles();
         if (numHoles * 2 > availablePlacementTiles) {
             throw new IllegalStateException("Grid is too small for " + numHoles + " unique tee/pin pairs");
@@ -354,9 +366,9 @@ public class CourseGrid {
 
             double t = (n == 1) ? 0.0 : (i / (double) (n - 1));
             double widen = landingZoneWeight(t);
-            int fairwayR = (int) Math.round(lerp(1.0, 2.0, widen));
-            int lightR = fairwayR + 2;
-            int heavyR = fairwayR + 3;
+            int fairwayR = 1;
+            int lightR = fairwayR + 1;
+            int heavyR = fairwayR + 2;
 
             paintDisk(cx, cz, heavyR, TileTypes.HEAVY_ROUGH);
             paintDisk(cx, cz, lightR, TileTypes.LIGHT_ROUGH);
@@ -553,6 +565,37 @@ public class CourseGrid {
     public TileTypes getTileTypeAtLocation(Location location) {
         Tile tile = this.getTileAtLocation(location);
         return tile == null ? TileTypes.OUT_OF_BOUNDS : tile.getCollapsedState();
+    }
+
+    public int surfaceHeight(int x, int z) {
+        double elevation = Math.sin(x / 38.0) * 2.0 + Math.cos(z / 45.0) * 1.6;
+        for (GridPoint point : teeLocations.values())
+            elevation *= Math.clamp((Math.hypot(x - point.x(), z - point.z()) - 7) / 10, 0, 1);
+        for (GridPoint point : holeLocations.values())
+            elevation *= Math.clamp((Math.hypot(x - point.x(), z - point.z()) - 7) / 10, 0, 1);
+        return Constants.DEFAULT_TILE_Y + 1 + (int)Math.round(elevation);
+    }
+
+    public double routeDistance(double x, double z) {
+        double best = Double.MAX_VALUE;
+        for (List<GridPoint> points : holeRoutePoints.values()) {
+            for (int i = 1; i < points.size(); i++) {
+                GridPoint a = points.get(i - 1), b = points.get(i);
+                best = Math.min(best, segmentDistance(x, z, a.x() + 8, a.z() + 8, b.x() + 8, b.z() + 8));
+            }
+        }
+        return best;
+    }
+    public static double segmentDistance(double x, double z, double ax, double az, double bx, double bz) {
+        double dx = bx - ax, dz = bz - az;
+        double length = dx * dx + dz * dz;
+        double t = length == 0 ? 0 : Math.clamp(((x - ax) * dx + (z - az) * dz) / length, 0, 1);
+        return Math.hypot(x - ax - t * dx, z - az - t * dz);
+    }
+    public boolean protectedLane(double x, double z) {
+        if (routeDistance(x, z) < 7) return true;
+        return java.util.stream.Stream.concat(teeLocations.values().stream(), holeLocations.values().stream())
+                .anyMatch(p -> Math.hypot(x - p.x(), z - p.z()) < 8);
     }
 
     public Tile[][] getGrid() {

@@ -14,6 +14,7 @@ public class CourseGridWorldCreator extends WorldCreator {
     public CourseGridWorldCreator(@NotNull String name, CourseImpl course, Division division) {
         super(name);
         this.course = course;
+        generateStructures(false);
         course.grid().generate(division);
     }
 

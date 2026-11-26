@@ -14,7 +14,9 @@ public class PlayerJoinListener implements Listener {
         NDGManager manager = NDGManager.getInstance();
         manager.getPlayerDataManager().getOrCreatePlayerData(player.getUniqueId());
         manager.getPlayerSessionManager().restorePlayer(player);
-        //NDGManager.getInstance().getPacked().send(player);
+        try { manager.getPacked().send(player); } catch (java.io.IOException | RuntimeException exception) {
+            org.bukkit.Bukkit.getLogger().warning("Could not send disc golf pack: " + exception.getMessage());
+        }
     }
 
     @EventHandler
@@ -22,6 +24,7 @@ public class PlayerJoinListener implements Listener {
         Player player = event.getPlayer();
         NDGManager manager = NDGManager.getInstance();
         manager.getRoundQueueManager().removePlayerFromQueue(player.getUniqueId());
+        manager.getRoundHandler().leavePlayer(player);
         manager.getPlayerSessionManager().restorePlayer(player);
         manager.getPlayerDataManager().savePlayerData(player.getUniqueId());
     }

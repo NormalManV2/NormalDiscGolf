@@ -21,11 +21,7 @@ public class DefaultRoundStrokeManager implements DelegateRoundStrokeManager, Wi
     private GameRound round;
     private boolean isWired = false;
 
-    private final PlayerDataManager playerDataManager;
-
-    public DefaultRoundStrokeManager() {
-        this.playerDataManager = NDGManager.getInstance().getPlayerDataManager();
-    }
+    public DefaultRoundStrokeManager() {}
 
     @Override
     public RoundStrokeManager getRoundStrokeManager() {
@@ -59,7 +55,7 @@ public class DefaultRoundStrokeManager implements DelegateRoundStrokeManager, Wi
 
     @Override
     public PlayerDataManager getPlayerDataManager() {
-        return this.playerDataManager;
+        return NDGManager.getInstance().getPlayerDataManager();
     }
 
     @Override
@@ -80,11 +76,19 @@ public class DefaultRoundStrokeManager implements DelegateRoundStrokeManager, Wi
         if (card == null) {
             throw new RuntimeException("No score card found for player " + player.getDisplayName() + ". This is a major issue, please report!");
         }
+        var play = ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)this.round).play();
+        if (!play.beginShot(player)) return false;
         card.trackStroke();
 
         DiscImpl disc = (DiscImpl) throwMechanic.getDisc();
 
-        disc.handleThrow(player, skills, throwMechanic.getThrowTechnique(), player.getFacing(), throwMechanic);
+        try {
+            disc.handleThrow(player, skills, throwMechanic.getThrowTechnique(), player.getFacing(), throwMechanic);
+        } catch (RuntimeException exception) {
+            card.undoStroke();
+            play.failedShot();
+            throw exception;
+        }
         return true;
     }
 }

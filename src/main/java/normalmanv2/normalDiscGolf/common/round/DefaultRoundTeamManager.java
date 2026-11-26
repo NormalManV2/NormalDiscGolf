@@ -20,7 +20,7 @@ public class DefaultRoundTeamManager implements DelegateRoundTeamManager, Wirabl
     private boolean isWired = false;
 
     public DefaultRoundTeamManager() {
-        this.teams = new HashSet<>();
+        this.teams = new java.util.LinkedHashSet<>();
     }
 
     @Override

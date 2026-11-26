@@ -3,6 +3,8 @@ plugins {
     java
 }
 
+java { toolchain { languageVersion.set(JavaLanguageVersion.of(21)) } }
+
 group = "normalmanv2.normalDiscGolf"
 version = property("version") as String
 
@@ -19,6 +21,7 @@ repositories {
 
 dependencies {
     compileOnly("org.spigotmc:spigot-api:1.21.8-R0.1-SNAPSHOT")
+    testImplementation("org.spigotmc:spigot-api:1.21.8-R0.1-SNAPSHOT")
     compileOnly("com.sk89q.worldedit:worldedit-core:7.3.19")
     compileOnly("com.sk89q.worldedit:worldedit-bukkit:7.3.19")
     compileOnly("io.netty:netty-all:4.2.5.Final")
@@ -65,4 +68,20 @@ tasks {
         into("C:\\Users\\ronan\\Desktop\\localhost\\plugins")
     }
 
+}
+val regressionChecks by tasks.registering(JavaExec::class) {
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("normalmanv2.normalDiscGolf.RegressionChecks")
+}
+tasks.check { dependsOn(regressionChecks) }
+
+val smokeTest = sourceSets.create("smokeTest")
+configurations[smokeTest.implementationConfigurationName].extendsFrom(configurations.testImplementation.get())
+smokeTest.compileClasspath += sourceSets.main.get().output
+smokeTest.runtimeClasspath += sourceSets.main.get().output
+tasks.register<Jar>("smokeTestJar") {
+    dependsOn(tasks.named(smokeTest.classesTaskName))
+    archiveBaseName.set("NDGSmokeChecks")
+    from(smokeTest.output)
 }

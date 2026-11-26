@@ -39,6 +39,7 @@ public class RoundHandler {
     private final Map<GameRound, BossBar> preparationBars;
     private final NormalDiscGolfPlugin plugin;
     private BukkitTask queueTask;
+    private final Set<String> ownedWorlds = new HashSet<>();
 
     public RoundHandler(NormalDiscGolfPlugin normalDiscGolfPlugin) {
         this.activeRounds = new HashSet<>();
@@ -86,9 +87,15 @@ public class RoundHandler {
     private void startPreparedRound(GameRound round) {
         round.setState(RoundState.START);
         this.activeRounds.add(round);
-        RoundResult result = round.start();
-        if (result != RoundResult.SUCCESS && result != RoundResult.ALREADY_STARTED) {
-            this.activeRounds.remove(round);
+        try {
+            RoundResult result = round.start();
+            if (result != RoundResult.SUCCESS && result != RoundResult.ALREADY_STARTED) {
+                this.activeRounds.remove(round);
+                discardRound(round);
+            }
+        } catch (RuntimeException exception) {
+            this.plugin.getLogger().log(java.util.logging.Level.SEVERE, "Could not start round " + round.getId(), exception);
+            cancelRound(round);
         }
     }
 
@@ -131,9 +138,21 @@ public class RoundHandler {
             DefaultRoundSettings settings,
             boolean generateObstacles) {
 
+        boolean fresh = !new java.io.File(Bukkit.getWorldContainer(), courseName).exists();
         World world = Bukkit.createWorld(new CourseGridWorldCreator(courseName, course, settings.division()));
+        if (fresh && world != null && courseName.startsWith("ndg_")) {
+            ownedWorlds.add(courseName);
+            try { java.nio.file.Files.writeString(world.getWorldFolder().toPath().resolve(".ndg-generated"), courseName); }
+            catch (java.io.IOException exception) { plugin.getLogger().warning("Could not mark generated world: " + exception.getMessage()); }
+        }
 
         if (world == null) throw new RuntimeException("World is null!");
+        world.setGameRule(org.bukkit.GameRule.DO_DAYLIGHT_CYCLE, false);
+        world.setGameRule(org.bukkit.GameRule.DO_WEATHER_CYCLE, false);
+        world.setGameRule(org.bukkit.GameRule.DO_MOB_SPAWNING, false);
+        world.setTime(6000);
+        world.setStorm(false);
+        world.setDifficulty(org.bukkit.Difficulty.PEACEFUL);
 
         Supplier<GameRound> roundSupplier = switch (roundFormat.toLowerCase()) {
             case "ffa" -> () -> createFFARound(course, courseName, settings);
@@ -279,6 +298,7 @@ public class RoundHandler {
         round.setState(RoundState.CANCEL);
         NDGManager.getInstance().getPlayerSessionManager().restoreRoundSessions(round);
         round.dispose();
+        releaseWorld(round.getId());
     }
 
     private void addRoundPlayersToBossBar(GameRound round, BossBar bossBar) {
@@ -343,12 +363,78 @@ public class RoundHandler {
 
             activeRoundsIterator.remove();
             DiscFlightManager.cleanupRound(gameRound.getId());
-            if (roundState == RoundState.CANCEL) {
-                gameRound.cancel();
-                continue;
+            this.roundsRequiringPreparation.remove(gameRound);
+            this.preparedRounds.remove(gameRound);
+            try {
+                if (roundState == RoundState.CANCEL) gameRound.cancel();
+                else gameRound.end();
+            } finally {
+                gameRound.dispose();
+                releaseWorld(gameRound.getId());
             }
+        }
+    }
 
-            gameRound.end();
+    public boolean isCourseWorld(World world) {
+        return ownedWorlds.contains(world.getName()) || this.activeRounds.stream().anyMatch(r -> r.getId().equals(world.getName()));
+    }
+
+    public void leavePlayer(Player player) {
+        plugin.cancelMeter(player.getUniqueId());
+        normalmanv2.normalDiscGolf.impl.round.RoundPresentation.cancel(player);
+        for (GameRound round : getActiveRounds()) {
+            if (round.containsPlayer(player.getUniqueId())) {
+                ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)round).play().leave(player.getUniqueId());
+                player.sendMessage("§eYou forfeited the round.");
+            }
+        }
+        for (GameRound round : getPreparingRounds()) {
+            for (Team team : round.getTeams()) if (team.contains(player.getUniqueId())) {
+                team.removePlayer(player.getUniqueId());
+                if (team.getTeamMembers().isEmpty()) round.removeTeam(team);
+            }
+            if (round.getTeams().isEmpty()) cancelRound(round);
+        }
+        NDGManager.getInstance().getPlayerSessionManager().restorePlayer(player);
+    }
+
+    /** Used for queues that never started, so cancellation does not require an active lifecycle. */
+    public void discardRound(GameRound round) {
+        if (this.preparingRounds.contains(round)) { cancelPreparingRound(round, null); return; }
+        roundsRequiringPreparation.remove(round);
+        preparedRounds.remove(round);
+        round.setState(RoundState.CANCEL);
+        round.dispose();
+        releaseWorld(round.getId());
+    }
+
+    private void releaseWorld(String name) {
+        if (!ownedWorlds.contains(name)) return;
+        World world = Bukkit.getWorld(name);
+        if (world != null) {
+            World lobby = Bukkit.getWorlds().stream().filter(w -> !ownedWorlds.contains(w.getName())).findFirst().orElse(null);
+            for (Player player : new ArrayList<>(world.getPlayers())) {
+                NDGManager.getInstance().getPlayerSessionManager().restorePlayer(player);
+                if (player.getWorld() == world && lobby != null) player.teleport(lobby.getSpawnLocation());
+            }
+            if (!Bukkit.unloadWorld(world, false)) {
+                plugin.getLogger().warning("Could not unload generated course " + name + "; keeping it for shutdown cleanup.");
+                return;
+            }
+        }
+        try {
+            java.nio.file.Path container = Bukkit.getWorldContainer().toPath().toRealPath();
+            java.nio.file.Path directory = container.resolve(name).normalize();
+            // Only this process's marked, direct-child generated worlds may be deleted.
+            if (!directory.getParent().equals(container) || java.nio.file.Files.isSymbolicLink(directory)) return;
+            java.nio.file.Path marker = directory.resolve(".ndg-generated");
+            if (!java.nio.file.Files.isRegularFile(marker) || !java.nio.file.Files.readString(marker).equals(name)) return;
+            try (var paths = java.nio.file.Files.walk(directory)) {
+                for (var file : paths.sorted(java.util.Comparator.reverseOrder()).toList()) java.nio.file.Files.delete(file);
+            }
+            ownedWorlds.remove(name);
+        } catch (java.io.IOException exception) {
+            plugin.getLogger().warning("Could not remove generated course " + name + ": " + exception.getMessage());
         }
     }
 
@@ -379,17 +465,23 @@ public class RoundHandler {
         Set<GameRound> roundsToDispose = new HashSet<>();
         roundsToDispose.addAll(this.activeRounds);
         roundsToDispose.addAll(this.preparingRounds);
+        roundsToDispose.addAll(this.roundsRequiringPreparation);
+        roundsToDispose.addAll(this.preparedRounds);
+        roundsToDispose.addAll(NDGManager.getInstance().getRoundQueueManager().getQueuedRounds());
 
         for (GameRound round : roundsToDispose) {
             DiscFlightManager.cleanupRound(round.getId());
             round.setState(RoundState.CANCEL);
             NDGManager.getInstance().getPlayerSessionManager().restoreRoundSessions(round);
             round.dispose();
+            releaseWorld(round.getId());
         }
 
+        NDGManager.getInstance().getRoundQueueManager().clear();
         this.activeRounds.clear();
         this.preparingRounds.clear();
         this.roundsRequiringPreparation.clear();
         this.preparedRounds.clear();
+        for (String name : new HashSet<>(ownedWorlds)) releaseWorld(name);
     }
 }

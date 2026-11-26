@@ -1,0 +1,18 @@
+# Recreational rounds accept players from every rating division.
+queue-countdown-seconds: 15
+turn-timeout-seconds: 90
+max-strokes-per-hole: 12
+course:
+  holes: 18
+  seed: 2026
+preview:
+  enabled: true
+  seconds: 6
+resource-pack:
+  enabled: true
+  # Set to a publicly reachable HTTP(S) address for remote players.
+  # Leave empty to play with the vanilla disc model.
+  url: ""
+  required: false
+  serve: true
+  port: 8088

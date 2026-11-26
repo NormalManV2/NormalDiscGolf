@@ -19,11 +19,15 @@ public class ScoreCard {
     }
 
     public void recordHoleScore(int holeNumber, int strokes, int par) {
+        if (holeNumber < 0 || strokes < 1 || par < 1) throw new IllegalArgumentException("Invalid hole score");
+        if (this.holeScores.containsKey(holeNumber)) throw new IllegalStateException("Hole already recorded");
         this.holeScores.put(holeNumber, strokes);
         this.totalStrokes += strokes;
         int scoreRelativeToPar = strokes - par;
         this.totalScore += scoreRelativeToPar;
     }
+
+    public void undoStroke() { this.currentStrokes = Math.max(0, this.currentStrokes - 1); }
 
     public void trackStroke() {
         this.currentStrokes++;
@@ -34,6 +38,7 @@ public class ScoreCard {
     }
 
     public void addPenalty(int penaltyStrokes) {
+        if (penaltyStrokes < 0) throw new IllegalArgumentException("Penalty must be nonnegative");
         this.currentStrokes += penaltyStrokes;
     }
 

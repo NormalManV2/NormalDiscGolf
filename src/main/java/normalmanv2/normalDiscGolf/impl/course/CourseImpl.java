@@ -60,6 +60,21 @@ public class CourseImpl implements Course {
         return this.division;
     }
 
+    public Location tee(World world, int hole) {
+        var point = teeLocations().get(hole);
+        Location location = new Location(world, point.x() + .5, grid.surfaceHeight(point.x(), point.z()) + 1, point.z() + .5);
+        location.setDirection(basket(world, hole).toVector().subtract(location.toVector()));
+        return location;
+    }
+    public Location basket(World world, int hole) {
+        var point = holeLocations().get(hole);
+        return new Location(world, point.x() + .5, grid.surfaceHeight(point.x(), point.z()) + 1.9, point.z() + .5);
+    }
+    public org.bukkit.util.BoundingBox basketBounds(World world, int hole) {
+        Location center = basket(world, hole);
+        return org.bukkit.util.BoundingBox.of(center, 1.3, 1.0, 1.3);
+    }
+
     public CourseGrid grid() {
         return this.grid;
     }

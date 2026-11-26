@@ -1,0 +1,11 @@
+{
+  "name": "ndg-multiplayer-checks",
+  "private": true,
+  "scripts": {
+    "test": "node round-flow.cjs"
+  },
+  "dependencies": {
+    "mineflayer": "4.39.0",
+    "vec3": "0.1.10"
+  }
+}

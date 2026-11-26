@@ -1,0 +1,5 @@
+name: NDGSmokeChecks
+version: 1
+main: normalmanv2.normalDiscGolf.ServerSmokeChecks
+api-version: '1.21'
+depend: [NormalDiscGolf]

@@ -81,7 +81,8 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
         List<Team> teams = this.getTurnOrder();
 
         if (teams.isEmpty()) {
-            throw new IllegalStateException("No Teams in Round");
+            NDGManager.getInstance().getRoundHandler().cancelRound(this.round);
+            return;
         }
 
         if (this.allTeamsScoredCurrentHole(teams)) {
@@ -92,6 +93,7 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
                 return;
             }
 
+            ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)this.round).play().startHole();
             this.teleportTeamsToCurrentTee(teams);
             return;
         }
@@ -102,6 +104,7 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
         }
 
         this.currentIndex = nextIndex;
+        ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)this.round).play().turnChanged();
     }
 
     @Override
@@ -121,6 +124,7 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
     public boolean isTurn(Team team) {
         List<Team> teams = this.getTurnOrder();
         return !teams.isEmpty()
+                && this.currentIndex >= 0
                 && teams.get(this.currentIndex).equals(team)
                 && !this.hasTeamScoredCurrentHole(team);
     }
@@ -136,7 +140,7 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
         if (teePoint == null) {
             throw new IllegalStateException("No tee location found for hole " + this.hole);
         }
-        return this.round.getCourse().toLocation(world, teePoint);
+        return ((normalmanv2.normalDiscGolf.impl.course.CourseImpl)this.round.getCourse()).tee(world, this.hole);
     }
 
     public DefaultRoundTurnManager setRound(GameRound round) {
@@ -154,12 +158,21 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
     private List<Team> getTurnOrder() {
         List<Team> teams = this.round.getTeams();
         if (this.turnOrder == null || this.turnOrder.size() != teams.size() || !this.turnOrder.containsAll(teams)) {
+            Team previous = this.turnOrder == null || this.turnOrder.isEmpty() || this.currentIndex < 0 ? null : this.turnOrder.get(Math.min(this.currentIndex, this.turnOrder.size() - 1));
             this.turnOrder = new ArrayList<>(teams);
+            int retained = this.turnOrder.indexOf(previous);
+            if (retained >= 0) this.currentIndex = retained;
+            else this.currentIndex = Math.max(-1, Math.min(this.currentIndex - 1, this.turnOrder.size() - 1));
             if (this.currentIndex >= this.turnOrder.size()) {
                 this.currentIndex = 0;
             }
         }
         return this.turnOrder;
+    }
+
+    public void reconcile() {
+        List<Team> teams = getTurnOrder();
+        if (teams.isEmpty() || currentIndex < 0 || allTeamsScoredCurrentHole(teams) || hasTeamScoredCurrentHole(teams.get(currentIndex))) nextTurn();
     }
 
     private boolean allTeamsScoredCurrentHole(List<Team> teams) {
@@ -188,7 +201,6 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
             for (UUID playerId : team.getTeamMembers()) {
                 Player player = Bukkit.getPlayer(playerId);
                 if (player == null) {
-                    this.round.getRoundTeamManager().tick();
                     continue;
                 }
 

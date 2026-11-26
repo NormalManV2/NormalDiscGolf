@@ -13,6 +13,7 @@ public class GoalScoreListener implements Listener {
 
     @EventHandler
     public void onGoalScore(GoalScoreEvent event) {
+        if (event.getRound().isOver() || event.getHoleNumber() != event.getRound().getCurrentHole()) return;
         Team scoringTeam = this.findPlayerTeam(event.getRound(), event.getPlayer().getUniqueId());
         if (scoringTeam == null) {
             return;
@@ -20,6 +21,12 @@ public class GoalScoreListener implements Listener {
 
         if (this.handleScoring(event.getHoleNumber(), event.getRound(), scoringTeam)) {
             event.getRound().setTeamScored(event.getHoleNumber(), scoringTeam);
+            ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)event.getRound()).play().message(
+                    "§a" + event.getPlayer().getName() + " completed hole " + (event.getHoleNumber()+1) + "!");
+            for (UUID id : scoringTeam.getTeamMembers()) {
+                org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(id);
+                if (player != null) player.sendTitle("§aBasket!", "§fHole " + (event.getHoleNumber()+1) + " complete", 5, 35, 10);
+            }
         }
     }
 

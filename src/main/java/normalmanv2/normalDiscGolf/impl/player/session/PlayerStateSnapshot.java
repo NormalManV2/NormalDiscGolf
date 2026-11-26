@@ -18,6 +18,7 @@ public final class PlayerStateSnapshot {
     private final boolean flying;
     private final boolean gliding;
     private final boolean invulnerable;
+    private final boolean collidable;
     private final int foodLevel;
     private final float saturation;
     private final float exhaustion;
@@ -42,6 +43,7 @@ public final class PlayerStateSnapshot {
         this.flying = player.isFlying();
         this.gliding = player.isGliding();
         this.invulnerable = player.isInvulnerable();
+        this.collidable = player.isCollidable();
         this.foodLevel = player.getFoodLevel();
         this.saturation = player.getSaturation();
         this.exhaustion = player.getExhaustion();
@@ -76,6 +78,7 @@ public final class PlayerStateSnapshot {
         player.setFlying(this.allowFlight && this.flying);
         player.setGliding(this.gliding);
         player.setInvulnerable(this.invulnerable);
+        player.setCollidable(this.collidable);
         player.setFoodLevel(this.foodLevel);
         player.setSaturation(this.saturation);
         player.setExhaustion(this.exhaustion);

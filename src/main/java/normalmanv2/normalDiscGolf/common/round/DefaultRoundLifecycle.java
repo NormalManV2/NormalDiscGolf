@@ -95,11 +95,13 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                     continue;
                 }
 
-                Bukkit.getScheduler().runTaskLater(
-                        this.plugin,
-                        () -> RoundPresentation.teleportToCurrentTee(this.plugin, player, this.round, true),
-                        20L
-                );
+                player.setGameMode(org.bukkit.GameMode.ADVENTURE);
+                player.setAllowFlight(false);
+                player.setInvulnerable(true);
+                player.setCollidable(false);
+                player.setFoodLevel(20);
+                player.setFireTicks(0);
+                normalmanv2.normalDiscGolf.impl.listener.RoundPlayerListener.giveKit(player);
             }
 
             missingPlayers.forEach(team::removePlayer);
@@ -110,7 +112,13 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
         }
 
         this.round.getRoundTurnManager().selectRandomTeamTurn();
-        this.round.setGameTask(Bukkit.getScheduler().runTaskTimer(this.plugin, () -> this.round.getRoundTeamManager().tick(), 0, 100));
+        ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)this.round).play().startHole();
+        for (Team team : this.round.getTeams()) for (UUID id : team.getTeamMembers()) {
+            Player player = Bukkit.getPlayer(id);
+            if (player != null) RoundPresentation.teleportToCurrentTee(this.plugin, player, this.round, true);
+        }
+        this.round.setGameTask(Bukkit.getScheduler().runTaskTimer(this.plugin,
+                () -> ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)this.round).play().tick(), 20, 20));
         return RoundResult.SUCCESS;
     }
 
@@ -146,7 +154,8 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                 }
 
                 PDGARating rating = playerData.getRating();
-                rating.handleRoundEnd(scoreCard.getTotalScore());
+                if (scoreCard.getHoleScores().size() != this.round.getCourse().holes()) continue;
+                rating.handleRoundEnd(scoreCard.getTotalScore() * 18.0 / this.round.getCourse().holes());
                 rating.updateRating(this.round.getSettings().division().getDifficulty());
                 this.round.getPlayerDataManager().savePlayerData(playerId);
             }
@@ -155,7 +164,7 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
 
     @Override
     public boolean isOver() {
-        return this.ended;
+        return this.ended || this.state == RoundState.END || this.state == RoundState.CANCEL;
     }
 
     @Override
@@ -183,6 +192,7 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
     }
 
     private void restoreRoundPlayers() {
+        RoundPresentation.cancelRound(this.round);
         NDGManager.getInstance().getPlayerSessionManager().restoreRoundSessions(this.round);
     }
 

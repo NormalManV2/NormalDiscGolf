@@ -35,8 +35,9 @@ public class ThrowDiscCommand extends AbstractCommand {
             return;
         }
 
-        if (!this.isPlayersTurn(round, player)) {
-            player.sendMessage(ChatColor.RED + "It is not your turn to throw.");
+        String error = ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)round).play().validate(player);
+        if (error != null) {
+            player.sendMessage(ChatColor.RED + error);
             return;
         }
 

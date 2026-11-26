@@ -67,6 +67,21 @@ public class DiscGolfCommand extends AbstractCommand {
             case "profile", "stats" -> this.sendProfile(player);
             case "party" -> this.handleParty(player, args);
             case "cancel" -> this.cancelRound(player);
+            case "skip" -> normalmanv2.normalDiscGolf.impl.round.RoundPresentation.cancel(player);
+            case "lie" -> {
+                GameRound active = this.findActiveRound(player.getUniqueId());
+                if (active instanceof normalmanv2.normalDiscGolf.impl.round.RoundImpl impl) {
+                    if (impl.play().inFlight()) { player.sendMessage("§cWait for the disc to land."); break; }
+                    normalmanv2.normalDiscGolf.impl.round.RoundPresentation.cancel(player);
+                    var lie = impl.play().lie(impl.play().team(player.getUniqueId()));
+                    if (lie != null) player.teleport(lie);
+                }
+            }
+            case "concede" -> {
+                GameRound active = this.findActiveRound(player.getUniqueId());
+                if (active instanceof normalmanv2.normalDiscGolf.impl.round.RoundImpl impl) impl.play().concede(player);
+            }
+            case "quit" -> NDGManager.getInstance().getRoundHandler().leavePlayer(player);
             default -> this.sendHelp(player);
         }
     }
@@ -77,7 +92,7 @@ public class DiscGolfCommand extends AbstractCommand {
             return ProfileAdminCommand.complete(sender, args);
         }
         if (args.length == 1) {
-            return this.matching(args[0], List.of("queue", "leave", "menu", "status", "score", "profile", "party", "cancel", "help"));
+            return this.matching(args[0], List.of("queue", "leave", "menu", "status", "score", "profile", "party", "cancel", "skip", "lie", "concede", "quit", "help"));
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("queue")) {
@@ -581,6 +596,7 @@ public class DiscGolfCommand extends AbstractCommand {
         }
         sender.sendMessage(ChatColor.GRAY + "/ndg party <invite|accept|decline|leave|status> - Manage your party.");
         sender.sendMessage(ChatColor.GRAY + "/ndg cancel - Cancel your solo round.");
+        sender.sendMessage(ChatColor.GRAY + "/ndg skip | lie | concede | quit - Skip preview, return to lie, concede hole, or forfeit round.");
         sender.sendMessage(ChatColor.GRAY + "/throwdisc <putter|midrange|driver> <backhand|forehand> - Throw on your turn.");
     }
 
@@ -612,6 +628,7 @@ public class DiscGolfCommand extends AbstractCommand {
     private String formatQueueResult(RoundQueueManager.QueueResult result) {
         return switch (result) {
             case INVALID_FORMAT -> "Unknown round format. Use ffa or doubles.";
+            case RESOURCE_PACK_REQUIRED -> "A party member must finish loading the server resource pack.";
             case REQUIRED_ASSETS_MISSING -> "Disc golf courses are not ready: "
                     + NDGManager.getInstance().getFileManager().getMissingRequiredObstaclesMessage();
             case PLAYER_DATA_MISSING -> "A party member is missing player data. Have them rejoin and try again.";

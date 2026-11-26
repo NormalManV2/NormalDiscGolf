@@ -30,13 +30,15 @@ public class GuiManager {
     public void openGUI(InventoryGUI gui, Player player) {
         this.registerInventory(gui.getInventory(), gui);
         player.openInventory(gui.getInventory());
-        System.out.println("GUI opened " + gui);
+
     }
+
+    public boolean manages(Inventory inventory) { return this.inventories.containsKey(inventory); }
 
     public void handleClick(InventoryClickEvent event) {
         InventoryHandler handler = this.inventories.get(event.getInventory());
         if (handler == null) {
-            System.out.println("Handler is null");
+
             return;
         }
         handler.onClick(event);

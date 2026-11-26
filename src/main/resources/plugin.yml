@@ -1,12 +1,15 @@
 name: NormalDiscGolf
-version: 1.0
+version: ${version}
 main: normalmanv2.normalDiscGolf.NormalDiscGolfPlugin
 api-version: '1.21'
 prefix: NormalDiscGolf
-load: STARTUP
-authors: [ NormalMan_V2 ]
-description: Disc golf in minecraft!
+depend: [WorldEdit]
+authors: [NormalMan_V2]
+description: Disc golf in Minecraft
 permissions:
+  ndg.commands.cancel:
+    description: Cancel a multiplayer round.
+    default: op
   ndg.commands.profile.admin:
     description: Save, reload, and edit player profiles for testing.
     default: op

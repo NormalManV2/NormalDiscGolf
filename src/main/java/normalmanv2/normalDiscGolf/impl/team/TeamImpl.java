@@ -22,7 +22,7 @@ public class TeamImpl implements Team {
 
     public TeamImpl(UUID ownerId, int maximumPlayers) {
         this.ownerId = ownerId;
-        this.teamMembers = new HashSet<>();
+        this.teamMembers = new java.util.LinkedHashSet<>();
         this.teamComponents = new HashSet<>();
         this.maximumPlayers = maximumPlayers;
         this.teamMembers.add(ownerId);

@@ -17,20 +17,24 @@ public class GuiListener implements Listener {
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        System.out.println("Clicked");
+        if (!this.guiManager.manages(event.getInventory())) return;
         this.guiManager.handleClick(event);
         event.setCancelled(true);
     }
 
+    @EventHandler public void onDrag(org.bukkit.event.inventory.InventoryDragEvent event) {
+        if (this.guiManager.manages(event.getInventory())) event.setCancelled(true);
+    }
+
     @EventHandler
     public void onOpen(InventoryOpenEvent event) {
-        System.out.println("Opened");
+
         this.guiManager.handleOpen(event);
     }
 
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
-        System.out.println("Closed");
+
         this.guiManager.handleClose(event);
     }
 

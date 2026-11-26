@@ -15,10 +15,7 @@ public class DoublesButton extends Button {
 
     @Override
     public void onClick(InventoryClickEvent event) {
-        Bukkit.getPluginManager().callEvent(new PlayerQueueRoundEvent(
-                event.getWhoClicked().getUniqueId(),
-                NDGManager.getInstance().getRoundQueueManager().getQueuedRounds(),
-                "doubles"));
+        if (event.getWhoClicked() instanceof org.bukkit.entity.Player player) player.performCommand("ndg queue doubles");
         event.getWhoClicked().closeInventory();
     }
 }

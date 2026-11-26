@@ -3,276 +3,136 @@ package normalmanv2.normalDiscGolf.impl.round;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
-import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
-import normalmanv2.normalDiscGolf.impl.util.Constants;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.GameMode;
-import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.entity.Display;
-import org.bukkit.entity.ItemDisplay;
+import org.bukkit.*;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.util.Vector;
+import org.bukkit.scheduler.BukkitTask;
+import java.util.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-
+/** Short, skippable flyover. The player's location is the camera; every exit restores state. */
 public final class RoundPresentation {
-
-    private static final int PREVIEW_CONTROL_POINTS = 20;
-    private static final int PREVIEW_STEPS_PER_SEGMENT = 40;
-    private static final long PREVIEW_STEP_TICKS = 1L;
-    private static final double TEE_Y_OFFSET = 1.0;
-    private static final double PREVIEW_Y_OFFSET = 10.0;
-
-    private RoundPresentation() {
-    }
-
-    public static void teleportToCurrentTee(Plugin plugin, Player player, GameRound round, boolean showPreview) {
+    private static final Map<UUID, Preview> PREVIEWS = new HashMap<>();
+    private record Preview(String roundId, Player player, Location destination, GameMode mode, boolean allowFlight, boolean flying, BukkitTask task) {}
+    private RoundPresentation() {}
+    public static boolean isPreviewing(Player player) { return PREVIEWS.containsKey(player.getUniqueId()); }
+    public static boolean isPreviewing(GameRound round) { return PREVIEWS.values().stream().anyMatch(p -> p.roundId().equals(round.getId())); }
+    public static void teleportToCurrentTee(Plugin plugin, Player player, GameRound round, boolean preview) {
+        cancel(player);
+        if (round.isOver() || !round.containsPlayer(player.getUniqueId())) return;
         World world = Bukkit.getWorld(round.getId());
-        if (world == null) {
-            world = player.getWorld();
-        }
-
-        Location teeLocation = getGroundedCurrentTee(round, world);
-        player.teleport(teeLocation);
-
-        if (showPreview && plugin != null) {
-            Bukkit.getScheduler().runTaskLater(plugin, () -> playHolePreview(plugin, player, round), 10L);
-        }
+        if (world == null) return;
+        if (preview && plugin.getConfig().getBoolean("preview.enabled", true)) playHolePreview(plugin, player, round);
+        else player.teleport(teePosition(round, player, world));
     }
-
     public static Location getGroundedCurrentTee(GameRound round, World world) {
-        Location teeLocation = round.getNextTeeLocation(world);
-        return getGroundedLocation(world, teeLocation, TEE_Y_OFFSET);
+        return ((CourseImpl)round.getCourse()).tee(world, round.getCurrentHole());
     }
-
-    public static void teleportTeamToLie(Player thrower, GameRound round, Location lieLocation) {
-        Team team = findTeam(round, thrower.getUniqueId());
-        if (team == null) {
-            thrower.teleport(lieLocation);
-            return;
-        }
-
-        for (UUID playerId : team.getTeamMembers()) {
-            Player player = Bukkit.getPlayer(playerId);
-            if (player == null) {
-                continue;
+    public static void teleportTeamToLie(Player thrower, GameRound round, Location lie) {
+        Team team = round.getTeams().stream().filter(t -> t.contains(thrower.getUniqueId())).findFirst().orElse(null);
+        if (team == null) return;
+        for (UUID id : team.getTeamMembers()) {
+            Player player = Bukkit.getPlayer(id);
+            if (player != null) {
+                Location destination = watchingPosition((RoundImpl)round, player, lie);
+                destination.setYaw(player.getLocation().getYaw());
+                destination.setPitch(player.getLocation().getPitch());
+                player.teleport(destination);
             }
-
-            Location playerLie = lieLocation.clone();
-            playerLie.setYaw(thrower.getLocation().getYaw());
-            playerLie.setPitch(thrower.getLocation().getPitch());
-            player.teleport(playerLie);
         }
     }
-
     public static void playHolePreview(Plugin plugin, Player player, GameRound round) {
-        if (plugin == null || player == null || !player.isOnline() || round.isOver()) {
-            return;
-        }
-
-        World world = Bukkit.getWorld(round.getId());
-        if (world == null) {
-            world = player.getWorld();
-        }
-
+        cancel(player);
+        if (round.isOver() || !player.isOnline()) return;
+        CourseImpl course = (CourseImpl)round.getCourse();
         int hole = round.getCurrentHole();
-        CourseGrid.GridPoint pinPoint = round.getCourse().holeLocations().get(hole);
-        if (pinPoint == null) {
-            return;
-        }
-
-        Location returnLocation = getGroundedCurrentTee(round, world);
-        Location pinLocation = getGroundedLocation(world, round.getCourse().toLocation(world, pinPoint), TEE_Y_OFFSET);
-        List<Location> previewPath = buildPreviewPath(round, world, hole, pinLocation);
-
-        if (previewPath.size() < 2) {
-            return;
-        }
-
-        GameMode originalGameMode = player.getGameMode();
-        boolean originalAllowFlight = player.getAllowFlight();
-        boolean originalFlying = player.isFlying();
-
-        player.sendTitle(
-                ChatColor.GREEN + "Hole " + (hole + 1),
-                ChatColor.WHITE + "Previewing the fairway",
-                8,
-                55,
-                10
-        );
+        World world = Bukkit.getWorld(round.getId());
+        if (world == null) return;
+        Location destination = teePosition(round, player, world), basket = course.basket(world, hole);
+        List<Location> path = new ArrayList<>();
+        path.add(course.tee(world, hole));
+        for (var point : course.grid().getHoleRoutePoints().getOrDefault(hole, List.of()))
+            path.add(course.toLocation(world, point).add(8, 0, 8));
+        path.add(basket.clone());
+        int ticks = Math.clamp(plugin.getConfig().getInt("preview.seconds", 6), 2, 10) * 20;
+        HolePreviewPath flightPath = new HolePreviewPath(path);
+        GameMode mode = player.getGameMode();
+        boolean allowFlight = player.getAllowFlight(), flying = player.isFlying();
         player.setGameMode(GameMode.SPECTATOR);
-        TextDisplay display = world.spawn(previewPath.getFirst(), TextDisplay.class, d -> {
-            d.setBillboard(Display.Billboard.CENTER);
-            d.setInvulnerable(true);
-            d.setVisibleByDefault(false);
-            d.setPersistent(false);
-            d.setGravity(false);
-            d.setSilent(true);
-            d.setText("");
-            d.setTextOpacity((byte) 0);
-            d.setTeleportDuration((int) Math.min(59, PREVIEW_STEP_TICKS + 1));
-        });
-       player.addPassenger(display);
-
-        new BukkitRunnable() {
-            private int index;
-
-            @Override
+        player.teleport(flightPath.frame(0));
+        player.sendTitle("§aHole " + (hole + 1), "§fPar " + course.holePars().get(hole) + " • Sneak to skip", 5, 60, 10);
+        BukkitTask task = new BukkitRunnable() {
+            private int elapsed;
             public void run() {
-                if (!player.isOnline() || round.isOver()) {
-                    cleanupPreviewCarrier(player, display);
-                    cancel();
-                    return;
+                if (!player.isOnline() || round.isOver() || !round.containsPlayer(player.getUniqueId()) || round.getCurrentHole() != hole || elapsed >= ticks) {
+                    RoundPresentation.cancel(player); return;
                 }
-
-                Location current = previewPath.get(index).clone();
-                Location target = previewPath.get(Math.min(index + 1, previewPath.size() - 1));
-                display.teleport(faceLocation(current, target));
-
-                index++;
-                if (index >= previewPath.size()) {
-                    cancel();
-                }
+                Location camera = flightPath.frame(elapsed++ / (double)(ticks-1));
+                player.teleport(camera);
             }
-        }.runTaskTimer(plugin, 0L, PREVIEW_STEP_TICKS);
-
-        long restoreDelay = previewPath.size() * PREVIEW_STEP_TICKS + 8L;
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (!player.isOnline() || round.isOver()) {
-                cleanupPreviewCarrier(player, display);
-                return;
-            }
-
-            player.setGameMode(originalGameMode);
-            player.setAllowFlight(originalAllowFlight);
-            if (originalAllowFlight) {
-                player.setFlying(originalFlying);
-            }
-            player.teleport(faceLocation(returnLocation.clone(), pinLocation));
-            player.sendMessage(ChatColor.GRAY + "Throw toward the red pin marker.");
-            display.removePassenger(player);
-            display.remove();
-        }, restoreDelay);
+        }.runTaskTimer(plugin, 1L, 1L);
+        PREVIEWS.put(player.getUniqueId(), new Preview(round.getId(), player, destination, mode, allowFlight, flying, task));
+    }
+    public static void cancel(Player player) {
+        Preview preview = PREVIEWS.remove(player.getUniqueId());
+        if (preview == null) return;
+        preview.task().cancel();
+        player.resetTitle();
+        if (player.getGameMode() == GameMode.SPECTATOR) player.setSpectatorTarget(null);
+        player.setGameMode(preview.mode());
+        player.setAllowFlight(preview.allowFlight());
+        player.setFlying(preview.allowFlight() && preview.flying());
+        player.teleport(preview.destination());
+    }
+    public static Location teePosition(GameRound round, Player player, World world) {
+        var impl = (RoundImpl)round;
+        Location tee = impl.getCourse().tee(world, round.getCurrentHole());
+        UUID active = impl.play().thrower(impl.play().currentTeam());
+        if (player.getUniqueId().equals(active)) return tee;
+        return watchingPosition(impl, player, tee);
     }
 
-    private static void cleanupPreviewCarrier(Player player, TextDisplay display) {
-        if (display == null || display.isDead()) {
-            return;
+    private static Location watchingPosition(RoundImpl round, Player player, Location lie) {
+        List<UUID> ids = round.getTeams().stream().flatMap(t -> t.getTeamMembers().stream()).toList();
+        int index = Math.max(0, ids.indexOf(player.getUniqueId()));
+        var direction = round.getCourse().basket(lie.getWorld(),round.getCurrentHole()).toVector().subtract(lie.toVector()).setY(0);
+        if (direction.lengthSquared() < .001) direction.setZ(1);
+        direction.normalize();
+        var side = new org.bukkit.util.Vector(-direction.getZ(),0,direction.getX());
+        Location position = lie.clone().subtract(direction.multiply(3.5 + (index/3)*3)).add(side.multiply((index%3-1)*2.5));
+        int x = position.getBlockX(), z = position.getBlockZ();
+        position.setY(round.getCourse().grid().surfaceHeight(x,z)+1);
+        if (!position.getBlock().isPassable() || !position.clone().add(0,1,0).getBlock().isPassable()) {
+            position = lie.clone().add(0,0,-4);
+            position.setY(round.getCourse().grid().surfaceHeight(position.getBlockX(),position.getBlockZ())+1);
         }
+        position.setDirection(round.getCourse().basket(lie.getWorld(),round.getCurrentHole()).toVector().subtract(position.toVector()));
+        return position;
+    }
 
-        if (player != null && player.isOnline()) {
-            player.leaveVehicle();
-            player.removePassenger(display);
+    /** Clear the throwing lane and return the next thrower to the server-owned lie. */
+    public static void prepareTurn(RoundImpl round) {
+        UUID active = round.play().thrower(round.play().currentTeam());
+        if (active == null || isPreviewing(round)) return;
+        Location lie = round.play().lie(round.play().currentTeam());
+        if (lie == null) return;
+        for (Team team : round.getTeams()) for (UUID id : team.getTeamMembers()) {
+            Player player = Bukkit.getPlayer(id);
+            if (player == null) continue;
+            if (!id.equals(active) && player.getWorld()==lie.getWorld() && player.getLocation().distanceSquared(lie)<9)
+                player.teleport(watchingPosition(round,player,lie));
         }
-
-        display.remove();
-    }
-
-    private static Location getGroundedLocation(World world, Location baseLocation, double yOffset) {
-        int x = baseLocation.getBlockX();
-        int z = baseLocation.getBlockZ();
-        int y = world.getHighestBlockYAt(x, z);
-        return new Location(
-                world,
-                x + 0.5,
-                y + yOffset,
-                z + 0.5,
-                baseLocation.getYaw(),
-                baseLocation.getPitch()
-        );
-    }
-
-    private static List<Location> buildPreviewPath(GameRound round, World world, int hole, Location pinLocation) {
-        List<CourseGrid.GridPoint> routePoints = getRoutePoints(round, hole);
-        List<Location> controlPath = new ArrayList<>();
-
-        if (routePoints.isEmpty()) {
-            controlPath.add(getGroundedCurrentTee(round, world).add(0, PREVIEW_Y_OFFSET, 0));
-            controlPath.add(pinLocation.clone().add(0, PREVIEW_Y_OFFSET, 0));
-            return interpolatePath(controlPath);
+        Player thrower = Bukkit.getPlayer(active);
+        if (thrower != null) {
+            Location destination = lie.clone();
+            destination.setDirection(round.getCourse().basket(lie.getWorld(),round.getCurrentHole()).toVector().subtract(lie.toVector()));
+            thrower.teleport(destination);
         }
-
-        int lastIndex = routePoints.size() - 1;
-        int steps = Math.min(PREVIEW_CONTROL_POINTS, routePoints.size());
-
-        for (int i = 0; i < steps; i++) {
-            int routeIndex = steps == 1 ? 0 : (int) Math.round(i * (lastIndex / (double) (steps - 1)));
-            CourseGrid.GridPoint point = routePoints.get(routeIndex);
-            Location routeLocation = round.getCourse()
-                    .toLocation(world, point)
-                    .add(Constants.DEFAULT_TILE_SIZE / 2.0, 0, Constants.DEFAULT_TILE_SIZE / 2.0);
-            controlPath.add(getGroundedLocation(world, routeLocation, PREVIEW_Y_OFFSET));
-        }
-
-        controlPath.add(pinLocation.clone().add(0, PREVIEW_Y_OFFSET, 0));
-        return interpolatePath(controlPath);
     }
 
-    private static List<Location> interpolatePath(List<Location> controlPath) {
-        if (controlPath.size() < 2) {
-            return controlPath;
-        }
-
-        List<Location> previewPath = new ArrayList<>();
-        for (int i = 0; i < controlPath.size() - 1; i++) {
-            Location start = controlPath.get(i);
-            Location end = controlPath.get(i + 1);
-
-            for (int step = 0; step < PREVIEW_STEPS_PER_SEGMENT; step++) {
-                double t = step / (double) PREVIEW_STEPS_PER_SEGMENT;
-                previewPath.add(interpolate(start, end, t));
-            }
-        }
-
-        previewPath.add(controlPath.get(controlPath.size() - 1).clone());
-        return previewPath;
+    public static void cancelRound(GameRound round) {
+        for (Preview preview : new ArrayList<>(PREVIEWS.values()))
+            if (preview.roundId().equals(round.getId())) cancel(preview.player());
     }
-
-    private static Location interpolate(Location start, Location end, double t) {
-        return new Location(
-                start.getWorld(),
-                lerp(start.getX(), end.getX(), t),
-                lerp(start.getY(), end.getY(), t),
-                lerp(start.getZ(), end.getZ(), t),
-                start.getYaw(),
-                start.getPitch()
-        );
-    }
-
-    private static double lerp(double start, double end, double t) {
-        return start + (end - start) * t;
-    }
-
-    private static List<CourseGrid.GridPoint> getRoutePoints(GameRound round, int hole) {
-        if (round.getCourse() instanceof CourseImpl course) {
-            return course.grid().getHoleRoutePoints().getOrDefault(hole, List.of());
-        }
-
-        return List.of();
-    }
-
-    private static Team findTeam(GameRound round, UUID playerId) {
-        for (Team team : round.getTeams()) {
-            if (team.contains(playerId)) {
-                return team;
-            }
-        }
-
-        return null;
-    }
-
-    private static Location faceLocation(Location from, Location target) {
-        Vector direction = target.toVector().subtract(from.toVector());
-        if (direction.lengthSquared() > 0.0) {
-            from.setDirection(direction);
-        }
-        return from;
-    }
+    public static void cancelAll() { for (Preview preview : new ArrayList<>(PREVIEWS.values())) cancel(preview.player()); }
 }

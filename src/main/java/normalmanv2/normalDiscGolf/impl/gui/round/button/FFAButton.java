@@ -15,10 +15,7 @@ public class FFAButton extends Button {
 
     @Override
     public void onClick(InventoryClickEvent event) {
-        Bukkit.getPluginManager().callEvent(new PlayerQueueRoundEvent(
-                        event.getWhoClicked().getUniqueId(),
-                NDGManager.getInstance().getRoundQueueManager().getQueuedRounds(),
-                "ffa"));
+        if (event.getWhoClicked() instanceof org.bukkit.entity.Player player) player.performCommand("ndg queue ffa");
         event.getWhoClicked().closeInventory();
     }
 }

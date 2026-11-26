@@ -28,8 +28,7 @@ import org.bukkit.util.Vector;
 
 public class MidRange extends DiscImpl {
 
-    private final NormalDiscGolfPlugin plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
-    private BukkitTask discTask;
+
 
     public MidRange(int speed, int glide, int turn, int fade, String discName) {
         super(speed, glide, turn, fade, discName, DiscType.MID_RANGE);
@@ -40,15 +39,12 @@ public class MidRange extends DiscImpl {
 
         World world = player.getWorld();
         Vector direction = player.getEyeLocation().getDirection().normalize();
-        Location throwLoc = player.getEyeLocation().clone().add(direction.clone().multiply(2));
+        Location throwLoc = player.getEyeLocation().clone().add(direction.clone().multiply(0.35));
         ThrowMechanicImpl tm = (ThrowMechanicImpl) throwMechanic;
 
         ItemDisplay textDisplay = world.spawn(throwLoc, ItemDisplay.class, display -> {
-            display.setItemStack(new ItemStack(Material.POPPED_CHORUS_FRUIT));
-            ItemMeta displayMeta = display.getItemStack().getItemMeta();
+            display.setItemStack(normalmanv2.normalDiscGolf.impl.resourcepack.DiscItems.discItem(this.getType(), this.getName(), player, true));
 
-            displayMeta.setCustomModelData(1);
-            display.getItemStack().setItemMeta(displayMeta);
 
             display.setBillboard(Display.Billboard.CENTER);
             display.setCustomName(ChatColor.translateAlternateColorCodes('&', this.getName()));
@@ -75,44 +71,7 @@ public class MidRange extends DiscImpl {
     }
 
     @Override
-    public void applyDiscPhysics(Player player, ItemDisplay discDisplay, Vector initialVelocity, int maxTicks, String technique, BlockFace direction) {
-        Vector currentVelocity = initialVelocity.clone();
-        final int[] tickCount = {0};
-
-        final ThrowTechnique throwTechnique = NDGManager.getInstance().getThrowTechniqueRegistry().get(technique);
-        this.discTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            Location currentLocation = discDisplay.getLocation();
-            currentLocation.add(currentVelocity);
-            throwTechnique.applyPhysics(this, currentVelocity, tickCount[0], maxTicks, direction);
-            discDisplay.teleport(currentLocation);
-            player.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, currentLocation, 5);
-
-            boolean goalScored = MathUtil.detectGoalCollision(player.getWorld(), currentLocation, currentVelocity);
-            boolean flightEnded = goalScored
-                    || MathUtil.detectCollision(player.getWorld(), currentLocation, currentVelocity)
-                    || tickCount[0] >= maxTicks;
-
-            if (flightEnded) {
-                this.resolveFlight(player, discDisplay, currentLocation, initialVelocity, goalScored);
-                return;
-            }
-
-            tickCount[0]++;
-        }, 0, 1);
-        DiscFlightManager.registerFlight(this.discTask, player.getUniqueId(), DiscFlightResolver.findActiveRound(player), discDisplay);
-    }
-
-    private void resolveFlight(Player player, ItemDisplay discDisplay, Location currentLocation, Vector initialVelocity, boolean goalScored) {
-        DiscFlightResolver.resolveFlight(player, currentLocation, initialVelocity, goalScored);
-        this.cleanupDiscFlight(discDisplay);
-    }
-
-    private void cleanupDiscFlight(ItemDisplay discDisplay) {
-        if (this.discTask != null) {
-            DiscFlightManager.completeFlight(this.discTask, this.plugin, 100L);
-            this.discTask = null;
-            return;
-        }
-        Bukkit.getScheduler().runTaskLater(plugin, discDisplay::remove, 100L);
+    public void applyDiscPhysics(Player player, ItemDisplay display, Vector velocity, int maxTicks, String technique, BlockFace direction) {
+        DiscFlightEngine.start(this, player, display, velocity, maxTicks, technique, direction);
     }
 }

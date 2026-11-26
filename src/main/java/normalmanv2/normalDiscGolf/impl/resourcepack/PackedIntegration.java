@@ -1,80 +1,97 @@
 package normalmanv2.normalDiscGolf.impl.resourcepack;
 
-import kotlin.Unit;
-import net.radstevee.packed.core.asset.impl.ResourceAssetResolutionStrategy;
-import net.radstevee.packed.core.pack.PackFormat;
-import net.radstevee.packed.core.pack.ResourcePack;
-import net.radstevee.packed.core.pack.ResourcePackBuilder;
+import com.sun.net.httpserver.HttpServer;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.NotNull;
+import org.bukkit.event.*;
+import org.bukkit.event.player.PlayerResourcePackStatusEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import java.io.*;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.security.*;
+import java.util.*;
+import java.util.zip.*;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.UUID;
-
-public class PackedIntegration {
-
+/** Builds a self-contained 1.21.8 pack. Public delivery is configured by the server owner. */
+public final class PackedIntegration implements Listener, AutoCloseable {
     private static final UUID PACK_UUID = UUID.fromString("454c9909-7092-4e6b-bd65-f799099b1ab1");
-
-    private final ResourcePack pack;
     private final NormalDiscGolfPlugin plugin;
-    private byte[] packBytes;
-    private byte[] packHash;
-
+    private byte[] packBytes, packHash;
+    private HttpServer server;
+    private final Set<UUID> loaded = new HashSet<>();
     public PackedIntegration(NormalDiscGolfPlugin plugin) throws IOException {
         this.plugin = plugin;
-        this.pack = ResourcePackBuilder.Companion.resourcePack((builder) -> {
-            builder.meta((meta) -> {
-                meta.setDescription("NDG Pack");
-                meta.setOutputDir(new File(plugin.getDataFolder(), "NormalDiscGolfPack"));
-                meta.setFormat(PackFormat.LATEST);
+        savePack();
 
-                return Unit.INSTANCE;
-            });
-
-            builder.setAssetResolutionStrategy(new ResourceAssetResolutionStrategy(this.getClass()));
-            builder.create();
-            return Unit.INSTANCE;
-        });
-
-        this.savePack();
-    }
-
-    public void savePack() throws IOException {
-        this.pack.save(true);
-        File zip = new File(plugin.getDataFolder(), "NormalDiscGolfPack.zip");
-        this.pack.createZip(zip);
-
-        this.packBytes = Files.readAllBytes(zip.toPath());
-
-        MessageDigest md5;
-        try {
-            md5 = MessageDigest.getInstance("MD5");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+        String url = getPackUrl();
+        if (!url.isBlank()) {
+            URI uri = URI.create(url);
+            if (!List.of("http", "https").contains(uri.getScheme()) || uri.getHost() == null) throw new IOException("resource-pack.url must be an absolute HTTP(S) URL");
+            if (plugin.getConfig().getBoolean("resource-pack.serve", true)) {
+                server = HttpServer.create(new InetSocketAddress(plugin.getConfig().getInt("resource-pack.port", 8088)), 0);
+                server.createContext("/ndg/pack.zip", exchange -> {
+                    try {
+                        if (!exchange.getRequestMethod().equals("GET")) { exchange.sendResponseHeaders(405,-1); return; }
+                        exchange.getResponseHeaders().set("Content-Type","application/zip");
+                        exchange.sendResponseHeaders(200, packBytes.length);
+                        exchange.getResponseBody().write(packBytes);
+                    } finally { exchange.close(); }
+                });
+                server.start();
+            }
+        } else if (plugin.getConfig().getBoolean("resource-pack.required", false)) {
+            plugin.getLogger().warning("resource-pack.required is enabled but no public URL is configured. Queueing will wait for a usable pack.");
         }
-        md5.update(this.packBytes);
-        this.packHash = md5.digest();
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
-
-    public byte[] getBytes() {
-        return this.packBytes;
+    public void savePack() throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
+            entry(zip, "pack.mcmeta", "{\"pack\":{\"pack_format\":64,\"description\":\"Normal Disc Golf • Parkland\"}}");
+            String[] names={"putter","midrange","driver"}, colors={"lime_concrete","light_blue_concrete","orange_concrete"};
+            for (int i=0;i<names.length;i++) {
+                entry(zip,"assets/ndg/items/"+names[i]+".json", "{\"model\":{\"type\":\"minecraft:model\",\"model\":\"ndg:item/"+names[i]+"\"}}");
+                String model = """
+                        {"textures":{"disc":"minecraft:block/%s","particle":"minecraft:block/%s"},
+                        "display":{"gui":{"rotation":[30,30,0],"scale":[1.1,1.1,1.1]},
+                        "firstperson_righthand":{"rotation":[0,0,-15],"translation":[0,1,0],"scale":[0.7,0.7,0.7]},
+                        "ground":{"scale":[0.6,0.6,0.6]}},
+                        "elements":[%s,%s,%s]}
+                        """.formatted(colors[i], colors[i], element(3,7,1,13,8,15), element(1,7,3,15,8,13), element(2,7,2,14,8,14));
+                entry(zip,"assets/ndg/models/item/"+names[i]+".json",model);
+            }
+        }
+        packBytes=bytes.toByteArray();
+        try { packHash=MessageDigest.getInstance("SHA-1").digest(packBytes); } catch(NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
+        Files.createDirectories(plugin.getDataFolder().toPath());
+        Files.write(plugin.getDataFolder().toPath().resolve("NormalDiscGolfPack.zip"),packBytes);
     }
-
-    public byte[] getHash() {
-        return this.packHash;
+    private static String element(int x,int y,int z,int xx,int yy,int zz) {
+        String face="{\"texture\":\"#disc\"}";
+        return "{\"from\":["+x+","+y+","+z+"],\"to\":["+xx+","+yy+","+zz+"],\"faces\":{\"up\":"+face+",\"down\":"+face+",\"north\":"+face+",\"south\":"+face+",\"east\":"+face+",\"west\":"+face+"}}";
     }
-
-    public String getPackUrl() {
-        return ResourcePackNetworking.getPackUrl();
+    private static void entry(ZipOutputStream zip,String name,String content) throws IOException {
+        zip.putNextEntry(new ZipEntry(name)); zip.write(content.getBytes(StandardCharsets.UTF_8)); zip.closeEntry();
     }
-
-    public void send(@NotNull Player player) {
-        player.addResourcePack(PACK_UUID, this.getPackUrl(), this.getHash(), "You need this resource pack in order to play NormalDiscGolf.", true);
+    public byte[] getBytes() { return packBytes; }
+    public byte[] getHash() { return packHash; }
+    public String getPackUrl() { return plugin.getConfig().getString("resource-pack.url", "").trim(); }
+    public boolean loaded(Player player) { return loaded.contains(player.getUniqueId()); }
+    public boolean ready(Player player) { return !plugin.getConfig().getBoolean("resource-pack.required",false) || loaded.contains(player.getUniqueId()); }
+    public void send(Player player) {
+        if (plugin.getConfig().getBoolean("resource-pack.enabled",true) && !getPackUrl().isBlank())
+            player.addResourcePack(PACK_UUID,getPackUrl(),packHash,"Disc models for NormalDiscGolf",plugin.getConfig().getBoolean("resource-pack.required",false));
     }
-
+    @EventHandler public void status(PlayerResourcePackStatusEvent event) {
+        if (!PACK_UUID.equals(event.getID())) return;
+        if(event.getStatus()==PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) loaded.add(event.getPlayer().getUniqueId());
+        else if(event.getStatus()==PlayerResourcePackStatusEvent.Status.DECLINED || event.getStatus()==PlayerResourcePackStatusEvent.Status.FAILED_DOWNLOAD) {
+            loaded.remove(event.getPlayer().getUniqueId());
+            event.getPlayer().sendMessage("§eDisc models unavailable. You can play using the labeled vanilla items unless this server requires its pack.");
+        }
+    }
+    @EventHandler public void quit(PlayerQuitEvent event) { loaded.remove(event.getPlayer().getUniqueId()); }
+    @Override public void close() { if(server!=null) server.stop(0); loaded.clear(); }
 }

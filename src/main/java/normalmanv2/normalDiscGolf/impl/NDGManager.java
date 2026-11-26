@@ -86,6 +86,8 @@ public class NDGManager {
         return packed;
     }
 
+    public void closeResourcePack() { if (this.packed != null) this.packed.close(); }
+
     public PartyManager getPartyManager() {
         return this.partyManager;
     }

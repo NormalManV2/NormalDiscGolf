@@ -1,84 +1,41 @@
 package normalmanv2.normalDiscGolf.impl.course.grid;
 
-import normalmanv2.normalDiscGolf.common.division.Division;
-import normalmanv2.normalDiscGolf.impl.course.tile.Tile;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
-import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Material;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
-import org.jspecify.annotations.NonNull;
-
 import java.util.Random;
 
-public class CourseGridChunkGenerator extends ChunkGenerator {
-
+/** Natural parkland terrain with continuous elevation and blended fairway edges. */
+public final class CourseGridChunkGenerator extends ChunkGenerator {
     private final CourseGrid grid;
-
-    public CourseGridChunkGenerator(CourseGrid grid) {
-        this.grid = grid;
-    }
-
-    @Override
-    public void generateSurface(WorldInfo worldInfo, Random random, int chunkX, int chunkZ, ChunkData chunkData) {
-        int baseY = Constants.DEFAULT_TILE_Y;
-        int tileSize = Constants.DEFAULT_TILE_SIZE;
-
-        int minTileX = 0;
-        int minTileZ = 0;
-        int maxTileX = grid.getWidth() - 1;
-        int maxTileZ = grid.getDepth() - 1;
-
-        int worldX = chunkX << 4;
-        int worldZ = chunkZ << 4;
-
-        int tileX = Math.floorDiv(worldX, tileSize);
-        int tileZ = Math.floorDiv(worldZ, tileSize);
-
-        if (tileX < minTileX || tileX > maxTileX || tileZ < minTileZ || tileZ > maxTileZ) {
-            for (int x = 0; x < 16; x++) {
-                for (int z = 0; z < 16; z++) {
-                    for (int y = 0; y < 256; y++) {
-                        chunkData.setBlock(x, y, z, Material.AIR);
-                    }
-                }
-            }
-            return;
-        }
-
-        for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
-                int blockX = (chunkX << 4) + x;
-                int blockZ = (chunkZ << 4) + z;
-
-                int tx = Math.floorDiv(blockX, tileSize);
-                int tz = Math.floorDiv(blockZ, tileSize);
-
-                Tile tile = grid.getTile(tx, tz);
-                if (tile == null) continue;
-
-                Material blockType = getMaterial(tile);
-
-                for (int y = 0; y <= baseY; y++) {
-                    chunkData.setBlock(x, y, z, Material.DIRT);
-                }
-                chunkData.setBlock(x, baseY + 1, z, blockType);
-            }
+    public CourseGridChunkGenerator(CourseGrid grid) { this.grid = grid; }
+    @Override public void generateSurface(WorldInfo info, Random random, int chunkX, int chunkZ, ChunkData data) {
+        for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) {
+            int wx = chunkX * 16 + x, wz = chunkZ * 16 + z;
+            int y = grid.surfaceHeight(wx, wz);
+            var tile = grid.getTile(Math.floorDiv(wx, 16), Math.floorDiv(wz, 16));
+            var type = tile == null ? TileTypes.OUT_OF_BOUNDS : tile.getCollapsedState();
+            double route = grid.routeDistance(wx + .5, wz + .5);
+            double edge = Math.sin(wx * .37) * .8 + Math.cos(wz * .29) * .8;
+            double patch = Math.sin(wx / 5.7) * .55 + Math.cos(wz / 6.3) * .45
+                    + Math.sin((wx + wz) / 14.0) * .3;
+            Material surface = route > 8 + edge && patch > .65 ? Material.PODZOL
+                    : route > 10 + edge && patch < -.8 ? Material.COARSE_DIRT : Material.GRASS_BLOCK;
+            if (type == TileTypes.WATER) surface = Material.WATER;
+            if (type == TileTypes.SAND) surface = Material.SAND;
+            if (type == TileTypes.TEE) surface = Material.GRASS_BLOCK;
+            if (type == TileTypes.PIN
+                    && Math.hypot(Math.floorMod(wx, 16) - 8, Math.floorMod(wz, 16) - 8) < 5 + edge * .4)
+                surface = Material.MOSS_BLOCK;
+            data.setBlock(x, y - 6, z, Material.BEDROCK);
+            for (int ground = y - 5; ground < y; ground++) data.setBlock(x, ground, z, ground < y - 2 ? Material.STONE : Material.DIRT);
+            data.setBlock(x, y, z, surface);
         }
     }
-
-    private static @NonNull Material getMaterial(Tile tile) {
-        TileTypes type = tile.getCollapsedState();
-        return switch (type) {
-            case FAIRWAY -> Material.GRASS_BLOCK;
-            case OBSTACLE -> Material.COBBLESTONE;
-            case WATER -> Material.WATER;
-            case TEE -> Material.LIME_CONCRETE;
-            case PIN -> Material.RED_CONCRETE;
-            case OUT_OF_BOUNDS -> Material.BEDROCK;
-            case LIGHT_ROUGH -> Material.BONE_BLOCK;
-            case HEAVY_ROUGH -> Material.AMETHYST_BLOCK;
-            case SAND -> Material.SAND;
-        };
-    }
+    @Override public boolean shouldGenerateNoise() { return false; }
+    @Override public boolean shouldGenerateCaves() { return false; }
+    @Override public boolean shouldGenerateDecorations() { return false; }
+    @Override public boolean shouldGenerateMobs() { return false; }
+    @Override public boolean shouldGenerateStructures() { return false; }
 }

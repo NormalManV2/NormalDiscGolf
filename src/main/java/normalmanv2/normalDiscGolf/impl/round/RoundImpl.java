@@ -30,6 +30,9 @@ public class RoundImpl implements GameRound {
     private final DefaultRoundStrokeManager strokeManager;
     private final DefaultRoundScoreCardManager scoreCardManager;
 
+    private final RoundPlayState play = new RoundPlayState(this);
+    public RoundPlayState play() { return play; }
+
     private BukkitTask gameTask;
     private boolean isWired = false;
 
@@ -105,6 +108,8 @@ public class RoundImpl implements GameRound {
             this.gameTask.cancel();
             this.gameTask = null;
         }
+        RoundPresentation.cancelRound(this);
+        this.play.dispose();
         this.scoreCardManager.dispose();
         this.roundTeamManager.dispose();
         this.roundTurnManager.dispose();

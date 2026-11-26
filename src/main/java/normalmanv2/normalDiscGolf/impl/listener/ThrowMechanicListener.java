@@ -21,6 +21,8 @@ import java.util.UUID;
 public class ThrowMechanicListener implements Listener {
 
     private final Map<UUID, ThrowMechanicImpl> activeMechanics;
+    private final java.util.Set<PlayerInteractEvent> releases = java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+    public boolean released(PlayerInteractEvent event) { return releases.contains(event); }
 
     public ThrowMechanicListener() {
         this.activeMechanics = new HashMap<>();
@@ -36,7 +38,7 @@ public class ThrowMechanicListener implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() == Action.PHYSICAL) {
             return;
@@ -47,6 +49,7 @@ public class ThrowMechanicListener implements Listener {
             return;
         }
 
+        releases.add(event);
         event.setCancelled(true);
         int lockedPower = (int) Math.round(mechanic.getPower().get() * 100);
         event.getPlayer().sendMessage(ChatColor.GRAY + "Power locked: " + lockedPower + "%");
@@ -84,7 +87,7 @@ public class ThrowMechanicListener implements Listener {
         }
     }
 
-    private void cancelMechanic(UUID playerId) {
+    public void cancelMechanic(UUID playerId) {
         ThrowMechanicImpl mechanic = this.activeMechanics.remove(playerId);
         if (mechanic != null) {
             mechanic.dispose();
