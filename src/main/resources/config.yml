@@ -26,6 +26,9 @@ disc-shop:
   credits-per-basket: 10
   # UTC hours per rotation. Set to 0 to offer every disc year-round.
   rotation-hours: 24
+clubhouse:
+  # Build the shop, Daily board, and practice green near the overworld spawn.
+  enabled: true
 course:
   holes: 18
   # Use one terrain ID instead of random to keep the same environment across rounds.
@@ -80,6 +83,8 @@ spectating:
   long-putt-blocks: 10
 resource-pack:
   enabled: true
+  # Use textured NDG menu frames and buttons when the resource pack is loaded.
+  menu-textures: true
   # Set to a publicly reachable HTTP(S) address for remote players.
   # An empty URL serves the pack to clients connected from this machine.
   url: ""

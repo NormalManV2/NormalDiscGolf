@@ -38,6 +38,7 @@ public class ThrowDiscCommand extends AbstractCommand {
 
         GameRound round = this.findActiveRound(player);
         if (round == null) {
+            if (NDGManager.getInstance().getClubhouse().aim(player, args)) return;
             player.sendMessage(ChatColor.RED + "You are not in an active disc golf round.");
             return;
         }

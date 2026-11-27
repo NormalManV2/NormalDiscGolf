@@ -27,28 +27,33 @@ public final class DailyCompetition {
     private final Path directory;
     private final Supplier<? extends ConfigurationSection> config;
     private final Clock utc;
+    private final DailyGhostStore ghosts;
     private DailyLeaderboard current;
 
     public DailyCompetition(Path directory, Supplier<? extends ConfigurationSection> config, Clock clock) {
         this.directory = directory;
         this.config = config;
         this.utc = clock.withZone(ZoneOffset.UTC);
+        this.ghosts = new DailyGhostStore(directory.resolve("ghosts"));
     }
 
     public LocalDate todayDate() { return LocalDate.now(utc); }
 
-    public DailyLeaderboard today() throws IOException { return open(todayDate(), true); }
+    public DailyLeaderboard today() throws IOException { return open(todayDate(), true, true); }
+
+    public DailyLeaderboard publishedToday() throws IOException { return open(todayDate(), true, false); }
 
     public DailyLeaderboard board(LocalDate date) throws IOException {
-        return open(date, date.equals(todayDate()));
+        boolean isToday = date.equals(todayDate());
+        return open(date, isToday, isToday);
     }
 
-    private DailyLeaderboard open(LocalDate date, boolean isToday) throws IOException {
+    private DailyLeaderboard open(LocalDate date, boolean isToday, boolean create) throws IOException {
         if (isToday && current != null && current.course().date().equals(date)) return current;
         Path file = file(date);
         DailyLeaderboard board;
         if (Files.notExists(file)) {
-            if (!isToday) return null;
+            if (!create) return null;
             board = new DailyLeaderboard(DailyCourse.createDefinition(date, config.get()), Map.of());
             save(board);
         } else {
@@ -68,6 +73,16 @@ public final class DailyCompetition {
             if (played.date().equals(todayDate())) current = updated;
         }
         return updated;
+    }
+
+    public DailyGhost ghost(DailyLeaderboard board, UUID player) throws IOException {
+        var entry = board.entries().get(player);
+        return entry == null ? null : ghosts.load(board.course(), entry);
+    }
+
+    public boolean saveGhost(DailyLeaderboard board, StrokeStandings.Entry attempt, DailyGhost ghost) throws IOException {
+        var best = board.entries().get(attempt.player());
+        return best != null && best.strokes() == attempt.strokes() && ghosts.saveIfMissing(board.course(), best, ghost);
     }
 
     private Path file(LocalDate date) { return directory.resolve(date + ".yml"); }

@@ -125,7 +125,7 @@ async function main() {
     await start(players,true)
     await playHole(players,1,['ace','miss','miss'])
     await playHole(players,2,['miss','ace','miss'])
-    await command(c,'score',new RegExp('^1\\. '+b.name+' - 1 ace$'))
+    await command(c,'score text',new RegExp('^1\\. '+b.name+' - 1 ace$'))
     await playHole(players,3,['ace','ace','miss'])
     await finish(players,'Ace Race result: '+a.name+', '+b.name+' tie for first with 2 aces each.',
       ['1. '+a.name+' - 2 aces','1. '+b.name+' - 2 aces','3. '+c.name+' - 0 aces'])

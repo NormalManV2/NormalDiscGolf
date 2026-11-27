@@ -26,6 +26,7 @@ import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 import java.util.*;
@@ -49,9 +50,10 @@ public final class RoundPlayState {
     private HoleWind wind = HoleWind.CALM;
     private Shot shot;
     private PairedShotTurn pairedShotTurn;
-    private BukkitTask decalPause;
+    private BukkitTask basketCelebration;
     private long deadline;
     private int hole = -1;
+    private HoleFlyover flyover;
     private final RoundHud hud;
     public record Shot(UUID player, int hole, Team team, Location origin, Location release, PracticeContext practice) {}
     private record RouletteDraw(UUID player, DiscModel disc) {}
@@ -192,6 +194,7 @@ public final class RoundPlayState {
     public void startHole() {
         clearRouletteDraw();
         hole = round.getCurrentHole();
+        flyover = null;
         World world = round.world();
         if (round.getCourse() instanceof CustomCourse custom) customMarkers.show(custom, world, hole);
         wind = courseEvents.startHole(plugin().getConfig(), world, hole);
@@ -204,12 +207,17 @@ public final class RoundPlayState {
         // Avoid multiple conflicting teleports in the same tick at a hole transition.
         turnChanged(false);
     }
+
+    HoleFlyover flyover(World world, int holeNumber) {
+        if (flyover == null) flyover = new HoleFlyover(round.getCourse(), world, holeNumber);
+        return flyover;
+    }
     public String validate(Player player) {
         if (round.isOver() || round.getState() != RoundState.START) return "This round is not accepting throws.";
         if (RoundPresentation.isPreviewing(round)) return "Wait for the preview, or use /ndg skip.";
         if (spectating.replaying()) return "Wait for the instant replay, or use /ndg skip to exit your camera.";
         if (shot != null) return "Wait for the disc to land.";
-        if (decalPause != null) return "Wait for the basket celebration.";
+        if (basketCelebration != null) return "Wait for the basket celebration.";
         Team team = team(player.getUniqueId());
         if (round instanceof SingleThrowRound single && team != null && single.hasFinishedHole(team))
             return "Your " + format.label() + " attempt is complete. Wait for the next hole.";
@@ -256,6 +264,7 @@ public final class RoundPlayState {
                          Stance stance, boolean hazardContact, boolean expiredInAir) {
         Shot completed = shot;
         if (completed == null || !completed.player().equals(player.getUniqueId()) || completed.hole() != round.getCurrentHole() || round.isOver()) return;
+        if (round instanceof DailyRound daily) daily.ghosts().record(completed.player(), completed.hole(), spectating.recordedFrames());
         var clip = spectating.finishFlight(stance, goal);
         shot = null;
         clearRouletteDraw();
@@ -323,19 +332,39 @@ public final class RoundPlayState {
     private void scoreBasket(Player player, ScoreCard card, World world, double distance, RoundSpectating.Clip clip) {
         boolean scoredBefore = card.getHoleScores().containsKey(hole);
         Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, hole, round, distance));
-        if (!scoredBefore && card.getHoleScores().containsKey(hole) && !round.isOver()) {
-            boolean decal = showDecal(player, world);
-            if (spectating.playHighlight(player, card.getBaskets().get(hole), clip, round::nextTurn)) return;
-            if (decal) {
-                // Preserve the brief celebration before leaving the hole or course.
-                decalPause = Bukkit.getScheduler().runTaskLater(plugin(), () -> {
-                    decalPause = null;
-                    if (!round.isOver()) round.nextTurn();
-                }, 12L);
-                return;
-            }
+        ScoreCard.Basket result = card.getBaskets().get(hole);
+        if (!scoredBefore && result != null && round instanceof DailyRound daily)
+            daily.ghosts().announceHole(player.getUniqueId(), card, hole);
+        if (scoredBefore || result == null || round.isOver() || world.getPlayers().isEmpty()) {
+            round.nextTurn();
+            return;
         }
-        round.nextTurn();
+        Location basket = round.getCourse().basket(world, hole);
+        showDecal(player, basket);
+        playBasketBeat(basket, result.ace(), 0);
+        int duration = result.ace() ? 24 : 12;
+        basketCelebration = new BukkitRunnable() {
+            private int elapsed;
+
+            @Override public void run() {
+                elapsed += 4;
+                if (!round.isOver() && elapsed < duration) {
+                    playBasketBeat(basket, result.ace(), elapsed);
+                    return;
+                }
+                cancel();
+                basketCelebration = null;
+                if (!round.isOver() && !spectating.playHighlight(player, result, clip, round::nextTurn)) round.nextTurn();
+            }
+        }.runTaskTimer(plugin(), 4L, 4L);
+    }
+
+    private void playBasketBeat(Location basket, boolean ace, int elapsed) {
+        try {
+            BasketCelebration.beat(basket, ace, elapsed);
+        } catch (RuntimeException failure) {
+            plugin().getLogger().log(java.util.logging.Level.WARNING, "Could not render basket celebration", failure);
+        }
     }
 
     private void recordPairedAttempt(Player player, Shot completed, Location landing, boolean goal, boolean hazard,
@@ -467,18 +496,16 @@ public final class RoundPlayState {
         round.nextTurn();
     }
 
-    private boolean showDecal(Player player, World world) {
+    private void showDecal(Player player, Location basket) {
         var data = round.getPlayerDataManager().getDataByPlayer(player.getUniqueId());
-        if (data == null || world == null || round.isOver()) return false;
+        if (data == null) return;
         ScoreDecal decal = data.getDecalLocker().equipped();
-        if (decal == ScoreDecal.NONE) return false;
+        if (decal == ScoreDecal.NONE) return;
         try {
-            decal.show(round.getCourse().basket(world, hole).add(0, 1.45, 0));
+            decal.show(basket.clone().add(0, 1.45, 0));
         } catch (RuntimeException failure) {
             plugin().getLogger().log(java.util.logging.Level.WARNING, "Could not render basket decal", failure);
-            return false;
         }
-        return true;
     }
 
     private void awardPractice(Player player, DiscType disc, String technique, boolean hazard, boolean goal, Stance stance,
@@ -519,6 +546,7 @@ public final class RoundPlayState {
             return;
         }
         card.recordHoleScore(hole, maxStrokes(), round.getCourse().holePars().get(hole));
+        if (round instanceof DailyRound daily) daily.ghosts().announceHole(team.getOwner(), card, hole);
         card.resetCurrentStrokes();
         for (UUID id : team.getTeamMembers()) plugin().cancelMeter(id);
         round.setTeamScored(hole, team);
@@ -526,7 +554,7 @@ public final class RoundPlayState {
     }
     public void concede(Player player) {
         if (spectating.replaying()) { player.sendMessage(ChatColor.RED + "Wait for the instant replay to finish."); return; }
-        if (decalPause != null) { player.sendMessage("§cWait for the basket celebration."); return; }
+        if (basketCelebration != null) { player.sendMessage("§cWait for the basket celebration."); return; }
         if (shot != null || RoundPresentation.isPreviewing(round)) { player.sendMessage("§cWait for the shot or preview to finish."); return; }
         Team team = team(player.getUniqueId());
         if (team == null || !round.isTurn(team)) { player.sendMessage("§cConcede on your team's turn."); return; }
@@ -560,7 +588,7 @@ public final class RoundPlayState {
             var handler = NDGManager.getInstance().getRoundHandler();
             if (Bukkit.getPlayer(round.getTeams().getFirst().getOwner()) == null) handler.cancelRound(round);
             else handler.endRound(round);
-        } else if (decalPause != null || spectating.replaying()) {
+        } else if (basketCelebration != null || spectating.replaying()) {
             // The scheduled turn change will use the remaining teams.
             return;
         } else if (usesPairedAttempts() && current == team && !team.getTeamMembers().isEmpty()) {
@@ -581,6 +609,7 @@ public final class RoundPlayState {
         plugin().cancelMeter(id);
         courseEvents.removePlayer(id);
         spectating.removePlayer(id);
+        if (round instanceof DailyRound daily) daily.ghosts().remove(id);
         roundBags.remove(id);
         lockedDiscs.remove(id);
         if (rouletteDisc(id) != null) clearRouletteDraw();
@@ -608,7 +637,7 @@ public final class RoundPlayState {
         if (hole != round.getCurrentHole()) startHole();
         courseEvents.tick();
         if (RoundPresentation.isPreviewing(round) || spectating.replaying()) turnChangedSilently();
-        if (shot == null && decalPause == null && !spectating.replaying() && System.currentTimeMillis() >= deadline && currentTeam() != null) {
+        if (shot == null && basketCelebration == null && !spectating.replaying() && System.currentTimeMillis() >= deadline && currentTeam() != null) {
             if (choosingLie() != null)
                 commitPairedLie(pairedShotTurn.fallback(choiceBasket()), "Choice timed out. Best Shot selected the closer lie");
             else {
@@ -618,6 +647,7 @@ public final class RoundPlayState {
             if (round.isOver()) return;
         }
         if (choosingLie() != null) showLieMarkers();
+        if (round instanceof DailyRound daily) daily.ghosts().tick();
         hud.update(Math.max(0, (deadline - System.currentTimeMillis()) / 1000));
     }
     private void turnChangedSilently() {
@@ -631,10 +661,11 @@ public final class RoundPlayState {
     public void dispose() {
         customMarkers.clear();
         spectating.dispose();
+        if (round instanceof DailyRound daily) daily.ghosts().clear();
         courseEvents.dispose();
-        if (decalPause != null) {
-            decalPause.cancel();
-            decalPause = null;
+        if (basketCelebration != null) {
+            basketCelebration.cancel();
+            basketCelebration = null;
         }
         for (Team team : round.getTeams()) for (UUID id : team.getTeamMembers()) plugin().cancelMeter(id);
         shot = null;

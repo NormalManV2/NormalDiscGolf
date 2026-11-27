@@ -4,14 +4,13 @@ import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.cosmetic.ScoreDecal;
 import normalmanv2.normalDiscGolf.impl.disc.DiscFlightResolver;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
-import org.bukkit.Bukkit;
+import normalmanv2.normalDiscGolf.impl.resourcepack.MenuSkin;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
@@ -85,10 +84,7 @@ public final class DecalShop extends InventoryGUI {
         return false;
     }
 
-    @Override
-    protected Inventory createInventory() {
-        return Bukkit.createInventory(null, 27, "Score Decals");
-    }
+    private DecalShop() { super(MenuSkin.DECALS); }
 
     @Override
     public void onOpen(InventoryOpenEvent event) {

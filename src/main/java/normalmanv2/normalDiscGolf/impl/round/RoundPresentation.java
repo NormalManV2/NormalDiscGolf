@@ -13,10 +13,15 @@ import java.util.*;
 /** Short, skippable flyover. The player's location is the camera; every exit restores state. */
 public final class RoundPresentation {
     private static final Map<UUID, Preview> PREVIEWS = new HashMap<>();
-    private record Preview(String roundId, Player player, Location destination, GameMode mode, boolean allowFlight, boolean flying, BukkitTask task) {}
+    private record Preview(String roundId, Player player, Location destination, GameMode mode, boolean allowFlight,
+                           boolean flying, String guidance, BukkitTask task) {}
     private RoundPresentation() {}
     public static boolean isPreviewing(Player player) { return PREVIEWS.containsKey(player.getUniqueId()); }
     public static boolean isPreviewing(GameRound round) { return PREVIEWS.values().stream().anyMatch(p -> p.roundId().equals(round.getId())); }
+    static String previewGuidance(Player player) {
+        Preview preview = PREVIEWS.get(player.getUniqueId());
+        return preview == null ? null : preview.guidance();
+    }
     public static void teleportToCurrentTee(Plugin plugin, Player player, GameRound round, boolean preview) {
         cancel(player);
         if (round.isOver() || !round.containsPlayer(player.getUniqueId())) return;
@@ -48,40 +53,34 @@ public final class RoundPresentation {
     public static void playHolePreview(Plugin plugin, Player player, GameRound round) {
         cancel(player);
         if (round.isOver() || !player.isOnline()) return;
-        CourseImpl course = (CourseImpl)round.getCourse();
+        var impl = (RoundImpl)round;
+        CourseImpl course = impl.getCourse();
         int hole = round.getCurrentHole();
-        World world = ((RoundImpl) round).world();
+        World world = impl.world();
         if (world == null || course.isCustom()) return;
-        Location destination = teePosition(round, player, world), basket = course.basket(world, hole);
-        List<Location> path = new ArrayList<>();
-        path.add(course.tee(world, hole));
-        var route = course.grid().centerline(hole);
-        for (int i = 1; i < route.size() - 1; i++) {
-            var point = route.get(i);
-            int x = point.x(), z = point.z();
-            if (course.grid().surfaceType(x, z).isHazard()) continue;
-            path.add(new Location(world, x + .5, course.grid().surfaceHeight(x, z) + 1, z + .5));
-        }
-        path.add(basket);
+        Location destination = teePosition(round, player, world);
+        HoleFlyover flyover = impl.play().flyover(world, hole);
         int ticks = Math.clamp(plugin.getConfig().getInt("preview.seconds", 6), 2, 10) * 20;
-        HolePreviewPath flightPath = new HolePreviewPath(path);
         GameMode mode = player.getGameMode();
         boolean allowFlight = player.getAllowFlight(), flying = player.isFlying();
         player.setGameMode(GameMode.SPECTATOR);
-        player.teleport(flightPath.frame(0));
+        player.teleport(flyover.frame(0));
         player.sendTitle("§aHole " + (hole + 1) + " • " + course.grid().holeName(hole),
-                "§f" + course.grid().terrain().label() + " • Par " + course.holePars().get(hole) + " • Sneak to skip", 5, 60, 10);
+                "§f" + flyover.subtitle(), 5, Math.min(60, ticks - 15), 10);
         BukkitTask task = new BukkitRunnable() {
             private int elapsed;
             public void run() {
                 if (!player.isOnline() || round.isOver() || !round.containsPlayer(player.getUniqueId()) || round.getCurrentHole() != hole || elapsed >= ticks) {
                     RoundPresentation.cancel(player); return;
                 }
-                Location camera = flightPath.frame(elapsed++ / (double)(ticks-1));
+                double progress = elapsed / (double)(ticks - 1);
+                Location camera = flyover.frame(progress);
                 player.teleport(camera);
+                if (elapsed++ % 8 == 0) flyover.markRoute(player, camera, progress);
             }
         }.runTaskTimer(plugin, 1L, 1L);
-        PREVIEWS.put(player.getUniqueId(), new Preview(round.getId(), player, destination, mode, allowFlight, flying, task));
+        PREVIEWS.put(player.getUniqueId(), new Preview(round.getId(), player, destination, mode, allowFlight, flying,
+                flyover.guidance(), task));
     }
     public static void cancel(Player player) {
         Preview preview = PREVIEWS.remove(player.getUniqueId());
@@ -99,7 +98,12 @@ public final class RoundPresentation {
         Location tee = impl.getCourse().tee(world, round.getCurrentHole());
         UUID active = impl.play().thrower(impl.play().currentTeam());
         if (player.getUniqueId().equals(active)) return tee;
-        return watchingPosition(impl, player, tee);
+        Location position = watchingPosition(impl, player, tee);
+        if (!impl.getCourse().isCustom() && impl.getCourse().grid().woodlandHole(round.getCurrentHole()) != null) {
+            position.setYaw(tee.getYaw());
+            position.setPitch(tee.getPitch());
+        }
+        return position;
     }
 
     private static Location watchingPosition(RoundImpl round, Player player, Location lie) {

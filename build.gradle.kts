@@ -24,15 +24,7 @@ dependencies {
     testImplementation("org.spigotmc:spigot-api:1.21.8-R0.1-SNAPSHOT")
     compileOnly("com.sk89q.worldedit:worldedit-core:7.3.19")
     compileOnly("com.sk89q.worldedit:worldedit-bukkit:7.3.19")
-    compileOnly("io.netty:netty-all:4.2.5.Final")
-
     implementation("org.NormalMan:NormalAPI:1.1")
-
-    implementation("net.radstevee.packed:packed-core:1.1.2")
-
-    implementation("net.mcbrawls.inject:api:3.1.2")
-    implementation("net.mcbrawls.inject:spigot:3.1.2")
-    implementation("net.mcbrawls.inject:http:3.1.2")
 }
 
 tasks {
@@ -53,8 +45,6 @@ tasks {
     shadowJar {
         fun relocate(packageName: String) = relocate(packageName, "normalmanv2.normalDiscGolf.shaded.$packageName")
         relocate("org.normal")
-        relocate("net.mcbrawls.inject")
-        relocate("net.radstevee.packed")
 
         dependencies {
             exclude(dependency("it.unimi.dsi:fastutil"))

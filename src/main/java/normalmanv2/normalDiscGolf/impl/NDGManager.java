@@ -2,6 +2,7 @@ package normalmanv2.normalDiscGolf.impl;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.division.Division;
+import normalmanv2.normalDiscGolf.impl.clubhouse.Clubhouse;
 import normalmanv2.normalDiscGolf.impl.course.creator.CourseCreator;
 import normalmanv2.normalDiscGolf.impl.competition.DailyCompetition;
 import normalmanv2.normalDiscGolf.impl.competition.RankedSeasons;
@@ -44,6 +45,7 @@ public class NDGManager {
     private final DiscCatalog discCatalog;
     private final CustomCourseStore customCourses;
     private final DailyCompetition dailyCompetition;
+    private final Clubhouse clubhouse;
     private final RankedSeasons rankedSeasons;
     private final WeeklyTournaments weeklyTournaments;
     private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
@@ -67,9 +69,11 @@ public class NDGManager {
         this.customCourses = new CustomCourseStore(plugin.getDataFolder().toPath().resolve("custom-courses"), plugin.getLogger());
         this.dailyCompetition = new DailyCompetition(plugin.getDataFolder().toPath().resolve("daily-courses"),
                 plugin::getConfig, java.time.Clock.systemUTC());
+        this.clubhouse = new Clubhouse(plugin);
         this.playerDataManager = new PlayerDataManager(new PlayerProfileStore(this.plugin, discCatalog));
         this.rankedSeasons = new RankedSeasons(plugin, this.playerDataManager, java.time.Clock.systemUTC());
-        this.obstacleRegistry = new ObstacleRegistry();
+        this.obstacleRegistry = Bukkit.getPluginManager().isPluginEnabled("WorldEdit")
+                ? new ObstacleRegistry() : new RegistryImpl<>();
         this.fileManager = new FileManager(plugin);
         this.obstacleManager = new ObstacleManager(this.fileManager);
         this.roundHandler = new RoundHandler(plugin);
@@ -87,8 +91,8 @@ public class NDGManager {
                 throw new IllegalStateException("NDGManager is being initialized");
             }
             initializing = true;
-            instance = new NDGManager();
-            initializing = false;
+            try { instance = new NDGManager(); }
+            finally { initializing = false; }
         }
         return instance;
     }
@@ -138,6 +142,7 @@ public class NDGManager {
     public DiscCatalog getDiscCatalog() { return discCatalog; }
     public CustomCourseStore getCustomCourses() { return customCourses; }
     public DailyCompetition getDailyCompetition() { return dailyCompetition; }
+    public Clubhouse getClubhouse() { return clubhouse; }
     public RankedSeasons getRankedSeasons() { return rankedSeasons; }
     public WeeklyTournaments getWeeklyTournaments() { return weeklyTournaments; }
 

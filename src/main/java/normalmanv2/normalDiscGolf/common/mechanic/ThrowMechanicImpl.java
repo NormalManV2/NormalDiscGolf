@@ -1,6 +1,7 @@
 package normalmanv2.normalDiscGolf.common.mechanic;
 
 import com.google.common.util.concurrent.AtomicDouble;
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
@@ -40,6 +41,7 @@ public class ThrowMechanicImpl implements ThrowMechanic {
     private final ShotSetup.Stance stance;
     private final PlayerSkills skills;
     private final PlayerSkills.PracticeContext practice;
+    private final boolean practiceThrow;
     private BukkitTask task;
     private boolean disposed;
 
@@ -54,16 +56,28 @@ public class ThrowMechanicImpl implements ThrowMechanic {
     }
 
     public ThrowMechanicImpl(UUID playerId, Plugin plugin, DiscImpl disc, GameRound round, String throwTechnique, ArcadeDisc arcadeDisc) {
+        this(playerId, plugin, disc, round, throwTechnique, arcadeDisc, false);
+    }
+
+    public static void forPractice(UUID playerId, NormalDiscGolfPlugin plugin, DiscImpl disc, String technique) {
+        new ThrowMechanicImpl(playerId, plugin, disc, null, technique, null, true);
+    }
+
+    private ThrowMechanicImpl(UUID playerId, Plugin plugin, DiscImpl disc, GameRound round, String throwTechnique,
+                              ArcadeDisc arcadeDisc, boolean practiceThrow) {
         this.playerId = playerId;
         this.plugin = plugin;
         this.disc = disc;
         this.arcadeDisc = arcadeDisc;
         this.round = round;
         this.throwTechnique = throwTechnique;
+        this.practiceThrow = practiceThrow;
         RoundImpl liveRound = round instanceof RoundImpl impl ? impl : null;
-        this.setup = liveRound == null ? ShotSetup.DEFAULT : liveRound.play().setup(playerId);
+        this.setup = practiceThrow ? new ShotSetup(ShotSetup.Angle.FLAT,
+                disc.getType() == DiscType.PUTTER ? ShotSetup.Stance.PUTT : ShotSetup.Stance.NORMAL, true, true)
+                : liveRound == null ? ShotSetup.DEFAULT : liveRound.play().setup(playerId);
         this.stance = setup.stance() == ShotSetup.Stance.PUTT
-                && (liveRound == null || !setup.usesPutting(disc.getType() == DiscType.PUTTER, liveRound.play().distanceToBasket(playerId)))
+                && !practiceThrow && (liveRound == null || !setup.usesPutting(disc.getType() == DiscType.PUTTER, liveRound.play().distanceToBasket(playerId)))
                 ? ShotSetup.Stance.NORMAL : setup.stance();
         var personal = NDGManager.getInstance().getPlayerDataManager().getOrCreatePlayerData(playerId).getSkills();
         this.skills = liveRound == null ? personal : liveRound.play().effectiveSkills(personal);
@@ -118,6 +132,7 @@ public class ThrowMechanicImpl implements ThrowMechanic {
     }
     public ShotSetup.Stance stance() { return stance; }
     public boolean isPutting() { return stance == ShotSetup.Stance.PUTT; }
+    public boolean isPractice() { return practiceThrow; }
     public boolean isDisposed() { return disposed; }
     public double spreadMultiplier() { return spreadMultiplier; }
     public PlayerSkills effectiveSkills() { return skills; }
@@ -183,6 +198,10 @@ public class ThrowMechanicImpl implements ThrowMechanic {
                 dispose();
                 return;
             }
+            if (practiceThrow && !NDGManager.getInstance().getClubhouse().atTee(player)) {
+                dispose();
+                return;
+            }
             if (timing) {
                 marker = marker >= .99 ? 0 : marker + .1;
                 updateTimingBar();
@@ -196,8 +215,10 @@ public class ThrowMechanicImpl implements ThrowMechanic {
                 bossBar.setProgress(newPower);
                 bossBar.setTitle(powerTitle());
             }
-            if (setup.preview() && elapsed % 6 == 0 && round instanceof RoundImpl liveRound)
-                DiscFlightEngine.preview(player, skills, this, liveRound);
+            if (setup.preview() && elapsed % 6 == 0) {
+                if (practiceThrow) NDGManager.getInstance().getClubhouse().preview(player, this);
+                else if (round instanceof RoundImpl liveRound) DiscFlightEngine.preview(player, skills, this, liveRound);
+            }
             elapsed += 2;
         }, 0, 2);
 
@@ -213,8 +234,15 @@ public class ThrowMechanicImpl implements ThrowMechanic {
         if (hint != null) player.sendMessage(ChatColor.GRAY + hint);
         player.sendMessage(ChatColor.YELLOW + (setup.timing() ? "Click to lock power, then click when the timing bar is green."
                 : "Aim your throw, then click once to release."));
+        player.sendMessage(ChatColor.GRAY + (practiceThrow ? "Cancel with /ndg shot cancel."
+                : "Use your drop key or /ndg shot cancel to stop aiming."));
 
         TaskManager.registerTask(this.task, playerId);
+
+        if (practiceThrow) {
+            ((NormalDiscGolfPlugin)plugin).trackPracticeMeter(this);
+            return;
+        }
 
         ThrowMechanicEvent event = new ThrowMechanicEvent(ThrowState.POWER, player, this);
         Bukkit.getPluginManager().callEvent(event);

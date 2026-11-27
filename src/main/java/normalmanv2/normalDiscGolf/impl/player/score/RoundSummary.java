@@ -3,11 +3,14 @@ package normalmanv2.normalDiscGolf.impl.player.score;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.OptionalDouble;
 
 public record RoundSummary(String roundLabel, String scoreLine, RoundAnalytics.Stats stats, boolean markedFairways) {
+    public record Metric(String name, String value) {}
+
     public void sendTo(Player player) {
         player.sendMessage(ChatColor.GOLD + header());
         for (String line : detailLines()) player.sendMessage(ChatColor.GRAY + line);
@@ -16,12 +19,19 @@ public record RoundSummary(String roundLabel, String scoreLine, RoundAnalytics.S
     public String header() { return "Round summary - " + roundLabel; }
 
     public List<String> detailLines() {
-        return List.of(scoreLine,
-                "Longest drive: " + distance(stats.longestDrive()),
-                "Longest putt: " + distance(stats.longestPutt()),
-                "Fairway hits: " + (markedFairways ? rate(stats.fairwayHits(), stats.drives(), "no drives") : "— (no marked fairways)"),
-                "Putting accuracy: " + rate(stats.puttsMade(), stats.puttAttempts(), "no putts"),
-                "OB penalties: " + stats.obPenalties());
+        var lines = new ArrayList<String>();
+        lines.add(scoreLine);
+        for (Metric metric : metrics()) lines.add(metric.name() + ": " + metric.value());
+        return List.copyOf(lines);
+    }
+
+    public List<Metric> metrics() {
+        return List.of(
+                new Metric("Longest drive", distance(stats.longestDrive())),
+                new Metric("Longest putt", distance(stats.longestPutt())),
+                new Metric("Fairway hits", markedFairways ? rate(stats.fairwayHits(), stats.drives(), "no drives") : "— (no marked fairways)"),
+                new Metric("Putting accuracy", rate(stats.puttsMade(), stats.puttAttempts(), "no putts")),
+                new Metric("OB penalties", Integer.toString(stats.obPenalties())));
     }
 
     private static String distance(OptionalDouble distance) {

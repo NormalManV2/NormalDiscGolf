@@ -89,8 +89,8 @@ public final class RoundSpectating {
         live = true;
         discPosition = disc.getLocation();
         heading = horizontal(thrower.getLocation().getDirection());
-        if (replaysAvailable()) {
-            liveItem = disc.getItemStack().clone();
+        if (replaysAvailable()) liveItem = disc.getItemStack().clone();
+        if (liveItem != null || round instanceof DailyRound) {
             liveFrames = new ArrayList<>();
             liveFrames.add(discPosition.clone());
         }
@@ -111,8 +111,10 @@ public final class RoundSpectating {
         move(position);
     }
 
+    List<Location> recordedFrames() { return liveFrames == null ? List.of() : liveFrames; }
+
     Clip finishFlight(Stance stance, boolean goal) {
-        Clip clip = goal && liveFrames != null && liveFrames.size() > 1
+        Clip clip = goal && liveItem != null && liveFrames != null && liveFrames.size() > 1
                 ? new Clip(liveItem, List.copyOf(liveFrames), stance == Stance.PUTT) : null;
         abortFlight();
         return clip;

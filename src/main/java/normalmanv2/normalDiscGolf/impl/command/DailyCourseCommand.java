@@ -2,6 +2,8 @@ package normalmanv2.normalDiscGolf.impl.command;
 
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
+import normalmanv2.normalDiscGolf.api.round.GameRound;
+import normalmanv2.normalDiscGolf.impl.round.DailyRound;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
@@ -9,6 +11,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
 import java.util.logging.Level;
 
 final class DailyCourseCommand {
@@ -18,7 +21,7 @@ final class DailyCourseCommand {
 
     static void leaderboard(Player player, String[] args) {
         if (args.length > 4 || args.length > 1 && !args[1].equalsIgnoreCase("leaderboard")) {
-            player.sendMessage(ChatColor.YELLOW + "Use /ndg daily play or /ndg daily leaderboard [today|YYYY-MM-DD] [page].");
+            player.sendMessage(ChatColor.YELLOW + "Use /ndg daily play, /ndg daily leaderboard [today|YYYY-MM-DD] [page], or /ndg daily ghost.");
             return;
         }
         var daily = NDGManager.getInstance().getDailyCompetition();
@@ -61,9 +64,27 @@ final class DailyCourseCommand {
         }
     }
 
+    static void ghost(Player player, GameRound active, String[] args) {
+        if (!(active instanceof DailyRound round)) {
+            player.sendMessage(ChatColor.YELLOW + "Daily ghosts are available while playing the Daily Course.");
+            return;
+        }
+        if (args.length == 2) {
+            round.ghosts().sendStatus(player);
+            return;
+        }
+        switch (args.length == 3 ? args[2].toLowerCase(Locale.ROOT) : "") {
+            case "on" -> round.ghosts().setVisible(player, true);
+            case "off" -> round.ghosts().setVisible(player, false);
+            case "compare" -> round.ghosts().sendComparison(player, true);
+            default -> player.sendMessage(ChatColor.YELLOW + "Use /ndg daily ghost [on|off|compare].");
+        }
+    }
+
     static List<String> complete(String[] args) {
-        if (args.length == 2) return List.of("play", "leaderboard");
+        if (args.length == 2) return List.of("play", "leaderboard", "ghost");
         if (args.length == 3 && args[1].equalsIgnoreCase("leaderboard")) return List.of("today");
+        if (args.length == 3 && args[1].equalsIgnoreCase("ghost")) return List.of("on", "off", "compare");
         return List.of();
     }
 }

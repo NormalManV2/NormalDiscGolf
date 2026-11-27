@@ -11,6 +11,15 @@ const expectSkillXp = process.argv.includes('--expect-skill-xp')
 const expectTrickShots = process.argv.includes('--expect-trick-shots')
 const expectShotControls = process.argv.includes('--expect-shot-controls') || expectTrickShots
 const expectRoller = process.argv.includes('--expect-roller')
+const expectWoodlandVisuals = process.argv.includes('--expect-woodland-visuals')
+const flyoverHazard = process.env.NDG_EXPECT_FLYOVER_HAZARD
+const queueTerrain = process.env.NDG_TEST_QUEUE_TERRAIN
+const hazardColors = { Water: 0x4ad3ff, Lava: 0xff6c32, Void: 0xc57dff }
+const woodlandHints = {
+  'Cathedral Run': /Hold the center of the pine corridor/,
+  Fernbend: /Aim for the bend, then turn (left|right)/,
+  Mossgate: /Aim through the gap in the fairway/
+}
 const trickColors = {flex:0xffff00,tomahawk:0xff00ff,thumber:0xae7aff}
 const tricks = Object.keys(trickColors)
 const port = Number(process.env.NDG_TEST_PORT || 25569)
@@ -31,6 +40,16 @@ function connect(name) {
   states.set(bot,state);bots.push(bot)
   bot.on('error',error=>{state.error=error.message})
   bot.on('kicked',reason=>{state.error=JSON.stringify(reason)})
+  if (expectWoodlandVisuals) recordWoodlandPreview(bot, state)
+  if (flyoverHazard) {
+    state.flyoverDots = new Map()
+    bot._client.on('world_particles', packet => {
+      if (bot.game.gameMode !== 'spectator' || packet.particle.type !== 'dust') return
+      const color = packet.particle.data.color & 0xffffff
+      if (!state.flyoverDots.has(color)) state.flyoverDots.set(color, new Set())
+      state.flyoverDots.get(color).add([packet.x,packet.y,packet.z].join(','))
+    })
+  }
   if (expectShotControls) bot._client.on('world_particles', packet => {
     const capture = state.trickCapture
     const point = [packet.x,packet.y,packet.z]
@@ -63,10 +82,11 @@ function connect(name) {
       state.maxPreviewPitch=Math.max(state.maxPreviewPitch,Math.abs(bot.entity.pitch)*180/Math.PI)
     }
   })
-  bot.once('spawn',()=>{state.ready=true;state.original={position:bot.entity.position.clone(),mode:bot.game.gameMode,items:bot.inventory.items().map(i=>[i.name,i.count]).sort()}})
+  bot.once('spawn',()=>{state.ready=true})
   bot.on('messagestr',(message,position)=>{
     if(position==='game_info') {
       state.active=message.startsWith('Your turn')
+      if (flyoverHazard && bot.game.gameMode==='spectator' && message.includes(flyoverHazard)) state.hazardHint = message
       return
     }
     state.messages.push(message)
@@ -88,6 +108,57 @@ function connect(name) {
     if(message==='Round complete!') state.completed=true
   })
   return bot
+}
+
+function recordWoodlandPreview(bot, state) {
+  state.woodlandPreviews = new Map()
+  state.woodlandSigns = new Map()
+  state.woodlandHints = new Set()
+  let preview
+  bot._client.on('set_title_subtitle', packet => {
+    const text = JSON.stringify(packet.text)
+    for (const [layout, hint] of Object.entries(woodlandHints)) if (hint.test(text)) state.woodlandHints.add(layout)
+  })
+  bot._client.on('set_title_text', packet => {
+    const text = JSON.stringify(packet.text)
+    const layout = Object.keys(woodlandHints).find(name => text.includes(name))
+    if (!layout) return
+    preview = {dots: new Map(), frames: 0}
+    state.woodlandPreviews.set(layout, preview)
+  })
+  bot._client.on('entity_metadata', packet => {
+    const text = JSON.stringify(packet.metadata)
+    const layout = Object.keys(woodlandHints).find(name => text.includes(name))
+    if (layout && text.includes('HOLE')) state.woodlandSigns.set(layout, text)
+  })
+  bot._client.on('world_particles', packet => {
+    if (!preview || bot.game.gameMode !== 'spectator' || packet.particle.type !== 'dust') return
+    if ((packet.particle.data.color & 0xffffff) !== 0xffcd5f) return
+    const point = [packet.x, packet.z]
+    preview.dots.set(point.join(','), point)
+  })
+  bot.on('move', () => {
+    if (preview && bot.game.gameMode === 'spectator') preview.frames++
+  })
+}
+
+function checkWoodlandPreview(state) {
+  for (const [layout, hint] of Object.entries(woodlandHints)) {
+    const sign = state.woodlandSigns.get(layout)
+    assert.ok(sign, layout+' tee sign reached the client')
+    assert.match(sign, /Par.*blocks/, 'the sign shows par and distance')
+    assert.match(sign, hint, 'the sign shows the intended shot')
+    const preview = state.woodlandPreviews.get(layout)
+    assert.ok(preview?.frames >= 40, layout+' flyover follows a moving camera')
+    assert.ok(state.woodlandHints.has(layout), 'the same cue appears in the flyover')
+    const dots = [...preview.dots.values()]
+    assert.ok(dots.length >= 9, layout+' sends a visible route trail')
+    const [[x,z], [nextX,nextZ]] = dots
+    const span = Math.hypot(nextX-x,nextZ-z)
+    const offset = Math.max(...dots.map(([a,b]) => Math.abs((nextX-x)*(b-z)-(nextZ-z)*(a-x))/span))
+    if (layout === 'Fernbend') assert.ok(offset > 8, 'the trail turns at the dogleg')
+    else assert.ok(offset < .01, layout+' shows a straight line through its landmark')
+  }
 }
 async function playTurn(bot) {
   const state=states.get(bot);state.lock=true
@@ -205,6 +276,8 @@ function assertPreviewMatchesFlight(capture,trick) {
 async function main() {
   assert.ok(!(expectRoller && expectTrickShots),'run roller and trick checks separately')
   assert.ok(!expectTrickShots || names.length*expectedHoles>=tricks.length,'use four players or at least two holes to cover all tricks')
+  assert.ok(!expectWoodlandVisuals || (format==='ffa' && expectedHoles===3), 'use a three-hole Woodland FFA fixture')
+  assert.ok(!flyoverHazard || hazardColors[flyoverHazard], 'use Water, Lava, or Void to name the expected main hazard')
   names.forEach(connect)
   await until(()=>bots.every(b=>states.get(b).ready), 'client connections')
   if (expectPack) await until(()=>{
@@ -223,7 +296,14 @@ async function main() {
     command(bots[0],'party invite '+b.username);await pause(350)
     command(b,'party accept');await pause(350)
   }
-  command(bots[0],'queue '+format)
+  for (const bot of bots) {
+    states.get(bot).original = {
+      position:bot.entity.position.clone(),
+      mode:bot.game.gameMode,
+      items:bot.inventory.items().map(i=>[i.name,i.count]).sort()
+    }
+  }
+  command(bots[0],'queue '+format+(queueTerrain ? ' new '+queueTerrain : ''))
   await until(()=> {
     const state = states.get(bots[0])
     if (state.error) throw Error(state.error)
@@ -249,10 +329,18 @@ async function main() {
   for(const b of bots) {
     const state=states.get(b)
     assert.equal(b.game.gameMode,state.original.mode,'game mode restored')
-    assert.ok(b.entity.position.distanceTo(state.original.position)<2,'original location restored')
+    assert.ok(b.entity.position.distanceTo(state.original.position)<2,
+      b.username+' returned to '+b.entity.position+' from original '+state.original.position)
     assert.deepEqual(b.inventory.items().map(i=>[i.name,i.count]).sort(),state.original.items,'inventory restored')
     assert.ok(state.messages.some(m=>m==='Final standings:'),'final standings announced')
     assert.ok(state.previewFrames>0 && state.maxPreviewPitch<=35.01,'preview pitch stays bounded on the client')
+    if (expectWoodlandVisuals) checkWoodlandPreview(state)
+    if (flyoverHazard) {
+      assert.match(state.hazardHint ?? '', new RegExp(flyoverHazard+' (carry|beside the fairway).*Sneak to skip'), 'the preview names the hazard')
+      assert.ok(state.flyoverDots.get(0xffcd5f)?.size >= 5, 'gold route markers reach the viewer')
+      assert.ok(state.flyoverDots.get(hazardColors[flyoverHazard])?.size >= 8, 'the main hazard is marked in its own color')
+      assert.ok(state.flyoverDots.get(0xecffbf)?.size >= 12, 'the camera ends at a marked basket')
+    }
   }
   assert.ok(results.length>=expectedHoles*2,'network throws covered every hole')
   if(teamFormat) for(const b of bots) assert.ok(states.get(b).shots.size>0,'each doubles teammate threw')
@@ -263,6 +351,8 @@ async function main() {
   }
   if(bestShot) assert.ok(transcript.some(entry=>entry.message.includes(' selected lie ')),'played a chosen lie across holes')
   if(expectTrickShots) assert.deepEqual([...new Set(results.map(result=>result.stance))].sort(),[...tricks].sort(),'all tricks tested')
+  if(expectWoodlandVisuals) console.log('PASS: both clients received Woodland tee signs, shot cues, and route particles on all three moving flyovers.')
+  if(flyoverHazard) console.log('PASS: both clients received '+flyoverHazard.toLowerCase()+' guidance and separate route, hazard, and basket markers.')
   console.log('PASS: '+format+' '+expectedHoles+' holes, '+bots.length+' connected clients, '+results.length+' shots, flight lock, final standings, and restoration.')
   finished=true
 }

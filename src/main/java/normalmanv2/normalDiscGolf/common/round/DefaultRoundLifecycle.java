@@ -118,6 +118,8 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                     continue;
                 }
 
+                NDGManager.getInstance().getClubhouse().leavePractice(playerId);
+
                 player.setGameMode(org.bukkit.GameMode.ADVENTURE);
                 player.setAllowFlight(false);
                 player.setInvulnerable(true);
@@ -159,6 +161,11 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
         if (this.round instanceof DailyRound daily) {
             sendRoundMessage(ChatColor.AQUA + daily.definition().description());
             sendRoundMessage(ChatColor.GRAY + "Everyone uses starter discs and the same skill bonuses. Hole out on every hole to post a daily score.");
+            try {
+                daily.ghosts().loadBaselines(NDGManager.getInstance().getDailyCompetition());
+            } catch (java.io.IOException failure) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "Could not load Daily ghost baselines", failure);
+            }
         } else if (this.round instanceof WeeklyTournamentRound weekly) {
             sendRoundMessage(ChatColor.GOLD + "Weekly tournament is live. " + weekly.event().date() + " UTC.");
             sendRoundMessage(ChatColor.GRAY + "Everyone uses starter discs and the same skill bonuses. Hole out on every hole to place.");
@@ -270,18 +277,35 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
         for (Team team : daily.getTeams()) {
             UUID id = team.getOwner();
             ScoreCard card = daily.getScoreCardByTeam(team);
+            Player player = Bukkit.getPlayer(id);
+            if (player != null) daily.ghosts().sendComparison(player, false);
             if (daily.eligible(card, id)) {
                 attempts.add(new StrokeStandings.Entry(id, formatPlayerName(id), card.getTotalStrokes(), card.getTotalScore()));
             } else {
-                Player player = Bukkit.getPlayer(id);
                 if (player != null) player.sendMessage(ChatColor.YELLOW + "Hole out on every hole to post to the Daily Course leaderboard.");
             }
         }
         if (attempts.isEmpty()) return;
         try {
-            var updated = NDGManager.getInstance().getDailyCompetition().submit(daily.definition(), attempts);
+            var competition = NDGManager.getInstance().getDailyCompetition();
+            var updated = competition.submit(daily.definition(), attempts);
+            NDGManager.getInstance().getClubhouse().refreshBoard();
             Set<UUID> finished = new HashSet<>();
-            for (var attempt : attempts) finished.add(attempt.player());
+            for (var attempt : attempts) {
+                UUID id = attempt.player();
+                finished.add(id);
+                if (updated.entries().get(id).strokes() != attempt.strokes()) continue;
+                var ghost = daily.ghosts().completed(id, daily.getScoreCardById(id));
+                if (ghost == null) continue;
+                Player player = Bukkit.getPlayer(id);
+                try {
+                    if (competition.saveGhost(updated, attempt, ghost) && player != null)
+                        player.sendMessage(ChatColor.AQUA + "Daily ghost saved. Use /ndg daily ghost on in your next attempt.");
+                } catch (java.io.IOException failure) {
+                    plugin.getLogger().log(java.util.logging.Level.WARNING, "Could not save Daily ghost for " + id, failure);
+                    if (player != null) player.sendMessage(ChatColor.YELLOW + "Your score was saved. The Daily ghost could not be saved.");
+                }
+            }
             for (var standing : updated.standings()) {
                 UUID id = standing.entry().player();
                 if (!finished.contains(id)) continue;
@@ -449,7 +473,13 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
             var summary = new RoundSummary(label, summaryScore(active, id), active.play().analytics(id), !course.isCustom());
             active.getPlayerDataManager().getOrCreatePlayerData(id).setLatestRoundSummary(summary);
             Player player = Bukkit.getPlayer(id);
-            if (player != null) summary.sendTo(player);
+            if (player != null) {
+                summary.sendTo(player);
+                var link = new net.md_5.bungee.api.chat.TextComponent("[Open Round Summary]");
+                link.setColor(net.md_5.bungee.api.ChatColor.GOLD);
+                link.setClickEvent(new net.md_5.bungee.api.chat.ClickEvent(net.md_5.bungee.api.chat.ClickEvent.Action.RUN_COMMAND, "/ndg summary"));
+                player.spigot().sendMessage(link);
+            }
         }
     }
 

@@ -24,12 +24,6 @@ public class PlayerRoundQueueListener implements Listener {
             return;
         }
 
-        if (!NDGManager.getInstance().getFileManager().areRequiredObstaclesAvailable()) {
-            player.sendMessage(ChatColor.RED + "Disc golf courses are not ready: "
-                    + NDGManager.getInstance().getFileManager().getMissingRequiredObstaclesMessage());
-            return;
-        }
-
         if (this.queueManager.addPlayerToQueue(event.getPlayerId(), event.getRoundFormat())) {
             player.sendMessage(ChatColor.GREEN + "You have been queued for " + RoundFormat.parse(event.getRoundFormat()).label() + ".");
             return;

@@ -13,6 +13,9 @@ import normalmanv2.normalDiscGolf.impl.gui.DiscShop;
 import normalmanv2.normalDiscGolf.impl.gui.DecalShop;
 import normalmanv2.normalDiscGolf.impl.gui.BagMenu;
 import normalmanv2.normalDiscGolf.impl.gui.ClubhouseMenu;
+import normalmanv2.normalDiscGolf.impl.gui.PlayGuide;
+import normalmanv2.normalDiscGolf.impl.gui.RoundScorecardMenu;
+import normalmanv2.normalDiscGolf.impl.gui.RoundSummaryMenu;
 import normalmanv2.normalDiscGolf.impl.event.PlayerQueueRoundEvent;
 import normalmanv2.normalDiscGolf.impl.gui.round.RoundPickerGUI;
 import normalmanv2.normalDiscGolf.impl.manager.party.PartyManager;
@@ -81,29 +84,34 @@ public class DiscGolfCommand extends AbstractCommand {
             case "leave", "dequeue" -> this.leaveQueue(player);
             case "menu", "play" -> this.openMenu(player);
             case "status" -> this.sendStatus(player);
-            case "score", "scorecard" -> this.sendScore(player);
+            case "score", "scorecard" -> this.sendScore(player, textView(args));
             case "summary" -> {
                 var summary = NDGManager.getInstance().getPlayerDataManager().getOrCreatePlayerData(player.getUniqueId()).getLatestRoundSummary();
                 if (summary == null) player.sendMessage(ChatColor.YELLOW + "Finish a round to see a round summary.");
-                else summary.sendTo(player);
+                else if (textView(args)) summary.sendTo(player);
+                else RoundSummaryMenu.open(player, summary);
             }
             case "career", "profile", "stats" -> this.sendProfile(player);
             case "shop" -> this.shop(player, args);
             case "decals" -> this.decals(player, args);
             case "bag" -> BagMenu.open(player);
-            case "clubhouse" -> ClubhouseMenu.open(player);
+            case "clubhouse" -> {
+                if (args.length == 2 && args[1].equalsIgnoreCase("visit")) NDGManager.getInstance().getClubhouse().visit(player);
+                else ClubhouseMenu.open(player);
+            }
+            case "practice" -> practice(player, args);
+            case "guide" -> PlayGuide.open(player);
             case "course" -> CourseCommand.execute(player, args, this::formatQueueResult);
             case "daily" -> {
                 if (args.length == 2 && args[1].equalsIgnoreCase("play")) this.queuePlayer(player, new String[]{"queue", "daily"});
+                else if (args.length >= 2 && args[1].equalsIgnoreCase("ghost"))
+                    DailyCourseCommand.ghost(player, findActiveRound(player.getUniqueId()), args);
                 else DailyCourseCommand.leaderboard(player, args);
             }
             case "tournament" -> WeeklyTournamentCommand.execute(player, args);
             case "season" -> RankedSeasonCommand.execute(player, args);
-            case "shot" -> {
-                if (findActiveRound(player.getUniqueId()) instanceof normalmanv2.normalDiscGolf.impl.round.RoundImpl round)
-                    ShotCommand.execute(player, round, args);
-                else player.sendMessage(ChatColor.RED + "Shot settings are available during a round.");
-            }
+            case "shot" -> ShotCommand.execute(player,
+                    findActiveRound(player.getUniqueId()) instanceof RoundImpl round ? round : null, args);
             case "pack" -> this.resourcePack(player, args);
             case "party" -> this.handleParty(player, args);
             case "cancel" -> this.cancelRound(player);
@@ -152,7 +160,14 @@ public class DiscGolfCommand extends AbstractCommand {
             return ProfileAdminCommand.complete(sender, args);
         }
         if (args.length == 1) {
-            return this.matching(args[0], List.of("queue", "leave", "menu", "status", "score", "summary", "career", "profile", "shop", "bag", "clubhouse", "course", "daily", "tournament", "season", "decals", "pack", "party", "shot", "camera", "replay", "cancel", "skip", "lie", "concede", "quit", "help"));
+            return this.matching(args[0], List.of("queue", "leave", "menu", "guide", "status", "score", "summary", "career", "profile", "shop", "bag", "clubhouse", "practice", "course", "daily", "tournament", "season", "decals", "pack", "party", "shot", "camera", "replay", "cancel", "skip", "lie", "concede", "quit", "help"));
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("clubhouse")) return matching(args[1], List.of("visit"));
+        if (args.length == 2 && List.of("score", "scorecard", "summary").contains(args[0].toLowerCase(Locale.ROOT)))
+            return matching(args[1], List.of("text"));
+        if (args.length >= 2 && args[0].equalsIgnoreCase("practice")) {
+            if (args.length == 2) return matching(args[1], List.of("tee", "leave"));
+            if (args.length == 3 && args[1].equalsIgnoreCase("tee")) return matching(args[2], List.of("4", "8", "12"));
         }
         if (args.length >= 2 && args[0].equalsIgnoreCase("shot"))
             return matching(args[args.length - 1], ShotCommand.complete(args));
@@ -172,7 +187,7 @@ public class DiscGolfCommand extends AbstractCommand {
             if (args.length == 3) return matching(args[2],
                     NDGManager.getInstance().getDiscCatalog().models().stream().map(DiscModel::id).toList());
         }
-        if (args.length == 2 && args[0].equalsIgnoreCase("pack")) return matching(args[1], List.of("retry"));
+        if (args.length == 2 && args[0].equalsIgnoreCase("pack")) return matching(args[1], List.of("status", "retry"));
         if (args[0].equalsIgnoreCase("decals")) {
             if (args.length == 2) return matching(args[1], List.of("buy", "equip", "preview"));
             if (args.length == 3) return matching(args[2], Arrays.stream(ScoreDecal.values()).map(ScoreDecal::id).toList());
@@ -240,12 +255,11 @@ public class DiscGolfCommand extends AbstractCommand {
     private void resourcePack(Player player, String[] args) {
         try {
             var pack = NDGManager.getInstance().getPacked();
-            if (pack.loaded(player)) player.sendMessage(ChatColor.GREEN + "Parkland disc models are active.");
-            else if (pack.pending(player)) player.sendMessage(ChatColor.YELLOW + "Waiting for Minecraft to load the disc models.");
-            else if (args.length > 1 && args[1].equalsIgnoreCase("retry")) {
-                player.sendMessage(pack.send(player) ? ChatColor.GREEN + "Disc models offered again."
-                        : ChatColor.YELLOW + "Pack delivery is unavailable for this connection.");
-            } else player.sendMessage(ChatColor.GRAY + "Using vanilla disc icons. To try the disc models, use /ndg pack retry.");
+            if (args.length == 2 && args[1].equalsIgnoreCase("retry") && pack.send(player)) {
+                player.sendMessage(ChatColor.GREEN + "Disc models offered again.");
+                return;
+            }
+            player.sendMessage((pack.loaded(player) ? ChatColor.GREEN : ChatColor.GRAY) + pack.delivery(player).guidance());
         } catch (java.io.IOException | RuntimeException failure) {
             player.sendMessage(ChatColor.YELLOW + "The disc pack is unavailable. Vanilla disc icons are active.");
         }
@@ -449,10 +463,29 @@ public class DiscGolfCommand extends AbstractCommand {
         player.sendMessage(ChatColor.YELLOW + "You are not in a round or queue.");
     }
 
-    private void sendScore(Player player) {
+    private void practice(Player player, String[] args) {
+        var clubhouse = NDGManager.getInstance().getClubhouse();
+        if (args.length == 1) clubhouse.openPractice(player);
+        else if (args.length == 2 && args[1].equalsIgnoreCase("leave")) {
+            boolean left = clubhouse.leavePractice(player.getUniqueId());
+            player.sendMessage(ChatColor.GRAY + (left ? "Practice ended." : "Choose a trial disc with /ndg practice."));
+        } else if (args.length == 3 && args[1].equalsIgnoreCase("tee") && List.of("4", "8", "12").contains(args[2])) {
+            clubhouse.takeTee(player, Integer.parseInt(args[2]));
+        } else player.sendMessage(ChatColor.YELLOW + "Use /ndg practice, /ndg practice tee <4|8|12>, or /ndg practice leave.");
+    }
+
+    private static boolean textView(String[] args) {
+        return args.length == 2 && args[1].equalsIgnoreCase("text");
+    }
+
+    private void sendScore(Player player, boolean text) {
         GameRound activeRound = this.findActiveRound(player.getUniqueId());
         if (activeRound == null) {
             player.sendMessage(ChatColor.RED + "You are not in an active round.");
+            return;
+        }
+        if (!text && activeRound instanceof RoundImpl round && round.getScoreCardById(player.getUniqueId()) != null) {
+            RoundScorecardMenu.open(player, round);
             return;
         }
         if (activeRound instanceof MatchPlayRound match) {
@@ -511,6 +544,7 @@ public class DiscGolfCommand extends AbstractCommand {
         if (!scoreCard.getHoleScores().isEmpty()) {
             player.sendMessage(ChatColor.GRAY + "Completed holes: " + this.formatHoleScores(scoreCard));
         }
+        if (activeRound instanceof DailyRound daily) daily.ghosts().sendComparison(player, false);
 
         if (activeRound.getScoreCards().size() > 1) {
             player.sendMessage(ChatColor.GRAY + "Standings:");
@@ -870,6 +904,7 @@ public class DiscGolfCommand extends AbstractCommand {
         sender.sendMessage(ChatColor.GRAY + "/ndg lie <1|2> - Choose a lie in Best Shot Doubles.");
         sender.sendMessage(ChatColor.GRAY + "/ndg leave - Leave the queue.");
         sender.sendMessage(ChatColor.GRAY + "/ndg menu - Open the round picker.");
+        sender.sendMessage(ChatColor.GRAY + "/ndg guide - Open the controls and practice guide.");
         sender.sendMessage(ChatColor.GRAY + "/ndg status - Show your queue or round status.");
         sender.sendMessage(ChatColor.GRAY + "/ndg score - Show your scorecard.");
         sender.sendMessage(ChatColor.GRAY + "/ndg summary - Show your most recent completed round.");
@@ -879,9 +914,11 @@ public class DiscGolfCommand extends AbstractCommand {
         sender.sendMessage(ChatColor.GRAY + "/ndg shot - Choose a throw stance, set angle, timing and preview, or check wind.");
         sender.sendMessage(ChatColor.GRAY + "/ndg camera <on|off> - Follow the disc from behind during throws.");
         sender.sendMessage(ChatColor.GRAY + "/ndg replay <on|off> - Watch automatic ace and long putt replays.");
-        sender.sendMessage(ChatColor.GRAY + "/ndg clubhouse - Daily challenge, records and medals.");
+        sender.sendMessage(ChatColor.GRAY + "/ndg clubhouse [visit] - Open the clubhouse menu or visit near spawn.");
+        sender.sendMessage(ChatColor.GRAY + "/ndg practice [tee 4|8|12|leave] - Try discs between rounds.");
         sender.sendMessage(ChatColor.GRAY + "/ndg course - Build, list, or play saved custom courses.");
         sender.sendMessage(ChatColor.GRAY + "/ndg daily - See today's leaderboard or use /ndg daily play.");
+        sender.sendMessage(ChatColor.GRAY + "/ndg daily ghost [on|off|compare] - View your Daily best during a round.");
         sender.sendMessage(ChatColor.GRAY + "/ndg tournament - See the weekly schedule, sign up, or open standings.");
         sender.sendMessage(ChatColor.GRAY + "/ndg season - See ranked ratings, placement prizes, and season history.");
         sender.sendMessage(ChatColor.GRAY + "/ndg pack [retry] - Check or retry the disc models.");
@@ -928,8 +965,6 @@ public class DiscGolfCommand extends AbstractCommand {
         return switch (result) {
             case INVALID_FORMAT -> "Unknown round format. Available formats: " + queueFormats(", ") + ".";
             case RESOURCE_PACK_REQUIRED -> "A party member must finish loading the server resource pack.";
-            case REQUIRED_ASSETS_MISSING -> "Disc golf courses are not ready: "
-                    + NDGManager.getInstance().getFileManager().getMissingRequiredObstaclesMessage();
             case PLAYER_DATA_MISSING -> "A party member is missing player data. Have them rejoin and try again.";
             case PLAYER_OFFLINE -> "All party members must be online before queueing.";
             case PLAYER_IN_ACTIVE_ROUND -> "A party member is already in an active or preparing round.";

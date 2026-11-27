@@ -38,7 +38,7 @@ async function throwAndWait(state,shot,isNext) {
 
 async function checkStrokes(team,strokes) {
   for (const state of team)
-    await command(state,'score',new RegExp('^Current hole team strokes: '+strokes+'$'))
+    await command(state,'score text',new RegExp('^Current hole team strokes: '+strokes+'$'))
 }
 
 async function openTeamStroke(withBasket) {

@@ -207,7 +207,13 @@ public final class RoundPlayerListener implements Listener {
             event.setTo(lie);
         }
     }
-    @EventHandler public void drop(PlayerDropItemEvent event) { if(round(event.getPlayer())!=null) event.setCancelled(true); }
+    @EventHandler public void drop(PlayerDropItemEvent event) {
+        var player = event.getPlayer();
+        if (round(player) == null) return;
+        event.setCancelled(true);
+        if (NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class).cancelMeter(player.getUniqueId()))
+            player.sendMessage(ChatColor.YELLOW + "Aim cancelled. Your lie and turn are unchanged.");
+    }
     @EventHandler public void inventory(InventoryClickEvent event) { if(event.getWhoClicked() instanceof Player p && round(p)!=null) event.setCancelled(true); }
     @EventHandler public void drag(InventoryDragEvent event) { if(event.getWhoClicked() instanceof Player p && round(p)!=null) event.setCancelled(true); }
     @EventHandler public void pickup(EntityPickupItemEvent event) { if(event.getEntity() instanceof Player p && round(p)!=null) event.setCancelled(true); }

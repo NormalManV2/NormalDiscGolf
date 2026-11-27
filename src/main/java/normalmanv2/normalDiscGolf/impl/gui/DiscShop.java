@@ -2,7 +2,7 @@ package normalmanv2.normalDiscGolf.impl.gui;
 
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.disc.DiscModel;
-import org.bukkit.Bukkit;
+import normalmanv2.normalDiscGolf.impl.resourcepack.MenuSkin;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -33,10 +33,7 @@ public final class DiscShop extends InventoryGUI {
         else ShopActions.pack(player, model);
     }
 
-    @Override
-    protected Inventory createInventory() {
-        return Bukkit.createInventory(null, 54, "Parkland Pro Shop");
-    }
+    private DiscShop() { super(MenuSkin.SHOP); }
 
     @Override
     public void onOpen(InventoryOpenEvent event) {
@@ -68,6 +65,11 @@ public final class DiscShop extends InventoryGUI {
         }
         if (selected != null) {
             if (slot == 45) selected = null;
+            else if (slot == 33 && NDGManager.getInstance().getClubhouse().available()) {
+                DiscModel trial = selected;
+                ShopItems.navigate(player, getInventory(), () -> NDGManager.getInstance().getClubhouse().tryDisc(player, trial));
+                return;
+            }
             else if (slot == 31) {
                 var bag = ShopActions.bag(player);
                 if (!bag.owns(selected)) ShopActions.buy(player, selected);
@@ -104,11 +106,9 @@ public final class DiscShop extends InventoryGUI {
                 ChatColor.GRAY + "Click to refresh stock"));
         menu.setItem(48, ShopItems.icon(Material.BUNDLE, ChatColor.AQUA + "Your Bag",
                 ChatColor.GRAY + "" + bag.packed().size() + "/" + bag.capacity() + " discs packed"));
-        String modelStatus = "Vanilla icons · click to retry";
+        String modelStatus = "Vanilla icons · pack unavailable";
         try {
-            var pack = NDGManager.getInstance().getPacked();
-            if (pack.loaded(player)) modelStatus = "Custom disc models active";
-            else if (pack.pending(player)) modelStatus = "Waiting for Minecraft to load the pack";
+            modelStatus = NDGManager.getInstance().getPacked().delivery(player).label();
         } catch (java.io.IOException ignored) { /* Keep the fallback status visible. */ }
         menu.setItem(47, ShopItems.icon(Material.PAINTING, ChatColor.AQUA + "Disc Models", ChatColor.GRAY + modelStatus));
         menu.setItem(49, ShopItems.icon(Material.GOLD_NUGGET, ChatColor.GOLD + "" + bag.credits() + " credits",
@@ -147,6 +147,9 @@ public final class DiscShop extends InventoryGUI {
         menu.setItem(45, ShopItems.icon(Material.ARROW, ChatColor.YELLOW + "Back to the rack"));
         menu.setItem(22, ShopItems.disc(player, selected,
                 bag.owns(selected) ? ChatColor.GREEN + "In your collection" : ChatColor.GOLD + "Price: " + selected.price() + " credits"));
+        if (NDGManager.getInstance().getClubhouse().available())
+            menu.setItem(33, ShopItems.icon(Material.TARGET, ChatColor.GREEN + "Try on the Putting Green",
+                    ChatColor.GRAY + "Free practice with this disc"));
         if (bag.packed().contains(selected)) {
             menu.setItem(31, ShopItems.icon(Material.LIME_DYE, ChatColor.GREEN + "Already packed"));
         } else if (bag.owns(selected)) {

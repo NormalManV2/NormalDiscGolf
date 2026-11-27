@@ -147,7 +147,7 @@ public class CourseGrid {
     private void generateThemed() {
         if (width < 23 || depth < ((numHoles + 2) / 3) * 7 + 2)
             throw new IllegalStateException("Grid is too small for themed courses");
-        themed = new ThemedCourse(terrainSettings, seed, numHoles, courseLayout.shortHoles());
+        themed = new ThemedCourse(terrainSettings, seed, numHoles, courseLayout);
         for (int i = 0; i < numHoles; i++) {
             var hole = themed.hole(i);
             var tee = new GridPoint(hole.tee().x(), hole.teeY() + 1, hole.tee().z());
@@ -689,8 +689,20 @@ public class CourseGrid {
     }
 
     public String holeName(int hole) {
+        WoodlandHole featured = woodlandHole(hole);
+        if (featured != null) return featured.label();
         if (themed != null) return themed.hole(hole).archetype().label();
         return layouts.isEmpty() ? "Parkland" : layouts.get(hole).title;
+    }
+
+    public WoodlandHole woodlandHole(int hole) { return themed == null ? null : themed.hole(hole).woodlandHole(); }
+
+    public List<WoodlandHole.Landmark> woodlandLandmarks(int hole) {
+        return themed == null ? List.of() : themed.hole(hole).landmarks();
+    }
+
+    public boolean nearWoodlandLandmark(int x, int z, int clearance) {
+        return themed != null && themed.nearLandmark(x, z, clearance);
     }
 
     public GridPoint openingTarget(int hole) {
@@ -704,6 +716,12 @@ public class CourseGrid {
         var points = holeRoutePoints.get(hole);
         return themed != null ? points : points.stream()
                 .map(point -> new GridPoint(point.x() + 8, point.y(), point.z() + 8)).toList();
+    }
+
+    public boolean inHoleCell(int hole, int x, int z) {
+        if (themed == null && layouts.isEmpty()) return x >= 0 && z >= 0 && x < width * TILE_SIZE && z < depth * TILE_SIZE;
+        int cellSize = 7 * TILE_SIZE;
+        return Math.floorDiv(x - TILE_SIZE, cellSize) == hole % 3 && Math.floorDiv(z - TILE_SIZE, cellSize) == hole / 3;
     }
 
     public List<GridPoint> alternateLane(int hole) { return themed == null ? List.of() : themed.hole(hole).alternative(); }

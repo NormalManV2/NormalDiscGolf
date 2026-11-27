@@ -7,6 +7,7 @@ import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseTerrain;
 import normalmanv2.normalDiscGolf.impl.gui.InventoryGUI;
 import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
+import normalmanv2.normalDiscGolf.impl.resourcepack.MenuSkin;
 import normalmanv2.normalDiscGolf.impl.round.RoundFormat;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -30,9 +31,10 @@ final class CourseLobbiesGUI extends InventoryGUI {
     private int page;
     private BukkitTask refresh;
 
-    CourseLobbiesGUI(RoundFormat format) { this.format = format; }
-
-    @Override protected Inventory createInventory() { return Bukkit.createInventory(null, 54, "§4§lCourse Lobbies"); }
+    CourseLobbiesGUI(RoundFormat format) {
+        super(MenuSkin.LOBBIES);
+        this.format = format;
+    }
 
     @Override public void onOpen(InventoryOpenEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;

@@ -40,6 +40,7 @@ import normalmanv2.normalDiscGolf.impl.round.RoundFormat;
 import org.bukkit.*;
 import org.bukkit.block.data.type.Light;
 import org.bukkit.configuration.MemoryConfiguration;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 import java.util.*;
@@ -114,6 +115,7 @@ public final class ServerSmokeChecks extends JavaPlugin {
         checkEliminationCourseWrap(round);
         checkClosestToPinLanding(round, world);
         checkThemedWorlds(manager);
+        checkWoodlandWorld(manager);
         finishRound(round,world);
         verifyRoundRewards(round, players);
         var limitedTeam=doubles.play().currentTeam();
@@ -766,6 +768,52 @@ public final class ServerSmokeChecks extends JavaPlugin {
             } finally {
                 manager.getRoundHandler().discardRound(round);
             }
+        }
+    }
+
+    private void checkWoodlandWorld(NDGManager manager) {
+        var settings = new DefaultRoundSettings(8, RoundType.RECREATIONAL, Division.JUNIOR, false);
+        var grid = new CourseGrid(23, 9, List.of(TileTypes.values()), 3, 2026, CourseGrid.Layout.PARKLAND,
+                CourseGenerationSettings.defaults(CourseTerrain.WOODLAND));
+        String name = "ndg_smoke_woodland_" + UUID.randomUUID();
+        var course = new CourseImpl(Division.JUNIOR, grid, name);
+        var round = manager.getRoundHandler().createRound("ffa", course, name, settings, false);
+        try {
+            World world = Bukkit.getWorld(name);
+            check(world != null, "Woodland showcase world exists");
+            grid.generateObstacles(world);
+            for (int hole = 0; hole < 3; hole++) {
+                var tee = course.tee(world, hole);
+                check(tee.clone().add(2, -1, 0).getBlock().getType() == Material.STRIPPED_SPRUCE_WOOD,
+                        "Woodland tee pad has its spruce border");
+                var layout = grid.woodlandHole(hole);
+                var sign = world.getNearbyEntities(tee, 8, 4, 8).stream().filter(TextDisplay.class::isInstance)
+                        .map(TextDisplay.class::cast).filter(display -> display.getText().contains(layout.label()))
+                        .findFirst().orElseThrow();
+                check(sign.isPersistent() && sign.getText().contains("Par " + course.holePars().get(hole))
+                                && sign.getText().contains("blocks") && sign.getText().contains(layout.hint(grid.centerline(hole))),
+                        "the Woodland tee sign stays with its chunk and shows the current hole and shot tip");
+                check(sign.getLocation().toVector().subtract(tee.toVector()).dot(tee.getDirection()) > 0,
+                        "the tee sign is ahead of the player at the lie");
+                for (var landmark : grid.woodlandLandmarks(hole)) {
+                    int x = landmark.position().x(), z = landmark.position().z();
+                    int y = grid.surfaceHeight(x, z) + 1;
+                    Material cap = switch (landmark.type()) {
+                        case OLD_GROWTH_PINE -> Material.SPRUCE_LEAVES;
+                        case MOSSY_BOULDER -> Material.MOSS_BLOCK;
+                        case RUINED_GATEPOST -> Material.LANTERN;
+                    };
+                    int top = y + landmark.height() + switch (landmark.type()) {
+                        case OLD_GROWTH_PINE -> 0;
+                        case MOSSY_BOULDER -> -1;
+                        case RUINED_GATEPOST -> 1;
+                    };
+                    check(world.getBlockAt(x, top, z).getType() == cap, "placed Woodland " + landmark.type());
+                }
+            }
+            getLogger().info("NDG_WOODLAND_PASS");
+        } finally {
+            manager.getRoundHandler().discardRound(round);
         }
     }
 

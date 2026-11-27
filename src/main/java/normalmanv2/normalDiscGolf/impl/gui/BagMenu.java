@@ -4,15 +4,14 @@ import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.disc.DiscFlightResolver;
 import normalmanv2.normalDiscGolf.impl.disc.DiscModel;
 import normalmanv2.normalDiscGolf.impl.listener.RoundPlayerListener;
+import normalmanv2.normalDiscGolf.impl.resourcepack.MenuSkin;
 import normalmanv2.normalDiscGolf.impl.round.RoundImpl;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
-import org.bukkit.inventory.Inventory;
 import java.util.Map;
 
 public final class BagMenu extends InventoryGUI {
@@ -27,10 +26,7 @@ public final class BagMenu extends InventoryGUI {
         else gui.openGUI(new BagMenu(), player);
     }
 
-    @Override
-    protected Inventory createInventory() {
-        return Bukkit.createInventory(null, 54, "Your Disc Bag");
-    }
+    private BagMenu() { super(MenuSkin.BAG); }
 
     @Override
     public void onOpen(InventoryOpenEvent event) {
@@ -107,10 +103,9 @@ public final class BagMenu extends InventoryGUI {
     private static final class RoundBag extends InventoryGUI {
         private final RoundImpl round;
 
-        private RoundBag(RoundImpl round) { this.round = round; }
-
-        @Override protected Inventory createInventory() {
-            return Bukkit.createInventory(null, 27, "Round Disc Bag");
+        private RoundBag(RoundImpl round) {
+            super(MenuSkin.ROUND_BAG);
+            this.round = round;
         }
 
         @Override public void onOpen(InventoryOpenEvent event) {

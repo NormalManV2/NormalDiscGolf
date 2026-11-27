@@ -10,6 +10,7 @@ import org.bukkit.entity.TextDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.*;
+import org.bukkit.util.Vector;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -135,6 +136,7 @@ public final class ObstacleGenerator {
         var random = new Random(grid.seed() ^ tx * 341873128712L ^ tz * 132897987541L);
         for (int i = 0; i < 5; i++) {
             int x = tx * 16 + 2 + random.nextInt(12), z = tz * 16 + 2 + random.nextInt(12);
+            if (grid.nearWoodlandLandmark(x, z, 2)) continue;
             if (random.nextDouble() < density * .58 && protectedFootprint(world, x, z, 3)) {
                 feature(world, x, z, random, false);
             } else if (random.nextDouble() < density && protectedFootprint(world, x, z, 0)) {
@@ -211,34 +213,62 @@ public final class ObstacleGenerator {
         for (int dy = 0; dy < height; dy++) world.getBlockAt(x, y + dy, z).setType(log, false);
     }
     private void finishHole(World world, int hole) {
-            var tee = grid.getTeePoints().get(hole); var pin = grid.getHolePoints().get(hole);
-            int ty = grid.surfaceHeight(tee.x(), tee.z()), py = grid.surfaceHeight(pin.x(), pin.z());
-            if (grid.isThemed() && grid.terrainSettings().obstacleDensity() > 0) {
-                var random = new Random(grid.seed() + hole);
-                for (var guard : grid.guards(hole)) if (protectedFootprint(world, guard.x(), guard.z(), 3))
-                    feature(world, guard.x(), guard.z(), random, true);
-            }
-            for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
-                world.getBlockAt(tee.x()+dx, ty, tee.z()+dz).setType(Math.abs(dx)==2 || Math.abs(dz)==2 ? Material.STONE_BRICKS : Material.SMOOTH_STONE, false);
-                for (int dy = 1; dy <= 3; dy++) world.getBlockAt(tee.x()+dx, ty+dy, tee.z()+dz).setType(Material.AIR, false);
-            }
-            world.getBlockAt(pin.x(), py+1, pin.z()).setType(Material.IRON_BARS, false);
-            world.getBlockAt(pin.x(), py+2, pin.z()).setType(Material.CHAIN, false);
-            world.getBlockAt(pin.x(), py+3, pin.z()).setType(Material.YELLOW_CONCRETE, false);
-            for (int[] arm : new int[][]{{1,0},{-1,0},{0,1},{0,-1}}) {
-                world.getBlockAt(pin.x()+arm[0], py+1, pin.z()+arm[1]).setType(Material.IRON_TRAPDOOR, false);
-                world.getBlockAt(pin.x()+arm[0], py+2, pin.z()+arm[1]).setType(Material.CHAIN, false);
-                world.getBlockAt(pin.x()+arm[0], py+3, pin.z()+arm[1]).setType(Material.YELLOW_STAINED_GLASS, false);
-            }
-            var opening = grid.openingTarget(hole);
-            var forward = new org.bukkit.util.Vector(opening.x() - tee.x(), 0, opening.z() - tee.z()).normalize();
+        var tee = grid.getTeePoints().get(hole);
+        var pin = grid.getHolePoints().get(hole);
+        int ty = grid.surfaceHeight(tee.x(), tee.z()), py = grid.surfaceHeight(pin.x(), pin.z());
+        if (grid.isThemed() && grid.terrainSettings().obstacleDensity() > 0) {
+            var random = new Random(grid.seed() + hole);
+            for (var guard : grid.guards(hole)) if (protectedFootprint(world, guard.x(), guard.z(), 3))
+                feature(world, guard.x(), guard.z(), random, true);
+        }
+        for (var landmark : grid.woodlandLandmarks(hole)) WoodlandLandmarks.place(world, grid, landmark);
+
+        Material teeBorder = grid.woodlandHole(hole) == null ? Material.STONE_BRICKS : Material.STRIPPED_SPRUCE_WOOD;
+        for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+            Material tile = Math.abs(dx) == 2 || Math.abs(dz) == 2 ? teeBorder : Material.SMOOTH_STONE;
+            world.getBlockAt(tee.x() + dx, ty, tee.z() + dz).setType(tile, false);
+            for (int dy = 1; dy <= 3; dy++) world.getBlockAt(tee.x() + dx, ty + dy, tee.z() + dz).setType(Material.AIR, false);
+        }
+        world.getBlockAt(pin.x(), py + 1, pin.z()).setType(Material.IRON_BARS, false);
+        world.getBlockAt(pin.x(), py + 2, pin.z()).setType(Material.CHAIN, false);
+        world.getBlockAt(pin.x(), py + 3, pin.z()).setType(Material.YELLOW_CONCRETE, false);
+        for (int[] arm : new int[][]{{1,0},{-1,0},{0,1},{0,-1}}) {
+            world.getBlockAt(pin.x() + arm[0], py + 1, pin.z() + arm[1]).setType(Material.IRON_TRAPDOOR, false);
+            world.getBlockAt(pin.x() + arm[0], py + 2, pin.z() + arm[1]).setType(Material.CHAIN, false);
+            world.getBlockAt(pin.x() + arm[0], py + 3, pin.z() + arm[1]).setType(Material.YELLOW_STAINED_GLASS, false);
+        }
+
+        placeTeeSign(world, hole, tee, pin, ty);
+        label(world, new Location(world, pin.x() + .5, py + 4.3, pin.z() + .5), "§e⚑ " + (hole + 1));
+        // Validate the full centerline at standing and disc height after decoration.
+        validateLane(world, hole, grid.centerline(hole));
+        validateLane(world, hole, grid.alternateLane(hole));
+    }
+
+    private void placeTeeSign(World world, int hole, CourseGrid.GridPoint tee, CourseGrid.GridPoint pin, int ty) {
+        var opening = grid.openingTarget(hole);
+        var forward = new Vector(opening.x() - tee.x(), 0, opening.z() - tee.z()).normalize();
+        long distance = Math.round(Math.hypot(pin.x() - tee.x(), pin.z() - tee.z()));
+        String details = "§fPar " + grid.getHolePars().get(hole) + "  §7•  " + distance + " blocks";
+        var woodland = grid.woodlandHole(hole);
+        if (woodland == null) {
             var teeSign = new Location(world, tee.x() + .5, ty + 2.5, tee.z() + .5).subtract(forward.multiply(3.5));
-            label(world, teeSign,
-                    "§2§l" + grid.holeName(hole) + " • " + (hole+1) + "\n§fPar " + grid.getHolePars().get(hole) + "  §7•  " + Math.round(Math.hypot(pin.x()-tee.x(), pin.z()-tee.z())) + " blocks");
-            label(world, new Location(world, pin.x()+.5, py+4.3, pin.z()+.5), "§e⚑ " + (hole+1));
-            // Validate the full centerline at standing and disc height after decoration.
-            validateLane(world, hole, grid.centerline(hole));
-            validateLane(world, hole, grid.alternateLane(hole));
+            label(world, teeSign, "§2§l" + grid.holeName(hole) + " • " + (hole + 1) + "\n" + details);
+            return;
+        }
+
+        var sign = new Location(world, tee.x() + .5, ty + 2, tee.z() + .5)
+                .add(forward.clone().multiply(5)).add(new Vector(-forward.getZ(), 0, forward.getX()).multiply(3.5));
+        world.spawn(sign, TextDisplay.class, display -> {
+            display.setText("§6§lHOLE " + (hole + 1) + "  §r§f§l" + woodland.label() + "\n" + details
+                    + "\n§a" + woodland.hint(grid.centerline(hole)));
+            display.setLineWidth(230);
+            display.setBillboard(Display.Billboard.VERTICAL);
+            display.setBackgroundColor(Color.fromARGB(224, 17, 33, 24));
+            display.setShadowed(true);
+            display.setBrightness(new Display.Brightness(14, 14));
+            display.setViewRange(.55f);
+        });
     }
 
     private void validateLane(World world, int hole, List<CourseGrid.GridPoint> route) {

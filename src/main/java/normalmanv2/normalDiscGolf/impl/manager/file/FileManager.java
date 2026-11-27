@@ -4,6 +4,7 @@ import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
+import org.bukkit.Bukkit;
 
 import java.io.InputStream;
 import java.io.IOException;
@@ -182,6 +183,7 @@ public class FileManager {
             if (Files.size(schematicPath) <= 0) {
                 return false;
             }
+            if (!Bukkit.getPluginManager().isPluginEnabled("WorldEdit")) return true;
 
             ClipboardFormat format = ClipboardFormats.findByFile(schematicPath.toFile());
             if (format == null) {

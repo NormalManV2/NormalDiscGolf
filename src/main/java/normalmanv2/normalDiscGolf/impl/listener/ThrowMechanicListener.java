@@ -3,6 +3,7 @@ package normalmanv2.normalDiscGolf.impl.listener;
 import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
 import normalmanv2.normalDiscGolf.impl.event.DiscThrowEvent;
 import normalmanv2.normalDiscGolf.impl.event.ThrowMechanicEvent;
+import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.manager.flight.DiscFlightManager;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
@@ -13,25 +14,26 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.WeakHashMap;
 
 public class ThrowMechanicListener implements Listener {
 
-    private final Map<UUID, ThrowMechanicImpl> activeMechanics;
-    private final java.util.Set<PlayerInteractEvent> releases = java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+    private final Map<UUID, ThrowMechanicImpl> activeMechanics = new HashMap<>();
+    private final Set<PlayerInteractEvent> releases = Collections.newSetFromMap(new WeakHashMap<>());
     public boolean released(PlayerInteractEvent event) { return releases.contains(event); }
-
-    public ThrowMechanicListener() {
-        this.activeMechanics = new HashMap<>();
-    }
 
     @EventHandler
     public void onThrowMechanic(ThrowMechanicEvent event) {
-        ThrowMechanicImpl mechanic = (ThrowMechanicImpl) event.getMechanic();
-        ThrowMechanicImpl previousMechanic = this.activeMechanics.put(event.getPlayer().getUniqueId(), mechanic);
+        track((ThrowMechanicImpl) event.getMechanic());
+    }
+
+    public void track(ThrowMechanicImpl mechanic) {
+        ThrowMechanicImpl previousMechanic = this.activeMechanics.put(mechanic.getPlayerId(), mechanic);
 
         if (previousMechanic != null) {
             previousMechanic.dispose();
@@ -60,7 +62,8 @@ public class ThrowMechanicListener implements Listener {
         this.activeMechanics.remove(playerId);
         mechanic.dispose();
 
-        Bukkit.getPluginManager().callEvent(new DiscThrowEvent(mechanic));
+        if (mechanic.isPractice()) NDGManager.getInstance().getClubhouse().release(event.getPlayer(), mechanic);
+        else Bukkit.getPluginManager().callEvent(new DiscThrowEvent(mechanic));
     }
 
     @EventHandler
@@ -88,15 +91,14 @@ public class ThrowMechanicListener implements Listener {
     }
 
     public void cancelAll() {
-        for (UUID playerId : new ArrayList<>(this.activeMechanics.keySet())) {
-            this.cancelMechanic(playerId);
-        }
+        activeMechanics.values().forEach(ThrowMechanicImpl::dispose);
+        activeMechanics.clear();
     }
 
-    public void cancelMechanic(UUID playerId) {
-        ThrowMechanicImpl mechanic = this.activeMechanics.remove(playerId);
-        if (mechanic != null) {
-            mechanic.dispose();
-        }
+    public boolean cancelMechanic(UUID playerId) {
+        ThrowMechanicImpl mechanic = activeMechanics.remove(playerId);
+        if (mechanic == null || mechanic.isDisposed()) return false;
+        mechanic.dispose();
+        return true;
     }
 }

@@ -1,11 +1,14 @@
 package normalmanv2.normalDiscGolf.impl.course.grid;
 
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid.GridPoint;
+import normalmanv2.normalDiscGolf.impl.course.grid.WoodlandHole.Landmark;
+import normalmanv2.normalDiscGolf.impl.course.grid.WoodlandHole.LandmarkType;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 import org.bukkit.Material;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 
@@ -14,13 +17,15 @@ final class ThemedCourse {
     private static final int MARGIN = 16;
     private static final int COLUMNS = 3;
     private final CourseGenerationSettings settings;
+    private final long seed;
     private final List<Hole> holes;
     private final double phaseX;
     private final double phaseZ;
     private final int waterline;
 
     record Hole(HoleArchetype archetype, List<GridPoint> route, List<GridPoint> alternative,
-                List<GridPoint> guards, List<Pool> pools, int teeY, int basketY, double width, int par) {
+                List<GridPoint> guards, List<Pool> pools, int teeY, int basketY, double width, int par,
+                WoodlandHole woodlandHole, List<Landmark> landmarks) {
         GridPoint tee() { return route.getFirst(); }
         GridPoint basket() { return route.getLast(); }
         double distance(double x, double z) {
@@ -33,22 +38,29 @@ final class ThemedCourse {
 
     record Pool(GridPoint center, double innerRadius, double radius, boolean crossesFairway) {}
 
-    ThemedCourse(CourseGenerationSettings settings, long seed, int count, boolean shortLayout) {
+    ThemedCourse(CourseGenerationSettings settings, long seed, int count, CourseGrid.Layout layout) {
         this.settings = settings;
+        this.seed = seed;
         var random = new Random(seed);
         phaseX = random.nextDouble() * 1024;
         phaseZ = random.nextDouble() * 1024;
         waterline = settings.terrain().altitude - (settings.terrain() == CourseTerrain.ISLAND ? 7 : settings.elevation() + 5);
         var rotation = new ArrayList<>(settings.archetypes());
         var generated = new ArrayList<Hole>(count);
+        boolean featuredWoodland = settings.terrain() == CourseTerrain.WOODLAND && !layout.shortHoles();
         for (int index = 0; index < count; index++) {
-            if (index % rotation.size() == 0) Collections.shuffle(rotation, random);
-            generated.add(plan(index, rotation.get(index % rotation.size()), random, shortLayout));
+            if (index % rotation.size() == 0) {
+                Collections.shuffle(rotation, random);
+                if (featuredWoodland) rotation.sort(Comparator.comparing(type -> WoodlandHole.forArchetype(type) == null));
+            }
+            HoleArchetype archetype = rotation.get(index % rotation.size());
+            WoodlandHole woodlandHole = featuredWoodland ? WoodlandHole.forArchetype(archetype) : null;
+            generated.add(plan(index, archetype, random, layout.shortHoles(), woodlandHole));
         }
         holes = List.copyOf(generated);
     }
 
-    private Hole plan(int index, HoleArchetype archetype, Random random, boolean shortLayout) {
+    private Hole plan(int index, HoleArchetype archetype, Random random, boolean shortLayout, WoodlandHole woodlandHole) {
         int orientation = random.nextInt(8);
         int x0 = shortLayout ? random.nextInt(31, 40) : random.nextInt(13, 25);
         int length = shortLayout ? random.nextInt(archetype == HoleArchetype.ISLAND_GREEN ? 31 : 24, 46) : switch (archetype) {
@@ -58,9 +70,13 @@ final class ThemedCourse {
             default -> random.nextInt(39, 103 - x0);
         };
         int z0 = random.nextInt(41, 62), drift = shortLayout ? random.nextInt(-14, 15) : random.nextInt(-22, 23);
+        int side = random.nextBoolean() ? 1 : -1;
+        if (woodlandHole != null) {
+            drift = woodlandHole == WoodlandHole.FERNBEND ? side * random.nextInt(24, 34) : 0;
+            if (woodlandHole == WoodlandHole.FERNBEND) length = random.nextInt(61, 104 - x0);
+        }
         GridPoint tee = orient(index, orientation, x0, z0);
         GridPoint basket = orient(index, orientation, x0 + length, z0 + drift);
-        int side = random.nextBoolean() ? 1 : -1;
         int bend = switch (archetype) {
             case DOGLEG -> random.nextInt(15, 24);
             case DOUBLE_FAIRWAY, RISK_REWARD -> random.nextInt(15, 20);
@@ -70,6 +86,13 @@ final class ThemedCourse {
         if (shortLayout) bend = Math.min(13, bend);
         GridPoint near = orient(index, orientation, x0 + length * 2 / 5, z0 + drift * 2 / 5 + bend * side);
         GridPoint far = orient(index, orientation, x0 + length * 7 / 10, z0 + drift * 7 / 10 + bend * side);
+        if (woodlandHole == WoodlandHole.FERNBEND) {
+            near = orient(index, orientation, x0 + length * 3 / 5, z0);
+            far = orient(index, orientation, x0 + length * 4 / 5, z0 + drift / 2);
+        } else if (woodlandHole != null) {
+            near = orient(index, orientation, x0 + length * 2 / 5, z0);
+            far = orient(index, orientation, x0 + length * 7 / 10, z0);
+        }
         var route = List.of(tee, near, far, basket);
         List<GridPoint> alternative = switch (archetype) {
             case DOUBLE_FAIRWAY -> List.of(tee, orient(index, orientation, x0 + length / 2, z0 + drift / 2 - bend * side), basket);
@@ -81,6 +104,9 @@ final class ThemedCourse {
             case GAP_SHOT -> .8;
             default -> 1;
         };
+        List<Landmark> landmarks = woodlandHole == null || settings.obstacleDensity() == 0 ? List.of()
+                : landmarks(woodlandHole, index, orientation, x0, z0, length, side, lane, route,
+                        new Random(seed ^ (index + 1L) * 341873128712L));
         var pools = new ArrayList<Pool>();
         double hazard = settings.hazardDensity();
         if (hazard > 0) {
@@ -92,12 +118,16 @@ final class ThemedCourse {
                 pools.add(new Pool(carry, 0, 3.2 + hazard * 6, true));
             }
             if (random.nextDouble() < hazard) {
-                var pocket = orient(index, orientation, x0 + length / 2, z0 + drift / 2 - side * (17 + random.nextInt(6)));
-                pools.add(new Pool(pocket, 0, 5 + hazard * 9, false));
+                int pocketZ = woodlandHole == null ? z0 + drift / 2 - side * (17 + random.nextInt(6))
+                        : Math.clamp(z0 - side * ((int)Math.ceil(lane) + 24), 17, CELL - 17);
+                var pocket = orient(index, orientation, x0 + length / 2, pocketZ);
+                double radius = 5 + hazard * 9;
+                if (landmarks.stream().noneMatch(landmark -> squared(landmark.position(), pocket.x(), pocket.z())
+                        < (radius + 5) * (radius + 5))) pools.add(new Pool(pocket, 0, radius, false));
             }
         }
         var guards = new ArrayList<GridPoint>();
-        if (archetype == HoleArchetype.GAP_SHOT || archetype == HoleArchetype.GUARDIAN_GREEN) {
+        if (woodlandHole == null && (archetype == HoleArchetype.GAP_SHOT || archetype == HoleArchetype.GUARDIAN_GREEN)) {
             int at = archetype == HoleArchetype.GAP_SHOT ? length / 2 : length * 4 / 5;
             int offset = (int)Math.ceil(lane) + 7;
             for (int flank : new int[]{-1, 1})
@@ -118,7 +148,49 @@ final class ThemedCourse {
         double effort = pathLength(route) + Math.abs(difference);
         int par = shortLayout ? 1 : effort > 110 ? 5 : effort > 78 ? 4 : 3;
         return new Hole(archetype, route, alternative, List.copyOf(guards), List.copyOf(pools),
-                teeY, basketY, lane, par);
+                teeY, basketY, lane, par, woodlandHole, landmarks);
+    }
+
+    private static List<Landmark> landmarks(WoodlandHole hole, int index, int orientation, int x, int z, int length,
+                                            int turn, double laneWidth, List<GridPoint> route, Random random) {
+        int setback = (int)Math.ceil(laneWidth) + Landmark.RADIUS + 1;
+        var result = new ArrayList<Landmark>();
+        switch (hole) {
+            case CATHEDRAL_RUN -> {
+                for (int flank : new int[]{-1, 1}) for (int at : new int[]{3, 7}) {
+                    int distance = Math.clamp(length * at / 10 + random.nextInt(-2, 3), 15, length - 15);
+                    var point = orient(index, orientation, x + distance,
+                            z + flank * (setback + random.nextInt(2)));
+                    result.add(new Landmark(LandmarkType.OLD_GROWTH_PINE, point, random.nextInt(9, 13)));
+                }
+            }
+            case FERNBEND -> {
+                int bend = x + length * 3 / 5 - 3;
+                for (int offset = setback; offset <= setback + 14; offset++) {
+                    if (z + turn * offset < 6 || z + turn * offset >= CELL - 6) break;
+                    var point = orient(index, orientation, bend, z + turn * offset);
+                    if (routeDistance(route, point.x(), point.z()) < laneWidth + 5) continue;
+                    result.add(new Landmark(LandmarkType.MOSSY_BOULDER, point, random.nextInt(4, 7)));
+                    break;
+                }
+            }
+            case MOSSGATE -> {
+                int crossing = x + length * random.nextInt(47, 60) / 100;
+                for (int flank : new int[]{-1, 1}) {
+                    var point = orient(index, orientation, crossing, z + flank * setback);
+                    result.add(new Landmark(LandmarkType.RUINED_GATEPOST, point, random.nextInt(4, 7)));
+                }
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    boolean nearLandmark(int x, int z, int clearance) {
+        Hole hole = at(x, z);
+        if (hole == null) return false;
+        int reach = Landmark.RADIUS + clearance;
+        return hole.landmarks().stream().anyMatch(landmark -> Math.abs(x - landmark.position().x()) <= reach
+                && Math.abs(z - landmark.position().z()) <= reach);
     }
 
     private static GridPoint orient(int index, int orientation, int x, int z) {

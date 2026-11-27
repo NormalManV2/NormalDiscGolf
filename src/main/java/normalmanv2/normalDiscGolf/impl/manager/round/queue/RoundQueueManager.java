@@ -38,7 +38,6 @@ public class RoundQueueManager {
     public enum QueueResult {
         SUCCESS,
         INVALID_FORMAT,
-        REQUIRED_ASSETS_MISSING,
         RESOURCE_PACK_REQUIRED,
         PLAYER_DATA_MISSING,
         PLAYER_OFFLINE,
@@ -81,9 +80,7 @@ public class RoundQueueManager {
     public boolean addPlayerToQueue(UUID player, String roundFormat) {
         String normalizedFormat = normalizeRoundFormat(roundFormat);
         if (!packReady(player)) return false;
-        if (normalizedFormat == null
-                || this.isPlayerInActiveRound(player)
-                || !NDGManager.getInstance().getFileManager().areRequiredObstaclesAvailable()) {
+        if (normalizedFormat == null || this.isPlayerInActiveRound(player)) {
             return false;
         }
 
@@ -112,10 +109,6 @@ public class RoundQueueManager {
         String normalizedFormat = normalizeRoundFormat(roundFormat);
         if (normalizedFormat == null) {
             return QueueResult.INVALID_FORMAT;
-        }
-
-        if (!NDGManager.getInstance().getFileManager().areRequiredObstaclesAvailable()) {
-            return QueueResult.REQUIRED_ASSETS_MISSING;
         }
 
         List<UUID> playerIds = players.stream().distinct().toList();

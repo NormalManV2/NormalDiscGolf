@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.command;
 
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.impl.disc.ShotSetup;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.round.RoundImpl;
@@ -14,12 +15,24 @@ final class ShotCommand {
     private ShotCommand() {}
 
     static void execute(Player player, RoundImpl round, String[] args) {
+        if (args.length == 2 && args[1].equalsIgnoreCase("cancel")) {
+            var plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
+            player.sendMessage(plugin.cancelMeter(player.getUniqueId())
+                    ? ChatColor.YELLOW + "Aim cancelled. Your lie and turn are unchanged."
+                    : ChatColor.GRAY + "You are not aiming a throw.");
+            return;
+        }
+        if (round == null) {
+            player.sendMessage(ChatColor.RED + "Shot settings are available during a round.");
+            return;
+        }
         var play = round.play();
         ShotSetup current = play.setup(player.getUniqueId());
         if (args.length == 1) {
             show(player, current);
             player.sendMessage(ChatColor.GRAY + "/ndg shot stance <" + String.join("|", values("stance")) + ">");
             player.sendMessage(ChatColor.GRAY + "/ndg shot angle <flat|hyzer|anhyzer>, timing <on|off>, preview <on|off>, wind");
+            player.sendMessage(ChatColor.GRAY + "/ndg shot cancel - Close the aiming meter.");
             return;
         }
         String option = args[1].toLowerCase(Locale.ROOT);
@@ -50,7 +63,7 @@ final class ShotCommand {
 
     static List<String> complete(String[] args) {
         return switch (args.length) {
-            case 2 -> List.of("angle", "stance", "timing", "preview", "wind");
+            case 2 -> List.of("angle", "stance", "timing", "preview", "wind", "cancel");
             case 3 -> values(args[1].toLowerCase(Locale.ROOT));
             default -> List.of();
         };

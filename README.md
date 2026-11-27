@@ -4,7 +4,7 @@ A multiplayer Minecraft disc-golf plugin with recreational FFA, alternate-shot, 
 
 ## Build and install
 
-Use Java 21 and run `./gradlew build`. Install `build/libs/NormalDiscGolf-1.0-SNAPSHOT-all.jar` together with WorldEdit on a Spigot-compatible server. The compile target and resource pack are Minecraft 1.21.8. Restart the server after installing.
+Use Java 21 and run `./gradlew build` to build `build/libs/NormalDiscGolf-1.0-SNAPSHOT-all.jar`. Drop the built jar into the `plugins` folder of a Paper or Spigot-compatible Minecraft 1.21.8 server and start it. NDG creates its configuration, resource pack, and clubhouse automatically. WorldEdit is optional for legacy schematic integration.
 
 The default round has 18 holes. Set `course.holes: 3` in `plugins/NormalDiscGolf/config.yml` for a shorter round. The supported range is 1–18. The seed controls repeatable ground layout. Settings apply to subsequently created rounds; restart after changing configuration.
 
@@ -14,8 +14,9 @@ The 18-hole course alternates six layouts with tee distances from roughly 36 to 
 
 - Use `/ndg party invite <player>` and have friends run `/ndg party accept`. The leader runs `/ndg queue ffa`, `/ndg queue doubles`, or `/ndg queue match`. Mixed rating divisions can play together.
 - Open `/ndg menu` and select a mode to see its open lobbies. Each lobby shows the terrain, course seed, hole count, players queued, and preparation status. Choose a lobby to join it or use **Quick Join** to fill an open lobby first. Use **New Lobby** or select a terrain to start a separate queue. The terrain choices follow the server's course settings.
+- Open **Disc Golf Guide** from the round picker or clubhouse, or use `/ndg guide`. It explains aim, timing, camera and lie controls and links to practice, your bag, and the Daily Course.
 - FFA allows up to eight players and can start solo after the queue countdown. Doubles requires at least two complete teams. Parties of four form two teams; parties of two remain teammates.
-- Course preparation starts while players are queued. Lobbies stay open during preparation, and play starts when both the course and queue are ready. A preparation bar shows progress. Each hole opens with a six-second flyover. Sneak or use `/ndg skip` to skip it.
+- Course preparation starts while players are queued. Lobbies stay open during preparation, and a bar shows progress. Each generated hole opens with a six-second flyover. Follow the gold dots along the fairway, check the color-coded hazard cue, and look for the light above the basket. Sneak or use `/ndg skip` to skip it.
 - Choose a putter, midrange, or driver from the hotbar. Right-click to start the power meter, aim, then click to release. Swap hands (normally F) to switch backhand/forehand.
 - Sneak + swap hands cycles flat, hyzer, and anhyzer, including while aiming. Hyzer banks with the disc's fade, and anhyzer banks the other way.
 - The short dotted aiming line shows the center of the predicted path. Use `/ndg shot preview off` to hide it.
@@ -26,13 +27,15 @@ The 18-hole course alternates six layouts with tee distances from roughly 36 to 
 - Use `/ndg shot stance tomahawk` for a high overhand that pans before dropping. Use `/ndg shot stance thumber` for a steeper, shorter overhand that pans the opposite way. Both lift the release automatically. Your Minecraft main hand determines which side each pans toward. The previews are magenta for tomahawks and violet for thumbers.
 - Flex, Tomahawk, and Thumber each earn their own XP when a shot resolves. Levels reduce release spread for that shot. Use `/ndg profile` to see progress.
 - Use `/ndg shot timing on` to lock power with the first click and release with the second. Click while the timing bar is green for the tightest release. Accuracy skill widens the green window.
+- Use your drop key (normally Q) during a round to cancel aim and keep your disc, lie, and turn. `/ndg shot cancel` also works on the practice green.
 - Use `/ndg shot wind` to check the direction discs will drift on the current hole. Wind repeats for the same course seed. Server owners can disable it with `flight.wind: false`.
 - Throw from your recorded lie. The compass or `/ndg lie` returns you there. Only the selected player may release a shot, and only one disc can fly at a time.
 - Doubles alternates throwers after every shot and shares a lie and scorecard. Water and out-of-bounds shots add one penalty and replay the previous lie.
-- The sidebar shows hole, par, distance, strokes, score, active player, remaining time, and standings. The book or `/ndg score` shows the full scorecard.
+- The sidebar shows hole, par, distance, strokes, score, active player, remaining time, and standings. Use the hotbar book or `/ndg score` for the live scorecard. Hover over a numbered hole tile to see its par, strokes, and result. Use `/ndg score text` for the chat view.
 - `/ndg concede` finishes the current hole at the stroke limit on your team's turn. `/ndg quit` forfeits the round. Disconnects forfeit the departing player's membership; remaining players continue.
 - Turns time out after 90 seconds; the default maximum is 12 strokes per hole. Both are configurable. A timeout records the hole at the stroke limit.
 - After the last hole, standings are announced and original inventory, location, game mode, scoreboard, and player state are restored. Generated course worlds are unloaded and removed.
+- A basket plays a layered chain sound and a ripple of sparks. On an ace, the whole card gets a callout and a chime before the instant replay. Equipped score decals also play at the basket.
 - Resolved throws earn skill XP. Holing out earns bonus accuracy, form, and technique XP. Longer discs give more power XP, and penalty shots give a small amount of practice XP. Use `/ndg profile` to see progress. Higher Power increases launch speed, Accuracy tightens release spread, and Form preserves speed and softens early turn on standard throws. Backhand and Forehand levels ease late fade for their respective throws.
 
 ## Match Play
@@ -137,6 +140,8 @@ course:
 
 Ace Race and Closest to Pin keep their shorter tee distances on every terrain. Water, lava, and void landings follow the active mode’s hazard rules. Players who fall beneath a Sky course return to their lie.
 
+Standard Woodland rounds open with **Cathedral Run**, **Fernbend**, and **Mossgate** when their archetypes are enabled. Aim through old-growth pines, play around a moss-covered boulder, and thread a pair of ruined gateposts. The seed varies the order, orientation, distances, and landmark placement. A tee board shows par, distance, and the opening shot, and gold dots mark the intended route during the skippable flyover.
+
 ## Player career
 
 Run `/ndg career`, `/ndg profile`, or open **Career** in the Clubhouse to see your division, current and peak career ratings, last round rating, and skill progress. New players begin unrated in MA4. Existing profiles keep their ratings and skill levels.
@@ -206,7 +211,7 @@ Saved courses load on restart from `plugins/NormalDiscGolf/custom-courses`. The 
 
 ## Round analytics
 
-Your personal summary appears after the final standings. Use `/ndg summary` to reopen your latest completed round during the same server session.
+After the final standings, click **Open Round Summary** to see your score and individual stats. Use `/ndg summary` to reopen your latest completed round during the same server session, or `/ndg summary text` for the chat view.
 
 - **Score** uses the official scorecard or format result. Doubles presents the team score with your own throwing stats.
 - **Longest drive** measures your longest legal opening tee shot in horizontal blocks. Only your first throw from a tee on each hole qualifies, and an opening putt counts toward putting stats.
@@ -219,6 +224,8 @@ Your personal summary appears after the final standings. Use `/ndg summary` to r
 Use `/ndg daily play` or select **Daily Course** in the round picker. Enter solo or with your party. Everyone plays the same seeded layout on a given UTC day with starter discs, equal skill bonuses, and clear skies.
 
 Hole out on every hole to post a score. The leaderboard keeps each player's lowest stroke total and gives tied scores the same place. Open it with `/ndg daily` or right-click **Daily Course** in the picker. To see a previous day or another page, use `/ndg daily leaderboard <YYYY-MM-DD|today> [page]`.
+
+A completed personal best saves your throw paths for that day's layout. During your next attempt, use `/ndg daily ghost on` or `off` to toggle the purple paths. Only you see them. The sidebar shows the target for the current hole. `/ndg daily ghost compare` and `/ndg score` show each hole's strokes and the running difference against the best you had when the round started. If an older best has no recording, match or beat it in a complete round to save a ghost.
 
 The server saves each day's layout and results under `plugins/NormalDiscGolf/daily-courses`. Courses rotate at midnight UTC. A round that crosses midnight still posts to the date it was queued into. `daily-course.holes` defaults to six short par-3 holes and supports 1–18. Terrain, wind, and the stroke limit are fixed for that day when its course is first opened.
 
@@ -250,7 +257,13 @@ delivery status are recorded in `plugins/NormalDiscGolf/ranked-seasons.yml`.
 
 ## Parkland Clubhouse
 
-Open `/ndg clubhouse` or select **Clubhouse** in the Pro Shop. You'll find the current daily challenge, your medal shelf, and personal records, with shortcuts to queue, manage your bag, and browse cosmetics.
+NDG builds a timber clubhouse near the overworld spawn on first startup. Open **Clubhouse** in `/ndg menu` or use `/ndg clubhouse visit` to go straight to its entrance. The original world spawn stays in place. Set `clubhouse.enabled: false` before first startup to skip building the site on a server with its own lobby.
+
+- Right-click the **Pro Shop** sign to see the rotating rack and the next restock. Open a disc and select **Try on the Putting Green** to borrow it before buying.
+- Check the **Daily Top 3** board or right-click the **Daily Course** sign for the full standings and a queue shortcut.
+- Right-click **Putting Green** or run `/ndg practice` to choose any catalog disc, including custom discs. Pick the 4-, 8-, or 12-block tee with its sign or `/ndg practice tee <distance>`. Lock power, then click on green to release. Use `/throwdisc` to aim again or `/ndg practice leave` to end practice. Practice keeps your inventory and queue position and awards no XP, credits, or scores. The queue moves you into the round when it is ready.
+
+`/ndg clubhouse` also shows the current daily challenge, your medal shelf, and personal records, with shortcuts to queue, manage your bag, and browse cosmetics.
 
 - **Basket streaks.** Hole out on consecutive holes to build a streak. Milestones at 3, 5, and 8 get a callout, and your longest streak pays 10, 20, or 35 bonus credits when you finish. A concession, timeout, or stroke-limit hole breaks the streak.
 - **Personal records.** Track your baskets, under-par holes, aces, longest basket, and best streak. Clean scorecards are tracked separately for each round length and format.
@@ -283,7 +296,9 @@ When a throw sinks in the basket, the thrower's equipped effect appears above it
 
 The plugin builds `plugins/NormalDiscGolf/NormalDiscGolfPack.zip` at startup. With an empty `resource-pack.url`, the built-in server automatically offers a required pack to players who connect from the server machine. In Minecraft, connect to `127.0.0.1` and accept the pack or enable Server Resource Packs for that server entry. The local HTTP port defaults to 8088. Change `resource-pack.port` if that port is in use. Set `resource-pack.local-required: false` to make the local pack optional or `resource-pack.local-auto: false` to disable automatic local delivery. Restart after changing pack settings.
 
-Each disc has its own model, rim profile, and colors. With optional packs, the shop and bag use labeled vanilla icons while the pack is unavailable. Use **Disc Models** in the shop or `/ndg pack retry` to request the pack again. Open menus and round hotbar items update after it loads.
+Each disc has its own model, rim profile, and colors. With optional packs, the shop and bag use labeled vanilla icons while the pack is unavailable. **Disc Models** in the shop and `/ndg pack status` show when the pack is offered, downloading, applying, or active. If a download or load fails, click **Disc Models** or run `/ndg pack retry`. Open menus and round hotbar items update after it loads.
+
+The pack adds textured frames and pixel-art controls to the round picker, lobbies, clubhouse, shop, bags, putting green, decals, guide, scorecard, and round summary. It also adds matching badges to the live round sidebar. The menus and sidebar work with vanilla icons and text while the pack is unavailable. Set `resource-pack.menu-textures: false` and restart to use the vanilla interface with custom disc models.
 
 For remote delivery, set `resource-pack.url` to a publicly reachable URL, such as `https://your-host.example/ndg/pack.zip`. The built-in HTTP server serves `/ndg/pack.zip` on port 8088 when a URL is configured; route that port or use a reverse proxy. To host the ZIP elsewhere, set `resource-pack.serve: false` and point the URL at the hosted file. No public address or firewall configuration is inferred automatically.
 
@@ -300,7 +315,7 @@ The server log names invalid definitions and missing or unreadable model texture
 
 ## Hosted 1.21.8 playtest
 
-Use a separate Paper 1.21.8 server with Java 21 and WorldEdit. Start it in online mode and enable the whitelist.
+Use a separate Paper 1.21.8 server with Java 21. Start it in online mode and enable the whitelist.
 Add the test players before opening the game address. Install the NDG gameplay JAR and use a fresh plugin data
 directory for the playtest. Set `course.holes: 18` and leave the preview enabled. A fixed seed lets each group
 reproduce a reported hole. Record the terrain, seed, hole, and active mode from `/ndg status`.
@@ -328,6 +343,14 @@ The separate real-server harness checks generated terrain and tee anchors, baske
 This runs a loopback-only test server under `build/smoke-server`, then stops it automatically. The test-only `NDGSmokeChecks` plugin is built separately and shuts down its server after verification. Do not install that test plugin on a gameplay server.
 
 The rule harness passed on Paper 1.21.8 build 60 with WorldEdit 7.3.19. A vanilla Minecraft Java 1.21.8 client also verified resource-pack loading, disc models, the power meter and release controls, technique switching, return to lie, the fairway flyover and its tee-facing finish, preview skipping, and restoration after quitting. Preview paths have bounded pitch and rounded, distance-paced movement; waiting players stand clear of the active thrower.
+
+The clubhouse network harness in `scripts/multiplayer/clubhouse-flow.cjs` passed on Paper 1.21.8 build 60 with only the NDG jar. Two protocol clients verified the local pack download, clickable shop and Daily signs, a practice basket with a loaner disc while queued, and the handoff into Match Play. The saved clubhouse was reused after restart. In a separate two-hole Daily fixture, a completed score appeared on the physical board while a second client watched.
+
+The polish harness in `scripts/multiplayer/polish-flow.cjs` verified guide navigation, aim cancellation, stable sidebar updates, and a complete two-player FFA on a two-hole Desert course. The required-pack harness also checked pack status messages, cache revalidation, and queue access after a successful retry.
+
+The menu harness in `scripts/multiplayer/textured-menu-flow.cjs` checks textured navigation, existing disc models, and live updates when a player loads or removes the optional resource pack.
+
+The round interface harness in `scripts/multiplayer/textured-round-flow.cjs` checks the sidebar, numbered hole tiles, and final analytics with one pack-enabled client and one vanilla client during a complete two-player round.
 
 Verified network runs completed 18-hole FFA with two clients (36 throws) and 18-hole doubles with four clients (72 throws). After the final camera-transition cleanup, a three-hole FFA regression also passed with client-side pitch assertions, and the disconnect/skip check passed with an explicit preview-title reset assertion. The graphical client confirmed the final skip clears the title and returns to a course-facing tee position.
 
@@ -368,6 +391,12 @@ For Closest to Pin, use the same fixture with `closest-to-pin.holes: 3`. Run `no
 
 For procedural courses, set `course.terrain: sky`, `course.seed-mode: random`, `course.terrains.sky.archetypes: [air-shot, dogleg, elevated-basket]`, and `closest-to-pin.holes: 3`. Run `node scripts/multiplayer/procedural-course-flow.cjs` to play two courses in the same environment and compare their generated seeds and tee locations.
 
+For the Woodland showcase, use `course.terrain: woodland`, `course.holes: 3`, `course.seed-mode: fixed`, and `course.seed: 2026` with the default archetypes. Run `node scripts/multiplayer/round-flow.cjs ffa 3 --expect-woodland-visuals --expect-shot-controls --expect-skill-xp`. Both clients receive the three tee boards, shot tips, moving flyovers, and gold route markers.
+
+For flyover cues, use a one-hole Island Green on Island terrain with hazard density above zero. Set `NDG_EXPECT_FLYOVER_HAZARD=Water` and run `node scripts/multiplayer/round-flow.cjs ffa 1` to check the text cue and three distinct markers. The same check accepts `Lava` on Nether and `Void` on Sky when those holes contain a carry or a drop-off along the route.
+
+For basket feedback, enable replays and use a flat world with custom course creation enabled. Run `node scripts/multiplayer/basket-celebration-flow.cjs` to build a short test hole and check an ace, an ordinary basket, the replay, and who receives each cue.
+
 For careers, use the one-hole fixed Parkland fixture with `closest-to-pin.holes: 1` and set `NDG_CAREER_PROFILE_DIR` to the loopback server’s `plugins/NormalDiscGolf/player-profiles` directory. Run `node scripts/multiplayer/career-flow.cjs` to verify shot XP, level-ups, promotion, a rating drop, and conceded and arcade rounds. Restart the test server and run the same script with `--verify-restart` to compare both profiles with the saved report.
 
 For Arcade, use the two-hole fixed Parkland fixture with `arcade.charges-per-disc: 1` and `turn-timeout-seconds: 150`. Run `node scripts/multiplayer/arcade-flow.cjs` and enter the two commands it prints after `FIXTURE` in the isolated server console. The commands place single-block obstacles for the Phantom test in the temporary course. The script checks all three effects, charge limits and resets, isolation from regular stroke play, and round rewards.
@@ -381,6 +410,8 @@ For the course editor, use a flat permanent world with open space at spawn, wind
 For round analytics, use the one-hole fixed Parkland fixture with wind, course events, and instant replays disabled. Run `node scripts/multiplayer/analytics-flow.cjs` and enter the `FIXTURE` command it prints in the isolated server console. It adds water to the temporary course to produce a real penalty. The two clients check score, a legal drive, a fairway hit, a missed and made putt, and reopening their separate summaries after the round.
 
 For the Daily Course, use a fresh loopback fixture and set `daily-course.holes: 1`, `course.terrain: parkland`, `flight.wind: false`, and `spectating.replays: false` before creating today's layout. Run `node scripts/multiplayer/daily-course-flow.cjs` to compare two separately generated copies, improve a daily best, and exercise ties and a concession. Restart Paper and run the same script with `--after-restart` to verify the saved board.
+
+For Daily ghosts, use a fresh two-hole Desert fixture with `tunnel` and `gap-shot` archetypes, zero elevation, obstacle density, and hazard density, and wind and instant replays disabled. Run `node scripts/multiplayer/daily-ghost-flow.cjs` to compare actual throws with the private paths and check both players' hole-by-hole scores. Restart the server and rerun with `--after-restart` to verify the saved bests.
 
 For weekly tournaments, use a fresh loopback fixture with one hole, four places, prizes `[100, 60, 30]`, Parkland terrain, and wind and replays disabled. Configure the UTC weekday and time a few minutes ahead, and set `NDG_WEEKLY_START` to the matching ISO timestamp such as `2026-11-26T23:55:00Z`. Run `node scripts/multiplayer/weekly-tournament-flow.cjs` for registration, scheduled start, play, standings, payouts, and the next event. Run it with `--after-restart` to verify archived standings and balances.
 

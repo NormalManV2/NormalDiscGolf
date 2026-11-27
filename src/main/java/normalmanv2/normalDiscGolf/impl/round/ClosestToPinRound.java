@@ -49,8 +49,8 @@ public final class ClosestToPinRound extends SingleThrowRound {
     }
 
     @Override
-    public String holeResult(Team team) {
-        var distance = attempts.getOrDefault(team, Map.of()).get(getCurrentHole());
+    public String holeResult(Team team, int hole) {
+        var distance = attempts.getOrDefault(team, Map.of()).get(hole);
         if (distance == null) return "Pending";
         return distance.isEmpty() ? "No score" : distanceLabel(distance.getAsInt());
     }

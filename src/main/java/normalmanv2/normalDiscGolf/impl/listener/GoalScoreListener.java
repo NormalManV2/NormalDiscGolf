@@ -8,7 +8,9 @@ import normalmanv2.normalDiscGolf.impl.round.EliminationRound;
 import normalmanv2.normalDiscGolf.impl.round.AceRaceRound;
 import normalmanv2.normalDiscGolf.impl.round.ClosestToPinRound;
 import normalmanv2.normalDiscGolf.impl.round.SingleThrowRound;
+import org.bukkit.Bukkit;
 import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
@@ -44,13 +46,23 @@ public class GoalScoreListener implements Listener {
             int streak = card.getBasketStreak();
             boolean milestone = streak == 3 || streak == 5 || streak == 8;
             if (milestone) play.message("§6" + event.getPlayer().getName() + "'s side has sunk " + streak + " holes in a row!");
+            if (basket.ace()) {
+                String subtitle = "§f" + event.getPlayer().getName() + " §7• Hole " + (event.getHoleNumber() + 1);
+                for (Team team : event.getRound().getTeams()) for (UUID id : team.getTeamMembers()) {
+                    var viewer = Bukkit.getPlayer(id);
+                    if (viewer == null) continue;
+                    viewer.sendTitle("§6Ace!", subtitle, 4, 24, 8);
+                    viewer.playSound(viewer.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, SoundCategory.PLAYERS, .65f, 1.6f);
+                }
+                return;
+            }
             for (UUID id : scoringTeam.getTeamMembers()) {
-                org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(id);
+                var player = Bukkit.getPlayer(id);
                 if (player == null) continue;
                 String subtitle = streak >= 2 ? "§6" + streak + " baskets in a row"
                         : "§fHole " + (event.getHoleNumber() + 1) + " complete";
                 player.sendTitle("§a" + callout, subtitle, 5, 35, 10);
-                if (milestone || basket.ace())
+                if (milestone)
                     player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, .6f, 1.4f);
             }
         }

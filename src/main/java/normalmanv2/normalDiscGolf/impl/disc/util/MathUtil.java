@@ -44,6 +44,15 @@ public final class MathUtil {
         return hit;
     }
 
+    public static FlightHit tracePractice(Location start, Vector velocity, BoundingBox basket, BoundingBox area) {
+        if (!area.contains(start.toVector().add(velocity))) return new FlightHit(start, false);
+        double length = velocity.length();
+        if (length < .000001 || !Double.isFinite(length)) return null;
+        Vector direction = velocity.clone().normalize();
+        return nearestHit(null, start, direction, length, firstSolid(start, direction, length, null),
+                basket.rayTrace(start.toVector(), direction, length));
+    }
+
     private static RayTraceResult firstSolid(Location start, Vector direction, double length, Block ignored) {
         World world = start.getWorld();
         RayTraceResult block = world.rayTraceBlocks(start, direction, length, FluidCollisionMode.NEVER, true);
@@ -84,8 +93,8 @@ public final class MathUtil {
             // Leave the disc outside the struck face so the next sweep can depart it.
             Vector offset = face == null ? direction.clone().multiply(-.025) : face.getDirection().multiply(.025);
             Location contact = block.getHitPosition().add(offset).toLocation(world);
-            TileTypes tile = round.getCourse().tileAt(hitBlock.getLocation());
-            HitType type = tile.isHazard() ? HitType.HAZARD : HitType.BLOCK;
+            HitType type = round != null && round.getCourse().tileAt(hitBlock.getLocation()).isHazard()
+                    ? HitType.HAZARD : HitType.BLOCK;
             return new FlightHit(contact, type, hitBlock.getType(), face);
         }
         return null;

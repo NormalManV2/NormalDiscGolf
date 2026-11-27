@@ -132,7 +132,7 @@ async function main() {
     assert.equal(a.attempts[0],b.attempts[0],'identical short throws tie at the scoring precision')
     assert.ok(a.attempts[0]<c.attempts[0],'a closer legal landing scores better than a farther legal landing')
     await hole(players,2,['basket','basket',20])
-    await command(c,'score',/^Closest to Pin scorecard$/)
+    await command(c,'score text',/^Closest to Pin scorecard$/)
     await hole(players,3,['basket','basket','basket'])
     await finish(players,a.name+', '+b.name+' tie for first in Closest to Pin with '+label(a)+' each.',
       ['1. '+a.name+' - '+label(a),'1. '+b.name+' - '+label(b),'3. '+c.name+' - '+label(c)],[2,2,1])

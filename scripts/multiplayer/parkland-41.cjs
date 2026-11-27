@@ -60,13 +60,17 @@ async function clickModeJoin(state, modeSlot) {
 
 const eyeOf = bot => bot.entity.position.offset(0, bot.entity.eyeHeight, 0)
 const direction = (yaw,pitch) => new Vec3(Math.cos(yaw)*Math.cos(pitch), Math.sin(pitch), Math.sin(yaw)*Math.cos(pitch))
+const smoothRamp = (value, start, end) => {
+  const progress = Math.max(0, Math.min(1, (value-start)/(end-start)))
+  return progress * progress * (3-2*progress)
+}
 
 async function basketShot(bot, disc = 'driver', target = basket) {
   const putting = disc === 'putting'
   const [speed, ticks, turn, fade, gravity] = {
-    driver: [2.675, 100, -.3, .3, 5/220],
-    midrange: [1.9 * 1.07, 80, -.15, .15, 5/220],
-    putter: [1.3 * 1.07, 60, 0, .15, 4/220],
+    driver: [2.675, 100, -2, 2, 5/220],
+    midrange: [1.9 * 1.07, 80, -1, 1, 5/220],
+    putter: [1.3 * 1.07, 60, 0, 1, 4/220],
     putting: [1.3 * 1.07 * .68, 30, 0, 0, .014]
   }[disc]
   const eye = eyeOf(bot)
@@ -93,20 +97,23 @@ async function basketShot(bot, disc = 'driver', target = basket) {
       }
       position.add(velocity)
       velocity.scale(putting ? .96 : .98)
-      if (!putting && tick<=ticks*.2) continue
-      velocity.y -= gravity
+      if (putting || tick > ticks*.2) velocity.y -= gravity
       if (putting) continue
-      const side = new Vec3(-velocity.z,0,velocity.x).normalize()
-      if (tick<=ticks*.4) velocity.add(side.scaled(turn*(ticks*.4-tick)/(ticks*.4)))
-      if (tick>=ticks*.4) velocity.subtract(side.scaled(fade*((tick-ticks*.4)/(ticks*.6))**3))
+      const ratio = Math.hypot(velocity.x, velocity.z) / (speed / 1.07)
+      const early = turn * smoothRamp(ratio,.55,.96) * (1-smoothRamp(tick,10,31)) * .0115
+      const late = Math.min(.032, fade * (1-smoothRamp(ratio,.42,.83)) * smoothRamp(tick,5,27) * ratio*ratio * .060)
+      const angle = early + late
+      const x = velocity.x
+      velocity.x = x*Math.cos(angle) + velocity.z*Math.sin(angle)
+      velocity.z = velocity.z*Math.cos(angle) - x*Math.sin(angle)
     }
     return false
   }
 
   for (const power of [60,65,70,55,75,80,85,90,95,100,50,45,40,35,30,25,20]) {
-    for (let yaw=-170; yaw<=520; yaw+=10) {
+    for (let yaw=-520; yaw<=520; yaw+=10) {
       // Keep protocol packets moving even when a scoring line takes a long search.
-      if ((yaw+170)%100===0) await new Promise(resolve=>setImmediate(resolve))
+      if ((yaw+520)%100===0) await new Promise(resolve=>setImmediate(resolve))
       for (let pitch=-360; pitch<=590; pitch+=10) {
         const headingAtRelease = heading+yaw/1000
         if ([0,-.004,.004].every(error => reaches(power/100, headingAtRelease+error, pitch/1000))) {

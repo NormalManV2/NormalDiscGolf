@@ -5,6 +5,7 @@ import normalmanv2.normalDiscGolf.common.round.DefaultRoundSettings;
 import normalmanv2.normalDiscGolf.api.round.settings.RoundType;
 import normalmanv2.normalDiscGolf.impl.competition.DailyCompetition;
 import normalmanv2.normalDiscGolf.impl.competition.DailyCourse;
+import normalmanv2.normalDiscGolf.impl.competition.DailyGhost;
 import normalmanv2.normalDiscGolf.impl.competition.RankedSeason;
 import normalmanv2.normalDiscGolf.impl.competition.RankedSeasonStore;
 import normalmanv2.normalDiscGolf.impl.competition.StrokeStandings;
@@ -16,6 +17,7 @@ import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGenerationSettings;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseTerrain;
 import normalmanv2.normalDiscGolf.impl.course.grid.HoleArchetype;
+import normalmanv2.normalDiscGolf.impl.course.grid.WoodlandHole;
 import normalmanv2.normalDiscGolf.impl.course.event.CourseEvent;
 import normalmanv2.normalDiscGolf.impl.course.event.CourseEventSettings;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
@@ -75,6 +77,7 @@ public final class RegressionChecks {
         checkMatchPlay();
         checkAceRaceCourses();
         checkThemedCourses();
+        checkWoodlandLandmarks();
         checkClosestToPin();
         checkCareer();
         checkArcadeFlight();
@@ -314,13 +317,35 @@ public final class RegressionChecks {
             card.recordBasket(0, 1, 3, first, 16);
             card.recordBasket(1, 2, 3, first, 4);
             check(round.eligible(card, first) && !round.eligible(card, second), "only full participated cards qualify");
+
+            var flight = List.of(DailyGhost.Point.at(56.5, 67.625, 56.875), DailyGhost.Point.at(88.45, 67.125, 72.5));
+            var ace = new DailyGhost.Hole(1, List.of(flight));
+            var birdie = new DailyGhost.Hole(2, List.of(flight, flight.reversed()));
+            var archived = new DailyGhost(List.of(ace, birdie));
+            var tied = new DailyGhost(List.of(birdie, ace));
+            var previous = attempts.entries().get(first);
+            check(service.ghost(attempts, first) == null && service.saveGhost(attempts, previous, archived),
+                    "matching a legacy daily best supplies its first recording");
+            check(!service.saveGhost(attempts, previous, tied) && service.ghost(attempts, first).equals(archived),
+                    "a tie retains the original per-hole card and paths");
+            check(!service.saveGhost(attempts, new StrokeStandings.Entry(first, "Ace", 4, -2), archived),
+                    "a worse result cannot touch the best ghost");
+            var improvement = new StrokeStandings.Entry(first, "Ace", 2, -4);
+            attempts = service.submit(definition, List.of(improvement));
+            var improved = new DailyGhost(List.of(ace, ace));
+            check(service.ghost(attempts, first) == null && service.saveGhost(attempts, improvement, improved),
+                    "a lower score selects a new recording without reusing the old paths");
             config.set("daily-course.holes", 1);
             config.set("course.terrain", "desert");
             var restarted = new DailyCompetition(fileDirectory, () -> config, clock);
             check(restarted.today().equals(attempts), "restarting with changed configuration preserves the in-progress day's board");
+            check(restarted.ghost(restarted.today(), first).equals(improved) && restarted.ghost(restarted.today(), second) == null,
+                    "stored paths survive reload and are selected by UUID");
             var tomorrow = new DailyCompetition(fileDirectory, () -> config, java.time.Clock.offset(clock, java.time.Duration.ofSeconds(1)));
             check(tomorrow.today().course().date().equals(day.plusDays(1)) && tomorrow.today().course().seed() != definition.seed()
                     && tomorrow.today().course().holes() == 1 && tomorrow.today().entries().isEmpty(), "UTC midnight starts a new seed and board");
+            check(tomorrow.ghost(tomorrow.today(), first) == null && tomorrow.ghost(tomorrow.board(day), first).equals(improved),
+                    "ghosts remain on their original UTC course across midnight");
             var themed = new DailyCourse(tomorrow.today().course(), Division.JUNIOR, "themed");
             themed.grid().generate(Division.JUNIOR);
             check(themed.holePars().get(0) == 3, "themed daily holes also use stroke-play par");
@@ -328,9 +353,9 @@ public final class RegressionChecks {
             check(tomorrow.board(day).entries().get(third).strokes() == 4 && tomorrow.today().entries().isEmpty(),
                     "finishing yesterday's round after midnight updates only the original board");
         } finally {
-            java.nio.file.Files.deleteIfExists(fileDirectory.resolve(day + ".yml"));
-            java.nio.file.Files.deleteIfExists(fileDirectory.resolve(day.plusDays(1) + ".yml"));
-            java.nio.file.Files.deleteIfExists(fileDirectory);
+            try (var files = java.nio.file.Files.walk(fileDirectory)) {
+                for (var path : files.sorted(java.util.Comparator.reverseOrder()).toList()) java.nio.file.Files.deleteIfExists(path);
+            }
         }
     }
 
@@ -531,6 +556,52 @@ public final class RegressionChecks {
                 && islandGreen.surfaceType(pin.x(), pin.z() - 10) == TileTypes.WATER
                 && islandGreen.surfaceType(pin.x(), pin.z() + 10) == TileTypes.WATER,
                 "an island green surrounds solid basket footing with a water carry");
+    }
+
+    private static void checkWoodlandLandmarks() {
+        var profile = CourseGenerationSettings.defaults(CourseTerrain.WOODLAND);
+        var original = themed(profile, 3, 2026L, CourseGrid.Layout.PARKLAND);
+        var repeat = themed(profile, 3, 2026L, CourseGrid.Layout.PARKLAND);
+        var another = themed(profile, 3, 2027L, CourseGrid.Layout.PARKLAND);
+        check(!original.getHoleRoutePoints().equals(another.getHoleRoutePoints()), "Woodland routes change with the seed");
+        for (int hole = 0; hole < 3; hole++)
+            check(original.woodlandLandmarks(hole).equals(repeat.woodlandLandmarks(hole)), "Woodland landmarks repeat by seed");
+
+        for (int width : new int[]{8, 13, 28}) {
+            var tuned = new CourseGenerationSettings(CourseTerrain.WOODLAND, 7, width, .68, 1, List.of());
+            var doglegHints = new HashSet<String>();
+            for (long seed = 0; seed < 48; seed++) {
+                var course = themed(tuned, 3, seed, CourseGrid.Layout.PARKLAND);
+                var layouts = new HashSet<WoodlandHole>();
+                for (int hole = 0; hole < 3; hole++) {
+                    var layout = course.woodlandHole(hole);
+                    check(layout != null && layouts.add(layout), "first three Woodland holes feature distinct layouts");
+                    var points = course.woodlandLandmarks(hole);
+                    int expected = switch (layout) {
+                        case CATHEDRAL_RUN -> 4;
+                        case FERNBEND -> 1;
+                        case MOSSGATE -> 2;
+                    };
+                    check(points.size() == expected, layout + " places every landmark on seed " + seed + " at width " + width);
+                    for (var mark : points) for (int dx = -3; dx <= 3; dx++) for (int dz = -3; dz <= 3; dz++) {
+                        int x = mark.position().x() + dx, z = mark.position().z() + dz;
+                        check(!course.protectedLane(x, z) && !course.surfaceType(x, z).isHazard(),
+                                layout + " landmark footprint respects the throwing lane and dry ground");
+                    }
+                    if (layout == WoodlandHole.FERNBEND) doglegHints.add(layout.hint(course.centerline(hole)));
+                }
+            }
+            check(doglegHints.equals(Set.of("Aim for the bend, then turn left.", "Aim for the bend, then turn right.")),
+                    "Fernbend reports both seeded turn directions");
+        }
+        var minimal = new CourseGenerationSettings(CourseTerrain.WOODLAND, 0, 13, 0, 0, List.of(HoleArchetype.GAP_SHOT));
+        var noObstacles = themed(minimal, 1, 2026, CourseGrid.Layout.PARKLAND);
+        check(noObstacles.woodlandHole(0) == WoodlandHole.MOSSGATE && noObstacles.woodlandLandmarks(0).isEmpty(),
+                "allowed archetypes and zero obstacle density apply to showcased holes");
+        var daily = themed(profile, 3, 2026, CourseGrid.Layout.DAILY);
+        for (int hole = 0; hole < 3; hole++)
+            check(daily.woodlandHole(hole) == null && daily.woodlandLandmarks(hole).isEmpty(),
+                    "existing competition layouts keep their original generation path");
     }
 
     private static CourseGrid themed(CourseGenerationSettings settings, int holes, long seed, CourseGrid.Layout layout) {

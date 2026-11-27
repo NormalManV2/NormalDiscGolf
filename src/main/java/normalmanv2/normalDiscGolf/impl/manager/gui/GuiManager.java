@@ -28,6 +28,7 @@ public class GuiManager {
     }
 
     public void openGUI(InventoryGUI gui, Player player) {
+        gui.prepare(player);
         this.registerInventory(gui.getInventory(), gui);
         if (player.openInventory(gui.getInventory()) == null) this.unregisterInventory(gui.getInventory());
 
@@ -37,7 +38,7 @@ public class GuiManager {
 
     public void refreshForPack(Player player) {
         if (inventories.get(player.getOpenInventory().getTopInventory()) instanceof InventoryGUI gui) {
-            gui.refreshForPack(player);
+            gui.updatePack(player);
         }
     }
 
@@ -48,12 +49,14 @@ public class GuiManager {
             return;
         }
         handler.onClick(event);
+        if (handler instanceof InventoryGUI gui) gui.applyTextures();
     }
 
     public void handleOpen(InventoryOpenEvent event) {
         InventoryHandler handler = this.inventories.get(event.getInventory());
         if (handler == null) return;
         handler.onOpen(event);
+        if (handler instanceof InventoryGUI gui) gui.applyTextures();
     }
 
     public void handleClose(InventoryCloseEvent event) {

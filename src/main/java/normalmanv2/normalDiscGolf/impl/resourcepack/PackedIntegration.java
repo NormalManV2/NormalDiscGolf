@@ -21,22 +21,55 @@ import java.util.zip.*;
 
 /** Builds a self-contained 1.21.8 pack. Public delivery is configured by the server owner. */
 public final class PackedIntegration implements Listener, AutoCloseable {
+    public enum Delivery {
+        DISABLED("Vanilla icons · pack disabled", "This server has disabled custom disc models."),
+        LOCAL_ONLY("Vanilla icons · local pack only", "Custom models are offered only to players connecting from the server machine."),
+        UNAVAILABLE("Vanilla icons · pack unavailable", "The server could not offer its pack. Ask an admin to check the pack settings."),
+        AVAILABLE("Vanilla icons · click to load", "Use /ndg pack retry to load the disc models."),
+        OFFERED("Pack offered", "Accept the server resource pack prompt in Minecraft."),
+        DOWNLOADING("Downloading the pack", "Minecraft is downloading the disc models."),
+        APPLYING("Applying the pack", "Minecraft downloaded the pack and is applying the disc models."),
+        LOADED("Custom disc models active", "Parkland disc models are active."),
+        DECLINED("Pack declined · click to retry", "Enable server resource packs in Minecraft and use /ndg pack retry."),
+        FAILED_DOWNLOAD("Download failed · click to retry", "Minecraft could not download the pack. Use /ndg pack retry."),
+        FAILED_RELOAD("Pack could not load · click to retry", "Minecraft downloaded the pack but could not apply it. Use /ndg pack retry."),
+        REMOVED("Pack removed · click to retry", "Minecraft removed the pack. Use /ndg pack retry.");
+
+        private final String label;
+        private final String guidance;
+
+        Delivery(String label, String guidance) {
+            this.label = label;
+            this.guidance = guidance;
+        }
+
+        public String label() { return label; }
+        public String guidance() { return guidance; }
+        private boolean pending() { return this == OFFERED || this == DOWNLOADING || this == APPLYING; }
+        private boolean canOffer() {
+            return this == AVAILABLE || this == DECLINED || this == FAILED_DOWNLOAD || this == FAILED_RELOAD || this == REMOVED;
+        }
+    }
+
+    private record PackArchive(byte[] bytes, byte[] hash, String etag) {}
+
     private static final UUID PACK_UUID = UUID.fromString("454c9909-7092-4e6b-bd65-f799099b1ab1");
     private final NormalDiscGolfPlugin plugin;
     private final DiscCatalog catalog;
     private final String packUrl;
     private final boolean enabled;
+    private final boolean menuTextures;
     private final boolean localOnly;
     private final boolean required;
-    private byte[] packBytes, packHash;
+    private volatile PackArchive archive;
     private HttpServer server;
-    private final Set<UUID> loaded = new HashSet<>();
-    private final Set<UUID> pending = new HashSet<>();
+    private final Map<UUID, Delivery> deliveries = new HashMap<>();
     public PackedIntegration(NormalDiscGolfPlugin plugin, DiscCatalog catalog) throws IOException {
         this.plugin = plugin;
         this.catalog = catalog;
         var config = plugin.getConfig();
         enabled = config.getBoolean("resource-pack.enabled", true);
+        menuTextures = config.getBoolean("resource-pack.menu-textures", true);
         boolean serve = config.getBoolean("resource-pack.serve", true);
         int port = config.getInt("resource-pack.port", 8088);
         String configuredUrl = config.getString("resource-pack.url", "").trim();
@@ -90,10 +123,19 @@ public final class PackedIntegration implements Listener, AutoCloseable {
                 exchange.sendResponseHeaders(405, -1);
                 return;
             }
-            byte[] bytes = packBytes;
+            PackArchive current = archive;
+            byte[] bytes = current.bytes();
+            String etag = current.etag();
             var headers = exchange.getResponseHeaders();
             headers.set("Content-Type", "application/zip");
             headers.set("Cache-Control", "no-cache");
+            headers.set("ETag", etag);
+            var cached = exchange.getRequestHeaders().getOrDefault("If-None-Match", List.of());
+            if (cached.stream().flatMap(value -> Arrays.stream(value.split(",")))
+                    .map(String::strip).anyMatch(tag -> tag.equals(etag) || tag.equals("W/" + etag) || tag.equals("*"))) {
+                exchange.sendResponseHeaders(304, -1);
+                return;
+            }
             headers.set("Content-Length", Integer.toString(bytes.length));
             exchange.sendResponseHeaders(200, head ? -1 : bytes.length);
             if (!head) exchange.getResponseBody().write(bytes);
@@ -104,11 +146,19 @@ public final class PackedIntegration implements Listener, AutoCloseable {
         try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
             entry(zip, "pack.mcmeta", "{\"pack\":{\"pack_format\":64,\"description\":\"Normal Disc Golf • Parkland\"}}");
             DiscPackModels.write(zip, catalog);
+            MenuTextures.write(zip);
         }
-        packBytes=bytes.toByteArray();
-        try { packHash=MessageDigest.getInstance("SHA-1").digest(packBytes); } catch(NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
-        Files.createDirectories(plugin.getDataFolder().toPath());
-        Files.write(plugin.getDataFolder().toPath().resolve("NormalDiscGolfPack.zip"),packBytes);
+        byte[] data = bytes.toByteArray();
+        byte[] hash;
+        try {
+            hash = MessageDigest.getInstance("SHA-1").digest(data);
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException(impossible);
+        }
+        var directory = plugin.getDataFolder().toPath();
+        Files.createDirectories(directory);
+        Files.write(directory.resolve("NormalDiscGolfPack.zip"), data);
+        archive = new PackArchive(data, hash, "\"" + HexFormat.of().formatHex(hash) + "\"");
     }
     static void entry(ZipOutputStream zip, String name, String content) throws IOException {
         entry(zip, name, content.getBytes(StandardCharsets.UTF_8));
@@ -120,11 +170,17 @@ public final class PackedIntegration implements Listener, AutoCloseable {
         zip.write(content);
         zip.closeEntry();
     }
-    public byte[] getBytes() { return packBytes; }
-    public byte[] getHash() { return packHash; }
+    public byte[] getBytes() { return archive.bytes().clone(); }
+    public byte[] getHash() { return archive.hash().clone(); }
     public String getPackUrl() { return packUrl; }
-    public boolean loaded(Player player) { return loaded.contains(player.getUniqueId()); }
-    public boolean pending(Player player) { return pending.contains(player.getUniqueId()); }
+    public Delivery delivery(Player player) {
+        if (!enabled) return Delivery.DISABLED;
+        if (!eligible(player)) return Delivery.LOCAL_ONLY;
+        if (packUrl.isBlank()) return Delivery.UNAVAILABLE;
+        return deliveries.getOrDefault(player.getUniqueId(), Delivery.AVAILABLE);
+    }
+    public boolean loaded(Player player) { return delivery(player) == Delivery.LOADED; }
+    public boolean texturedMenus(Player player) { return menuTextures && loaded(player); }
     public boolean ready(Player player) { return !enabled || !required || !eligible(player) || loaded(player); }
 
     private boolean eligible(Player player) {
@@ -139,37 +195,43 @@ public final class PackedIntegration implements Listener, AutoCloseable {
     }
 
     public boolean send(Player player) {
-        if (!enabled || !eligible(player) || packUrl.isBlank() || loaded(player) || pending(player)) return false;
-        player.addResourcePack(PACK_UUID, packUrl, packHash, "Parkland disc models and colors", required);
-        pending.add(player.getUniqueId());
+        if (!delivery(player).canOffer()) return false;
+        player.addResourcePack(PACK_UUID, packUrl, getHash(), "Parkland disc models and colors", required);
+        deliveries.put(player.getUniqueId(), Delivery.OFFERED);
         return true;
     }
     @EventHandler public void status(PlayerResourcePackStatusEvent event) {
         if (!PACK_UUID.equals(event.getID())) return;
         Player player = event.getPlayer();
-        if (event.getStatus() == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) {
-            pending.remove(player.getUniqueId());
-            if (loaded.add(player.getUniqueId())) {
-                player.sendMessage("§aParkland disc models are ready.");
-                refreshModels(player);
-            }
-        } else if (event.getStatus() != PlayerResourcePackStatusEvent.Status.ACCEPTED
-                && event.getStatus() != PlayerResourcePackStatusEvent.Status.DOWNLOADED) {
-            pending.remove(player.getUniqueId());
-            loaded.remove(player.getUniqueId());
-            refreshModels(player);
-            player.sendMessage(required
-                    ? "§eThe disc golf pack is required. Enable server resource packs and reconnect."
-                    : "§eUsing vanilla disc icons. Use /ndg pack retry to try the models again.");
-        }
+        UUID id = player.getUniqueId();
+        Delivery previous = deliveries.get(id);
+        if (previous == null || !previous.pending() && previous != Delivery.LOADED) return;
+        Delivery next = switch (event.getStatus()) {
+            case ACCEPTED -> Delivery.DOWNLOADING;
+            case DOWNLOADED -> Delivery.APPLYING;
+            case SUCCESSFULLY_LOADED -> Delivery.LOADED;
+            case DECLINED -> Delivery.DECLINED;
+            case FAILED_DOWNLOAD, INVALID_URL -> Delivery.FAILED_DOWNLOAD;
+            case FAILED_RELOAD -> Delivery.FAILED_RELOAD;
+            case DISCARDED -> Delivery.REMOVED;
+        };
+        if (previous == next || previous == Delivery.LOADED && next.pending()
+                || previous == Delivery.APPLYING && next == Delivery.DOWNLOADING) return;
+        deliveries.put(id, next);
+        refreshModels(player, previous == Delivery.LOADED || next == Delivery.LOADED);
+        if (next == Delivery.LOADED) player.sendMessage("§aParkland disc models are ready.");
+        else if (next.canOffer()) player.sendMessage((required ? "§eThe disc golf pack is required. " : "§eUsing vanilla disc icons. ")
+                + next.guidance());
     }
-    private void refreshModels(Player player) {
-        if (DiscFlightResolver.findActiveRound(player) != null) RoundPlayerListener.refreshDiscModels(player);
+    private void refreshModels(Player player, boolean modelsChanged) {
+        if (modelsChanged && DiscFlightResolver.findActiveRound(player) != null) RoundPlayerListener.refreshDiscModels(player);
         NDGManager.getInstance().getGuiManager().refreshForPack(player);
     }
     @EventHandler public void quit(PlayerQuitEvent event) {
-        loaded.remove(event.getPlayer().getUniqueId());
-        pending.remove(event.getPlayer().getUniqueId());
+        deliveries.remove(event.getPlayer().getUniqueId());
     }
-    @Override public void close() { if(server!=null) server.stop(0); loaded.clear(); pending.clear(); }
+    @Override public void close() {
+        if (server != null) server.stop(0);
+        deliveries.clear();
+    }
 }

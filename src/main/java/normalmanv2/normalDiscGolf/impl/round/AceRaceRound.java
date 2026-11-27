@@ -19,9 +19,9 @@ public final class AceRaceRound extends SingleThrowRound {
     }
 
     @Override
-    public String holeResult(Team team) {
-        if (!hasFinishedHole(team)) return "Pending";
-        return getScoreCardByTeam(team).getBaskets().containsKey(getCurrentHole()) ? "Ace" : "Miss";
+    public String holeResult(Team team, int hole) {
+        if (hole > getCurrentHole() || hole == getCurrentHole() && !hasFinishedHole(team)) return "Pending";
+        return getScoreCardByTeam(team).getBaskets().containsKey(hole) ? "Ace" : "Miss";
     }
 
     @Override

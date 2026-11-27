@@ -3,7 +3,7 @@ version: ${version}
 main: normalmanv2.normalDiscGolf.NormalDiscGolfPlugin
 api-version: '1.21'
 prefix: NormalDiscGolf
-depend: [WorldEdit]
+softdepend: [WorldEdit]
 authors: [NormalMan_V2]
 description: Disc golf in Minecraft
 permissions:

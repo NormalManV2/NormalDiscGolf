@@ -4,8 +4,8 @@ import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.player.clubhouse.ClubhouseMedal;
 import normalmanv2.normalDiscGolf.impl.player.clubhouse.ClubhouseProgress;
 import normalmanv2.normalDiscGolf.impl.player.clubhouse.DailyChallenge;
+import normalmanv2.normalDiscGolf.impl.resourcepack.MenuSkin;
 import normalmanv2.normalDiscGolf.impl.round.RoundFormat;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -32,10 +32,7 @@ public final class ClubhouseMenu extends InventoryGUI {
         NDGManager.getInstance().getGuiManager().openGUI(new ClubhouseMenu(), player);
     }
 
-    @Override
-    protected Inventory createInventory() {
-        return Bukkit.createInventory(null, 54, "Parkland Clubhouse");
-    }
+    private ClubhouseMenu() { super(MenuSkin.CLUBHOUSE); }
 
     @Override
     public void onOpen(InventoryOpenEvent event) {
@@ -54,9 +51,19 @@ public final class ClubhouseMenu extends InventoryGUI {
             refresh(player);
         } else if (!showingRecords) {
             switch (slot) {
+                case 37 -> ShopItems.navigate(player, getInventory(), () -> {
+                    player.closeInventory();
+                    player.performCommand("ndg clubhouse visit");
+                });
+                case 39 -> ShopItems.navigate(player, getInventory(), () -> {
+                    player.closeInventory();
+                    player.performCommand("ndg daily");
+                });
+                case 41 -> ShopItems.navigate(player, getInventory(), () -> NDGManager.getInstance().getClubhouse().openPractice(player));
                 case 45 -> ShopItems.navigate(player, getInventory(), () -> DiscShop.open(player));
                 case 47 -> ShopItems.navigate(player, getInventory(), () -> BagMenu.open(player));
                 case 49 -> ShopItems.navigate(player, getInventory(), () -> player.performCommand("ndg menu"));
+                case 51 -> ShopItems.navigate(player, getInventory(), () -> PlayGuide.open(player));
                 case 53 -> ShopItems.navigate(player, getInventory(), () -> DecalShop.open(player));
                 case 4 -> refresh(player);
                 case 31 -> ShopItems.navigate(player, getInventory(), () -> {
@@ -110,9 +117,17 @@ public final class ClubhouseMenu extends InventoryGUI {
                     earned ? ChatColor.GREEN + "Earned" : ChatColor.YELLOW + "" + medal.credits() + " credits"));
         }
         menu.setItem(45, ShopItems.icon(Material.EMERALD, ChatColor.GREEN + "Pro Shop"));
+        if (NDGManager.getInstance().getClubhouse().available()) {
+            menu.setItem(37, ShopItems.icon(Material.SPRUCE_SIGN, ChatColor.GOLD + "Visit the Clubhouse"));
+            menu.setItem(41, ShopItems.icon(Material.TARGET, ChatColor.GREEN + "Putting Green",
+                    ChatColor.GRAY + "Try a disc while you queue"));
+        }
+        menu.setItem(39, ShopItems.icon(Material.CLOCK, ChatColor.AQUA + "Daily Leaderboard"));
         menu.setItem(47, ShopItems.icon(Material.BUNDLE, ChatColor.AQUA + "Your Bag"));
         menu.setItem(49, ShopItems.icon(Material.COMPASS, ChatColor.GREEN + "Play a Round",
                 ChatColor.GRAY + "Balance: " + playerData.getDiscBag().credits() + " credits"));
+        menu.setItem(51, ShopItems.icon(Material.WRITTEN_BOOK, ChatColor.AQUA + "Disc Golf Guide",
+                ChatColor.GRAY + "Controls, scoring, and shortcuts"));
         menu.setItem(53, ShopItems.icon(Material.FIREWORK_STAR, ChatColor.LIGHT_PURPLE + "Score Decals"));
     }
 

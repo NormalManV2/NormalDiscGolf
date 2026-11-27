@@ -39,6 +39,11 @@ async function download(pack, required = false) {
   assert.equal(zip.headers.get('content-type'), 'application/zip')
   assert.ok(bytes.includes(Buffer.from('pack.mcmeta')))
   assert.equal(createHash('sha1').update(bytes).digest('hex'), pack.hash)
+  const etag = zip.headers.get('etag')
+  assert.equal(etag, '"' + pack.hash + '"')
+  assert.equal(head.headers.get('etag'), etag)
+  assert.equal((await fetch(pack.url, { headers: { 'If-None-Match': etag } })).status, 304)
+  assert.equal((await fetch(pack.url, { headers: { 'If-None-Match': '"outdated"' } })).status, 200)
   assert.equal((await fetch(pack.url + '/extra')).status, 404)
   return bytes.length
 }
@@ -49,19 +54,25 @@ async function requiredPackFlow() {
   state.bot._client.on('add_resource_pack', pack=>offers.push(pack))
   await until(()=>state.spawned && offers.length===1, 'required pack arrives at login')
   assert.equal(offers[0].forced, true)
+  await command(state, 'pack status', /^Accept the server resource pack prompt in Minecraft\.$/)
   const notReady = /^Accept the server resource pack and wait for it to finish loading before queueing\.$/
   await command(state, 'queue match', notReady)
   const failed = state.messages.length
-  state.bot._client.write('resource_pack_receive', { uuid: offers[0].uuid, result: 1 })
+  state.bot._client.write('resource_pack_receive', { uuid: offers[0].uuid, result: 2 })
   await until(()=>state.messages.slice(failed).some(line=>line.startsWith('The disc golf pack is required.')),
     'failed download displays the required pack notice')
+  await command(state, 'pack status', /^Minecraft could not download the pack\. Use \/ndg pack retry\.$/)
   await command(state, 'queue match', notReady)
   await command(state, 'pack retry', /^Disc models offered again\.$/)
   await until(()=>offers.length===2, 'retry sends another required offer')
   await download(offers[1], true)
   state.bot._client.write('resource_pack_receive', { uuid: offers[1].uuid, result: 3 })
+  await command(state, 'pack status', /^Minecraft is downloading the disc models\.$/)
+  state.bot._client.write('resource_pack_receive', { uuid: offers[1].uuid, result: 4 })
+  await command(state, 'pack status', /^Minecraft downloaded the pack and is applying the disc models\.$/)
   state.bot._client.write('resource_pack_receive', { uuid: offers[1].uuid, result: 0 })
   await until(()=>state.messages.includes('Parkland disc models are ready.'), 'the server sees the successful load')
+  await command(state, 'pack status', /^Parkland disc models are active\.$/)
   await command(state, 'queue match', /^You have been queued for Match Play\.$/)
   console.log('PASS: the required pack gates queues while pending and after a failed download, then admits the player after retry')
 }
@@ -130,7 +141,7 @@ async function main() {
     assert.notEqual(new URL(expectedUrl).hostname, '127.0.0.1')
     await until(()=>offers.length===1, 'configured pack arrives at login')
     const mark = lead.messages.length
-    lead.bot._client.write('resource_pack_receive', { uuid: offers[0].uuid, result: 2 })
+    lead.bot._client.write('resource_pack_receive', { uuid: offers[0].uuid, result: 1 })
     await until(()=>lead.messages.slice(mark).some(line=>line.startsWith('Using vanilla disc icons.')), 'decline keeps the player in game')
   }
   const shop = await menu(lead, 'shop', 10, 'slime_ball')

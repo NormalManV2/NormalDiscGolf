@@ -104,10 +104,10 @@ async function main() {
   for (const state of players) {
     assert.deepEqual(inventory(state.bot), state.original.items)
     const start = state.messages.length
-    await command(state, 'summary', /^OB penalties:/)
+    await command(state, 'summary text', /^OB penalties:/)
     assert.deepEqual(summary(state.messages.slice(start)), state === putter ? putterReport : penaltyReport)
   }
-  console.log('PASS: /ndg summary reopens only the requesting player’s result after round cleanup')
+  console.log('PASS: /ndg summary text prints only the requesting player’s result after round cleanup')
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1 }).finally(async () => {

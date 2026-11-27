@@ -5,6 +5,8 @@ import normalmanv2.normalDiscGolf.common.button.Button;
 import normalmanv2.normalDiscGolf.common.item.ItemBuilder;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.gui.InventoryGUI;
+import normalmanv2.normalDiscGolf.impl.gui.PlayGuide;
+import normalmanv2.normalDiscGolf.impl.resourcepack.MenuSkin;
 import normalmanv2.normalDiscGolf.impl.round.RoundFormat;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -16,6 +18,17 @@ import java.util.function.Consumer;
 
 public final class RoundPickerGUI extends InventoryGUI {
     public RoundPickerGUI() {
+        super(MenuSkin.ROUNDS);
+        addButton(4, new Button(new ItemBuilder(Material.SPRUCE_SIGN).setDisplayName("&6Clubhouse")
+                .setLore("&7Pro shop, Daily leaderboard, and practice.").build()) {
+            @Override public void onClick(InventoryClickEvent event) {
+                afterClick(event, normalmanv2.normalDiscGolf.impl.gui.ClubhouseMenu::open);
+            }
+        });
+        addButton(8, new Button(new ItemBuilder(Material.WRITTEN_BOOK).setDisplayName("&bDisc Golf Guide")
+                .setLore("&7Learn the controls and find practice.").build()) {
+            @Override public void onClick(InventoryClickEvent event) { afterClick(event, PlayGuide::open); }
+        });
         addMode(11, Material.EMERALD, RoundFormat.FFA, "Play a free-for-all round.");
         addMode(12, Material.SLIME_BALL, RoundFormat.ONE_DISC, "Choose one disc for the whole round.");
         addMode(13, Material.GOLD_INGOT, RoundFormat.MATCH, "Play head-to-head. Win the most holes.");
@@ -58,7 +71,4 @@ public final class RoundPickerGUI extends InventoryGUI {
         });
     }
 
-    @Override protected Inventory createInventory() {
-        return Bukkit.createInventory(null, 27, "§4§lRound Picker");
-    }
 }

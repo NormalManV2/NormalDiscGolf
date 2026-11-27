@@ -85,7 +85,7 @@ async function playThree(players) {
   await stage(first,players,new Map([[second,1],[third,1]]),1,firstTie)
   const tie = first.messages.find(line=>line.startsWith('Hole 1 tied at'))
   assert.ok(tie.includes(second.name) && tie.includes(third.name) && !tie.includes(first.name))
-  await command(first,'score',new RegExp('^'+first.name+': safe$'))
+  await command(first,'score text',new RegExp('^'+first.name+': safe$'))
   const before = first.messages.length
   first.bot.chat('/throwdisc')
   await until(()=>first.messages.slice(before).includes('You are safe this hole. Wait for the shootout to finish.'),'safe players cannot throw')

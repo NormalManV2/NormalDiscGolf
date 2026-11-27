@@ -18,7 +18,9 @@ public abstract class SingleThrowRound extends FFARound {
         return ((DefaultRoundTurnManager) getRoundTurnManager()).hasFinishedHole(team);
     }
 
-    public abstract String holeResult(Team team);
+    public final String holeResult(Team team) { return holeResult(team, getCurrentHole()); }
+
+    public abstract String holeResult(Team team, int hole);
 
     public void finishThrow(Team team, Location landing, boolean hazard) {
         miss(team, hazard ? "hazard or out of bounds" : null);

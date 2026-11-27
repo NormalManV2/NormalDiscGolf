@@ -16,16 +16,24 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class NormalDiscGolfPlugin extends JavaPlugin {
 
+    private NDGManager manager;
     private ThrowMechanicListener throwMechanicListener;
     public boolean released(org.bukkit.event.player.PlayerInteractEvent event) { return throwMechanicListener != null && throwMechanicListener.released(event); }
-    public void cancelMeter(java.util.UUID id) { if (throwMechanicListener != null) throwMechanicListener.cancelMechanic(id); }
+    public boolean cancelMeter(java.util.UUID id) {
+        return throwMechanicListener != null && throwMechanicListener.cancelMechanic(id);
+    }
+    public void trackPracticeMeter(normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl mechanic) {
+        throwMechanicListener.track(mechanic);
+    }
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        NDGManager.getInstance().initializeOnlinePlayers();
+        manager = NDGManager.getInstance();
+        manager.initializeOnlinePlayers();
         this.registerCommands();
         this.registerListeners();
+        Bukkit.getScheduler().runTask(this, NDGManager.getInstance().getClubhouse()::start);
         Bukkit.getScheduler().runTaskTimer(this, NDGManager.getInstance().getWeeklyTournaments()::tick, 20L, 20L);
         Bukkit.getScheduler().runTaskTimer(this, NDGManager.getInstance().getRankedSeasons()::tick, 20L, 20L);
         try {
@@ -48,6 +56,7 @@ public final class NormalDiscGolfPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new GuiListener(NDGManager.getInstance().getGuiManager()), this);
         Bukkit.getPluginManager().registerEvents(new DiscThrowListener(), this);
         Bukkit.getPluginManager().registerEvents(new normalmanv2.normalDiscGolf.impl.listener.RoundPlayerListener(), this);
+        Bukkit.getPluginManager().registerEvents(NDGManager.getInstance().getClubhouse(), this);
         this.throwMechanicListener = new ThrowMechanicListener();
         Bukkit.getPluginManager().registerEvents(this.throwMechanicListener, this);
     }
@@ -58,7 +67,7 @@ public final class NormalDiscGolfPlugin extends JavaPlugin {
             this.throwMechanicListener.cancelAll();
         }
 
-        NDGManager manager = NDGManager.getInstance();
+        if (manager == null) return;
         normalmanv2.normalDiscGolf.impl.round.RoundPresentation.cancelAll();
         manager.getPlayerSessionManager().restoreAllOnlinePlayers();
         manager.getRoundHandler().shutdown();

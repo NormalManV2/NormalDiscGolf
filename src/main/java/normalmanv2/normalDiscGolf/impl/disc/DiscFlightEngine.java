@@ -17,7 +17,11 @@ import org.bukkit.entity.*;
 import org.bukkit.inventory.MainHand;
 import org.bukkit.scheduler.*;
 import org.bukkit.util.Vector;
+import org.bukkit.util.BoundingBox;
 import java.util.function.BiFunction;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public final class DiscFlightEngine {
     private DiscFlightEngine() {}
@@ -44,6 +48,14 @@ public final class DiscFlightEngine {
 
     public static void preview(Player player, PlayerSkills skills, ThrowMechanicImpl mechanic, RoundImpl round) {
         DiscTrajectory trajectory = trajectory(player, skills, mechanic, round, 0, true);
+        drawPreview(player, mechanic, trajectory);
+    }
+
+    public static void previewPractice(Player player, ThrowMechanicImpl mechanic, Location basket, BoundingBox area) {
+        drawPreview(player, mechanic, practiceTrajectory(player, mechanic, basket, area, 0));
+    }
+
+    private static void drawPreview(Player player, ThrowMechanicImpl mechanic, DiscTrajectory trajectory) {
         Location origin = trajectory.location();
         Stance stance = mechanic.stance();
         Color color = switch (stance) {
@@ -71,6 +83,19 @@ public final class DiscFlightEngine {
 
     private static DiscTrajectory trajectory(Player player, PlayerSkills skills, ThrowMechanicImpl mechanic,
                                              RoundImpl round, double yaw, boolean preview) {
+        return trajectory(player, skills, mechanic, round.play().wind(), arcade -> collision(round, preview, arcade), yaw);
+    }
+
+    private static DiscTrajectory practiceTrajectory(Player player, ThrowMechanicImpl mechanic, Location basket,
+                                                     BoundingBox area, double yaw) {
+        var target = BoundingBox.of(basket, 1.3, 1.0, 1.3);
+        return trajectory(player, mechanic.effectiveSkills(), mechanic, HoleWind.CALM,
+                arcade -> (from, velocity) -> MathUtil.tracePractice(from, velocity, target, area), yaw);
+    }
+
+    private static DiscTrajectory trajectory(Player player, PlayerSkills skills, ThrowMechanicImpl mechanic, HoleWind wind,
+                                             Function<ArcadeFlight, BiFunction<Location, Vector, MathUtil.FlightHit>> collision,
+                                             double yaw) {
         DiscImpl disc = mechanic.getDisc();
         String technique = mechanic.getThrowTechnique();
         var physics = NDGManager.getInstance().getThrowTechniqueRegistry().get(technique);
@@ -90,7 +115,6 @@ public final class DiscFlightEngine {
         else if (roller && direction.getY() > -.22) direction.setY(-.22).normalize();
         Location origin = eye.add(direction.clone().multiply(.35));
         int maxTicks = DiscTrajectory.maxTicks(disc.getType(), putting);
-        HoleWind wind = round.play().wind();
         int rollerLevel = roller ? skills.getRoller().getLevel() : 0;
         double rollCurve = (angle.bank() == 0 ? .009 : angle.bank() * .028)
                 * (forehand ? -1 : 1) / (1 + .12 * Math.max(0, rollerLevel - 1));
@@ -98,7 +122,7 @@ public final class DiscFlightEngine {
         Vector velocity = direction.multiply(DiscTrajectory.launchSpeed(disc, skills, mechanic.getPower().get(), putting));
         if (trick != null) velocity.multiply(trick.speedScale());
         var arcade = mechanic.arcadeDisc() == null ? null : new ArcadeFlight(mechanic.arcadeDisc());
-        return new DiscTrajectory(origin, velocity, maxTicks, collision(round, preview, arcade), (motion, tick) -> {
+        return new DiscTrajectory(origin, velocity, maxTicks, collision.apply(arcade), (motion, tick) -> {
             if (trick != null) {
                 trick.advance(motion, tick);
                 motion.add(wind.acceleration(tick));
@@ -129,6 +153,46 @@ public final class DiscFlightEngine {
             }
             return MathUtil.trace(round, from, velocity, arcade);
         };
+    }
+
+    public static void launchPractice(Player player, ThrowMechanicImpl mechanic, Location basket, BoundingBox area,
+                                      BooleanSupplier active, Consumer<Boolean> result) {
+        double yaw = Math.toRadians(mechanic.effectiveSkills().releaseSpreadDegrees())
+                * mechanic.spreadMultiplier() * (2 * Math.random() - 1);
+        DiscTrajectory trajectory = practiceTrajectory(player, mechanic, basket, area, yaw);
+        var plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
+        var disc = mechanic.getDisc();
+        ItemDisplay display = player.getWorld().spawn(trajectory.location(), ItemDisplay.class, item -> {
+            item.setItemStack(DiscItems.discItem(disc.getType(), disc.getName(), player, true));
+            item.setBillboard(Display.Billboard.CENTER);
+            item.setPersistent(false);
+        });
+        var flight = new BukkitRunnable() {
+            private BukkitTask task;
+
+            @Override public void run() {
+                if (!active.getAsBoolean()) { finish(false); return; }
+                DiscTrajectory.Step step;
+                try {
+                    step = trajectory.advance();
+                    Location next = step.location();
+                    display.teleport(next);
+                    next.getWorld().spawnParticle(Particle.END_ROD, next, 1, 0, 0, 0, 0);
+                } catch (RuntimeException failure) {
+                    plugin.getLogger().log(java.util.logging.Level.WARNING, "Practice flight failed", failure);
+                    finish(false);
+                    return;
+                }
+                if (step.finished()) finish(step.goal());
+            }
+
+            private void finish(boolean goal) {
+                DiscFlightManager.completeFlight(task, plugin, 0);
+                result.accept(goal);
+            }
+        };
+        flight.task = flight.runTaskTimer(plugin, 1, 1);
+        DiscFlightManager.registerFlight(flight.task, player.getUniqueId(), null, display);
     }
 
     public static double ratedLaunchSpeed(DiscImpl disc, double baseSpeed) {
