@@ -3,6 +3,7 @@ package normalmanv2.normalDiscGolf;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.command.DiscGolfCommand;
 import normalmanv2.normalDiscGolf.impl.command.ThrowDiscCommand;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGenerationSettings;
 import normalmanv2.normalDiscGolf.impl.listener.DiscThrowListener;
 import normalmanv2.normalDiscGolf.impl.listener.GoalScoreListener;
 import normalmanv2.normalDiscGolf.impl.listener.GuiListener;
@@ -29,6 +30,9 @@ public final class NormalDiscGolfPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        String profile = getConfig().getString("course.profile", "").trim();
+        if (!profile.isEmpty() && CourseGenerationSettings.activeProfile(getConfig()) == null)
+            getLogger().warning("Unknown course.profile '" + profile + "'. Using the base course settings.");
         manager = NDGManager.getInstance();
         manager.initializeOnlinePlayers();
         this.registerCommands();

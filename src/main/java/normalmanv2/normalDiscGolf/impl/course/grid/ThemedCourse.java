@@ -25,7 +25,8 @@ final class ThemedCourse {
 
     record Hole(HoleArchetype archetype, List<GridPoint> route, List<GridPoint> alternative,
                 List<GridPoint> guards, List<Pool> pools, int teeY, int basketY, double width, int par,
-                WoodlandHole woodlandHole, List<Landmark> landmarks) {
+                WoodlandHole woodlandHole, List<Landmark> landmarks, TerrainShowcase showcase,
+                CanyonArch arch, List<SkyIsland> islands) {
         GridPoint tee() { return route.getFirst(); }
         GridPoint basket() { return route.getLast(); }
         double distance(double x, double z) {
@@ -37,6 +38,33 @@ final class ThemedCourse {
     }
 
     record Pool(GridPoint center, double innerRadius, double radius, boolean crossesFairway) {}
+    record ArchColumn(int bottom, int top) {}
+    private record CanyonArch(GridPoint center, boolean alongX, int span, int spring, int rise) {
+        ArchColumn column(int x, int z, int ground) {
+            int dx = x - center.x(), dz = z - center.z();
+            int along = Math.abs(alongX ? dx : dz), across = Math.abs(alongX ? dz : dx);
+            if (along > 2 || across > span + 2) return null;
+            double ratio = Math.min(1, across / (double)span);
+            int crown = spring + (int)Math.round(rise * Math.sqrt(1 - ratio * ratio));
+            int bottom = across >= span - 2 ? ground + 1 : Math.max(ground + 1, crown - 2);
+            int top = crown + (along == 2 ? 0 : 1);
+            return bottom > top ? null : new ArchColumn(bottom, top);
+        }
+    }
+
+    private record SkyIsland(GridPoint center, int radius, int depth, int shape) {
+        CourseGrid.TerrainColumn column(int x, int z) {
+            int dx = x - center.x(), dz = z - center.z();
+            double roughness = Math.sin(dx * .85 + dz * .5 + shape) * .65;
+            double distance = Math.hypot(dx, dz * 1.15) + roughness;
+            if (distance >= radius) return null;
+            int height = center.y() - (int)Math.max(0, distance / 2.8);
+            int thickness = 2 + (int)(depth * Math.pow(1 - Math.max(0, distance / radius), .85));
+            Material top = distance < radius * .53 ? Material.MOSS_BLOCK
+                    : distance < radius - 1 ? Material.GRASS_BLOCK : Material.CALCITE;
+            return new CourseGrid.TerrainColumn(height, TileTypes.OUT_OF_BOUNDS, top, thickness, 0);
+        }
+    }
 
     ThemedCourse(CourseGenerationSettings settings, long seed, int count, CourseGrid.Layout layout) {
         this.settings = settings;
@@ -47,20 +75,25 @@ final class ThemedCourse {
         waterline = settings.terrain().altitude - (settings.terrain() == CourseTerrain.ISLAND ? 7 : settings.elevation() + 5);
         var rotation = new ArrayList<>(settings.archetypes());
         var generated = new ArrayList<Hole>(count);
+        boolean standard = !layout.shortHoles();
         boolean featuredWoodland = settings.terrain() == CourseTerrain.WOODLAND && !layout.shortHoles();
         for (int index = 0; index < count; index++) {
             if (index % rotation.size() == 0) {
                 Collections.shuffle(rotation, random);
                 if (featuredWoodland) rotation.sort(Comparator.comparing(type -> WoodlandHole.forArchetype(type) == null));
+                else if (standard && (settings.terrain() == CourseTerrain.DESERT || settings.terrain() == CourseTerrain.SKY))
+                    rotation.sort(Comparator.comparing(type -> TerrainShowcase.forArchetype(settings.terrain(), type) == null));
             }
             HoleArchetype archetype = rotation.get(index % rotation.size());
             WoodlandHole woodlandHole = featuredWoodland ? WoodlandHole.forArchetype(archetype) : null;
-            generated.add(plan(index, archetype, random, layout.shortHoles(), woodlandHole));
+            TerrainShowcase showcase = standard ? TerrainShowcase.forArchetype(settings.terrain(), archetype) : null;
+            generated.add(plan(index, archetype, random, layout.shortHoles(), woodlandHole, showcase));
         }
         holes = List.copyOf(generated);
     }
 
-    private Hole plan(int index, HoleArchetype archetype, Random random, boolean shortLayout, WoodlandHole woodlandHole) {
+    private Hole plan(int index, HoleArchetype archetype, Random random, boolean shortLayout, WoodlandHole woodlandHole,
+                      TerrainShowcase showcase) {
         int orientation = random.nextInt(8);
         int x0 = shortLayout ? random.nextInt(31, 40) : random.nextInt(13, 25);
         int length = shortLayout ? random.nextInt(archetype == HoleArchetype.ISLAND_GREEN ? 31 : 24, 46) : switch (archetype) {
@@ -75,6 +108,7 @@ final class ThemedCourse {
             drift = woodlandHole == WoodlandHole.FERNBEND ? side * random.nextInt(24, 34) : 0;
             if (woodlandHole == WoodlandHole.FERNBEND) length = random.nextInt(61, 104 - x0);
         }
+        if (showcase == TerrainShowcase.SANDSTONE_GATE) drift = 0;
         GridPoint tee = orient(index, orientation, x0, z0);
         GridPoint basket = orient(index, orientation, x0 + length, z0 + drift);
         int bend = switch (archetype) {
@@ -89,7 +123,7 @@ final class ThemedCourse {
         if (woodlandHole == WoodlandHole.FERNBEND) {
             near = orient(index, orientation, x0 + length * 3 / 5, z0);
             far = orient(index, orientation, x0 + length * 4 / 5, z0 + drift / 2);
-        } else if (woodlandHole != null) {
+        } else if (woodlandHole != null || showcase == TerrainShowcase.SANDSTONE_GATE) {
             near = orient(index, orientation, x0 + length * 2 / 5, z0);
             far = orient(index, orientation, x0 + length * 7 / 10, z0);
         }
@@ -117,7 +151,7 @@ final class ThemedCourse {
                         ? interpolate(near, far, .5) : interpolate(tee, basket, .54);
                 pools.add(new Pool(carry, 0, 3.2 + hazard * 6, true));
             }
-            if (random.nextDouble() < hazard) {
+            if (random.nextDouble() < hazard && showcase != TerrainShowcase.SANDSTONE_GATE) {
                 int pocketZ = woodlandHole == null ? z0 + drift / 2 - side * (17 + random.nextInt(6))
                         : Math.clamp(z0 - side * ((int)Math.ceil(lane) + 24), 17, CELL - 17);
                 var pocket = orient(index, orientation, x0 + length / 2, pocketZ);
@@ -127,7 +161,8 @@ final class ThemedCourse {
             }
         }
         var guards = new ArrayList<GridPoint>();
-        if (woodlandHole == null && (archetype == HoleArchetype.GAP_SHOT || archetype == HoleArchetype.GUARDIAN_GREEN)) {
+        if (woodlandHole == null && showcase != TerrainShowcase.SANDSTONE_GATE
+                && (archetype == HoleArchetype.GAP_SHOT || archetype == HoleArchetype.GUARDIAN_GREEN)) {
             int at = archetype == HoleArchetype.GAP_SHOT ? length / 2 : length * 4 / 5;
             int offset = (int)Math.ceil(lane) + 7;
             for (int flank : new int[]{-1, 1})
@@ -147,8 +182,61 @@ final class ThemedCourse {
         }
         double effort = pathLength(route) + Math.abs(difference);
         int par = shortLayout ? 1 : effort > 110 ? 5 : effort > 78 ? 4 : 3;
+        CanyonArch arch = null;
+        List<SkyIsland> islands = List.of();
+        if (showcase != null && settings.obstacleDensity() > 0) {
+            var scenery = new Random(seed ^ (index + 1L) * 132897987541L);
+            if (showcase == TerrainShowcase.SANDSTONE_GATE) {
+                var center = orient(index, orientation, x0 + length * scenery.nextInt(47, 62) / 100, z0);
+                arch = new CanyonArch(center, tee.z() == basket.z(), (int)Math.ceil(lane) + scenery.nextInt(5, 8),
+                        Math.max(teeY, basketY) + 5, scenery.nextInt(17, 21));
+            } else if (settings.terrain() == CourseTerrain.SKY) {
+                islands = skyIslands(index, orientation, x0, length, route, (teeY + basketY) / 2, scenery);
+            }
+        }
         return new Hole(archetype, route, alternative, List.copyOf(guards), List.copyOf(pools),
-                teeY, basketY, lane, par, woodlandHole, landmarks);
+                teeY, basketY, lane, par, woodlandHole, landmarks, showcase, arch, islands);
+    }
+
+    private List<SkyIsland> skyIslands(int index, int orientation, int x0, int length, List<GridPoint> route,
+                                       int height, Random random) {
+        var result = new ArrayList<SkyIsland>();
+        double mainlandReach = 18 + settings.fairwayWidth() * .42;
+        for (int side : new int[]{-1, 1}) for (int offset : new int[]{25, 73}) {
+            int x = x0 + length * offset / 100 + random.nextInt(-5, 6);
+            int radius = random.nextInt(5, 10);
+            int z = side < 0 ? random.nextInt(11, 18) : CELL - random.nextInt(11, 18);
+            var center = orient(index, orientation, x, z);
+            if (routeDistance(route, center.x(), center.z()) <= mainlandReach + radius + 3) continue;
+            if (result.stream().anyMatch(other -> squared(other.center(), center.x(), center.z())
+                    < Math.pow(other.radius() + radius + 4, 2))) continue;
+            var elevated = new GridPoint(center.x(), height + random.nextInt(-13, 13), center.z());
+            result.add(new SkyIsland(elevated, radius, random.nextInt(6, 15), random.nextInt(64)));
+        }
+        return List.copyOf(result);
+    }
+
+    String showcaseHint(int index) {
+        Hole hole = hole(index);
+        if (hole.woodlandHole() != null) return hole.woodlandHole().hint(hole.route());
+        if (hole.showcase() == null) return null;
+        boolean featurePresent = switch (hole.showcase()) {
+            case SANDSTONE_GATE -> hole.arch() != null;
+            case CLOUD_CROSSING, DRIFTWOOD_GREEN -> hole.pools().stream().anyMatch(Pool::crossesFairway);
+            default -> true;
+        };
+        return hole.showcase().hint(featurePresent);
+    }
+
+    ArchColumn archColumn(int x, int z, int ground) {
+        Hole hole = at(x, z);
+        if (hole == null || hole.arch() == null) return null;
+        return hole.arch().column(x, z, ground);
+    }
+
+    GridPoint archFocus(int index) {
+        CanyonArch arch = hole(index).arch();
+        return arch == null ? null : new GridPoint(arch.center().x(), arch.spring() + arch.rise() / 2, arch.center().z());
     }
 
     private static List<Landmark> landmarks(WoodlandHole hole, int index, int orientation, int x, int z, int length,
@@ -238,8 +326,14 @@ final class ThemedCourse {
         boolean exposed = !nearAnchor && route > mass;
         boolean fairway = nearAnchor || hole != null && route < hole.width();
         Pool pool = hole == null || nearAnchor ? null : poolAt(hole, x, z, fairway);
-        if (terrain == CourseTerrain.SKY && (exposed || pool != null || !inBounds))
+        if (terrain == CourseTerrain.SKY && (exposed || pool != null || !inBounds)) {
+            // Satellites remain out of bounds so a ricochet or a landing cannot grant a lie on them.
+            if (exposed && inBounds && hole != null) for (SkyIsland island : hole.islands()) {
+                var column = island.column(x, z);
+                if (column != null) return column;
+            }
             return new CourseGrid.TerrainColumn(65, TileTypes.OUT_OF_BOUNDS, Material.AIR, 0, 0);
+        }
         if (terrain == CourseTerrain.ISLAND && (exposed || !inBounds) || pool != null) {
             Material liquid = terrain == CourseTerrain.NETHER ? Material.LAVA : Material.WATER;
             int y = terrain == CourseTerrain.ISLAND || pool == null ? waterline : poolLevel(hole, pool);
@@ -291,6 +385,10 @@ final class ThemedCourse {
         if (hole.archetype() == HoleArchetype.CLIFFSIDE && route > hole.width()
                 && (x - hole.tee().x()) * headingZ - (z - hole.tee().z()) * headingX < 0)
             height -= Math.min(1, (route - hole.width()) / 11) * (settings.elevation() * .50);
+        if (hole.showcase() == TerrainShowcase.PAINTED_RIM || hole.showcase() == TerrainShowcase.SPLIT_MESA) {
+            double rim = Math.clamp((route - hole.width() - 2 + local * 2) / 15, 0, 1);
+            height += Math.floor(rim * 5) * settings.elevation() * .26;
+        }
         if (terrain == CourseTerrain.ISLAND) height = Math.max(waterline + 1, height);
         if (terrain == CourseTerrain.SKY && !hole.nearAnchor(x, z, 9) && route > 15) height -= Math.min(6, (route - 15) * .5);
         return (int)Math.round(height);

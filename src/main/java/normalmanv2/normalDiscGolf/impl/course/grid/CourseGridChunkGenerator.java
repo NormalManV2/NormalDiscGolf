@@ -16,7 +16,13 @@ public final class CourseGridChunkGenerator extends ChunkGenerator {
         for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) {
             int wx = chunkX * 16 + x, wz = chunkZ * 16 + z;
             if (grid.isThemed()) {
-                writeThemedColumn(data, x, z, grid.terrainColumn(wx, wz));
+                var column = grid.terrainColumn(wx, wz);
+                writeThemedColumn(data, x, z, column);
+                if (grid.terrain() == CourseTerrain.DESERT) {
+                    var arch = grid.archColumn(wx, wz, column.height());
+                    if (arch != null) for (int y = arch.bottom(); y <= arch.top(); y++)
+                        data.setBlock(x, y, z, canyonLayer(y));
+                }
                 continue;
             }
             int y = grid.surfaceHeight(wx, wz);
@@ -51,10 +57,22 @@ public final class CourseGridChunkGenerator extends ChunkGenerator {
         if (column.depth() == 0) return;
         var terrain = grid.terrain();
         int top = column.height(), dry = top - column.liquidDepth();
-        for (int y = Math.max(data.getMinHeight(), top - column.depth()); y < dry; y++)
-            data.setBlock(x, y, z, y < dry - 3 ? terrain.rock : terrain.fill);
+        for (int y = Math.max(data.getMinHeight(), top - column.depth()); y < dry; y++) {
+            Material stone = terrain == CourseTerrain.DESERT && y < dry - 1
+                    ? canyonLayer(y) : y < dry - 3 ? terrain.rock : terrain.fill;
+            data.setBlock(x, y, z, stone);
+        }
         data.setBlock(x, dry, z, column.liquidDepth() == 0 ? column.surface() : terrain.fill);
         for (int y = dry + 1; y <= top; y++) data.setBlock(x, y, z, column.surface());
+    }
+
+    private static Material canyonLayer(int y) {
+        return switch (Math.floorMod(y, 13)) {
+            case 0, 1 -> Material.TERRACOTTA;
+            case 2, 3, 4 -> Material.RED_SANDSTONE;
+            case 8, 9 -> Material.ORANGE_TERRACOTTA;
+            default -> Material.SANDSTONE;
+        };
     }
 
     @Override public Location getFixedSpawnLocation(World world, Random random) {

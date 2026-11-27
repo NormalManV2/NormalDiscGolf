@@ -30,6 +30,8 @@ clubhouse:
   # Build the shop, Daily board, and practice green near the overworld spawn.
   enabled: true
 course:
+  # Set to a name under profiles to override these base settings, or leave blank.
+  profile: ""
   holes: 18
   # Use one terrain ID instead of random to keep the same environment across rounds.
   terrain: random
@@ -46,6 +48,17 @@ course:
     island: { elevation: 5, fairway-width: 17, obstacle-density: 0.46, hazard-density: 0.50 }
     nether: { elevation: 12, fairway-width: 15, obstacle-density: 0.53, hazard-density: 0.55 }
     sky: { elevation: 11, fairway-width: 16, obstacle-density: 0.32, hazard-density: 0.38 }
+  profiles:
+    desert-canyon:
+      terrain: desert
+      seed-mode: random
+      terrains:
+        desert: { elevation: 16, fairway-width: 17, obstacle-density: 0.42, hazard-density: 0.25 }
+    sky-islands:
+      terrain: sky
+      seed-mode: random
+      terrains:
+        sky: { elevation: 12, fairway-width: 16, obstacle-density: 0.40, hazard-density: 0.45 }
 ace-race:
   holes: 6
 closest-to-pin:

@@ -691,8 +691,19 @@ public class CourseGrid {
     public String holeName(int hole) {
         WoodlandHole featured = woodlandHole(hole);
         if (featured != null) return featured.label();
-        if (themed != null) return themed.hole(hole).archetype().label();
+        if (themed != null) {
+            var plan = themed.hole(hole);
+            return plan.showcase() != null ? plan.showcase().title() : plan.archetype().label();
+        }
         return layouts.isEmpty() ? "Parkland" : layouts.get(hole).title;
+    }
+
+    public String holeHint(int hole) { return themed == null ? null : themed.showcaseHint(hole); }
+
+    public GridPoint archFocus(int hole) { return themed == null ? null : themed.archFocus(hole); }
+
+    ThemedCourse.ArchColumn archColumn(int x, int z, int ground) {
+        return themed.archColumn(x, z, ground);
     }
 
     public WoodlandHole woodlandHole(int hole) { return themed == null ? null : themed.hole(hole).woodlandHole(); }

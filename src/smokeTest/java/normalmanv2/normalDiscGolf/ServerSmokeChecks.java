@@ -116,6 +116,7 @@ public final class ServerSmokeChecks extends JavaPlugin {
         checkClosestToPinLanding(round, world);
         checkThemedWorlds(manager);
         checkWoodlandWorld(manager);
+        checkDesertAndSkyWorlds(manager);
         finishRound(round,world);
         verifyRoundRewards(round, players);
         var limitedTeam=doubles.play().currentTeam();
@@ -815,6 +816,63 @@ public final class ServerSmokeChecks extends JavaPlugin {
         } finally {
             manager.getRoundHandler().discardRound(round);
         }
+    }
+
+    private void checkDesertAndSkyWorlds(NDGManager manager) {
+        var settings = new DefaultRoundSettings(8, RoundType.RECREATIONAL, Division.JUNIOR, false);
+        for (var terrain : List.of(CourseTerrain.DESERT, CourseTerrain.SKY)) {
+            var grid = new CourseGrid(23, 9, List.of(TileTypes.values()), 3, 2026, CourseGrid.Layout.PARKLAND,
+                    CourseGenerationSettings.defaults(terrain));
+            String name = "ndg_smoke_scenery_" + UUID.randomUUID();
+            var round = manager.getRoundHandler().createRound("ffa", new CourseImpl(Division.JUNIOR, grid, name),
+                    name, settings, false);
+            try {
+                World world = Bukkit.getWorld(name);
+                check(world != null, "showcase world exists");
+                if (terrain == CourseTerrain.DESERT) checkSandstoneArch(grid, world);
+                else for (int hole = 0; hole < 3; hole++) checkSkySatellite(grid, world, hole);
+            } finally {
+                manager.getRoundHandler().discardRound(round);
+            }
+        }
+        getLogger().info("NDG_DESERT_SKY_PASS");
+    }
+
+    private void checkSandstoneArch(CourseGrid grid, World world) {
+        int hole = java.util.stream.IntStream.range(0, 3).filter(i -> grid.holeName(i).equals("Sandstone Gate"))
+                .findFirst().orElseThrow();
+        var tee = grid.getTeePoints().get(hole);
+        var pin = grid.getHolePoints().get(hole);
+        int dx = Integer.signum(pin.x() - tee.x()), dz = Integer.signum(pin.z() - tee.z());
+        int length = Math.abs(pin.x() - tee.x()) + Math.abs(pin.z() - tee.z());
+        var materials = Set.of(Material.SANDSTONE, Material.RED_SANDSTONE, Material.TERRACOTTA, Material.ORANGE_TERRACOTTA);
+        int crownColumns = 0;
+        for (int offset = length * 44 / 100; offset <= length * 65 / 100; offset++) {
+            int x = tee.x() + dx * offset, z = tee.z() + dz * offset;
+            int ground = grid.surfaceHeight(x, z);
+            for (int y = ground + 1; y <= ground + 18; y++)
+                check(world.getBlockAt(x, y, z).isEmpty(), "the sandstone arch clears the intended throw and camera line");
+            for (int y = ground + 19; y <= ground + 45; y++) {
+                if (!materials.contains(world.getBlockAt(x, y, z).getType())) continue;
+                crownColumns++;
+                break;
+            }
+        }
+        check(crownColumns >= 4, "a generated sandstone crown spans the fairway opening");
+    }
+
+    private void checkSkySatellite(CourseGrid grid, World world, int hole) {
+        for (int x = 16 + hole * 112; x < 16 + (hole + 1) * 112; x++) for (int z = 16; z < 128; z++) {
+            var column = grid.terrainColumn(x, z);
+            if (column.depth() == 0 || column.type() != TileTypes.OUT_OF_BOUNDS) continue;
+            check(world.getBlockAt(x, column.height(), z).getType() == column.surface()
+                            && world.getBlockAt(x, column.height() - column.depth() - 1, z).isEmpty(),
+                    "Sky has a floating satellite island with open air below");
+            check(grid.getTileTypeAtLocation(new Location(world, x, column.height() + 1, z)).isHazard(),
+                    "the satellite is scenery and cannot become a legal lie");
+            return;
+        }
+        throw new AssertionError("Sky showcase hole is missing background islands");
     }
 
     private Location findGeneratedColumn(CourseGrid grid, World world, Material material) {

@@ -42,29 +42,34 @@ public final class HolePreviewPath {
         return samples.get(lower).clone().add(samples.get(upper).toVector().subtract(samples.get(lower).toVector()).multiply(t));
     }
     public Location frame(double progress) {
-        return movingFrame(progress, false, null);
+        return movingFrame(progress, false, null, null);
     }
 
-    Location previewFrame(double progress, boolean woodland, Location hazard) {
+    Location previewFrame(double progress, boolean showcase, Location hazard, Location arch) {
         // Finish the move early enough to give the basket a brief, steady frame.
-        return movingFrame(Math.min(1, progress / .87), woodland, hazard);
+        return movingFrame(Math.min(1, progress / .87), showcase, hazard, arch);
     }
 
-    private Location movingFrame(double progress, boolean woodland, Location hazard) {
+    private Location movingFrame(double progress, boolean showcase, Location hazard, Location arch) {
         double eased = .5 - .5 * Math.cos(Math.PI * Math.clamp(progress, 0, 1));
-        int behindTee = woodland ? 6 : 0;
-        double distance = Math.max(0, length - (woodland ? 14 : 16)) * eased - behindTee * (1 - eased);
+        int behindTee = showcase ? 6 : 0;
+        double distance = Math.max(0, length - (showcase ? 14 : 16)) * eased - behindTee * (1 - eased);
         Location camera = at(distance);
         if (distance < 0) {
             var forward = at(8).toVector().subtract(at(0).toVector()).setY(0).normalize();
             camera.add(forward.multiply(distance));
         }
-        camera.add(0, woodland ? 16 - 5 * eased : 11, 0);
-        Location focus = at(distance + (woodland ? 24 : 20)).add(0, 1.5, 0);
+        camera.add(0, showcase ? 16 - 5 * eased : 11, 0);
+        Location focus = at(distance + (showcase ? 24 : 20)).add(0, 1.5, 0);
         if (hazard != null) {
             double proximity = 1 - Math.clamp((focus.distance(hazard) - 5) / 24, 0, 1);
             double strength = .55 * proximity * proximity * (1 - Math.clamp((progress - .68) / .22, 0, 1));
             focus.add(hazard.toVector().subtract(focus.toVector()).multiply(strength));
+        }
+        if (arch != null) {
+            double span = Math.hypot(arch.getX() - focus.getX(), arch.getZ() - focus.getZ());
+            double strength = .75 * (1 - Math.clamp(span / 24, 0, 1));
+            focus.add(0, Math.max(0, arch.getY() - focus.getY()) * strength, 0);
         }
         camera.setDirection(focus.toVector().subtract(camera.toVector()));
         camera.setPitch(Math.clamp(camera.getPitch(), -10f, 35f));

@@ -2,6 +2,7 @@ const mineflayer = require('mineflayer')
 const fs = require('node:fs')
 const assert = require('node:assert/strict')
 const { createHash } = require('node:crypto')
+const { Vec3 } = require('vec3')
 const format = process.argv[2] || 'ffa'
 const expectedHoles = Number(process.argv[3] || 18)
 const expectLocalPack = process.argv.includes('--expect-local-pack')
@@ -11,14 +12,26 @@ const expectSkillXp = process.argv.includes('--expect-skill-xp')
 const expectTrickShots = process.argv.includes('--expect-trick-shots')
 const expectShotControls = process.argv.includes('--expect-shot-controls') || expectTrickShots
 const expectRoller = process.argv.includes('--expect-roller')
-const expectWoodlandVisuals = process.argv.includes('--expect-woodland-visuals')
+const showcase = ['woodland', 'desert', 'sky'].find(terrain => process.argv.includes('--expect-'+terrain+'-visuals'))
 const flyoverHazard = process.env.NDG_EXPECT_FLYOVER_HAZARD
 const queueTerrain = process.env.NDG_TEST_QUEUE_TERRAIN
 const hazardColors = { Water: 0x4ad3ff, Lava: 0xff6c32, Void: 0xc57dff }
-const woodlandHints = {
-  'Cathedral Run': /Hold the center of the pine corridor/,
-  Fernbend: /Aim for the bend, then turn (left|right)/,
-  Mossgate: /Aim through the gap in the fairway/
+const showcaseHints = {
+  woodland: {
+    'Cathedral Run': /Hold the center of the pine corridor/,
+    Fernbend: /Aim for the bend, then turn (left|right)/,
+    Mossgate: /Aim through the gap in the fairway/
+  },
+  desert: {
+    'Sandstone Gate': /Keep the drive low through the arch/,
+    'Painted Rim': /Follow the fairway below the canyon rim/,
+    'Split Mesa': /Follow the gold line or play the other rim/
+  },
+  sky: {
+    'Cloud Crossing': /Follow the gold line across the gap/,
+    'Driftwood Green': /Carry the gap to the basket island/,
+    'Sky Crown': /Aim up the ridge to the raised basket/
+  }
 }
 const trickColors = {flex:0xffff00,tomahawk:0xff00ff,thumber:0xae7aff}
 const tricks = Object.keys(trickColors)
@@ -40,7 +53,7 @@ function connect(name) {
   states.set(bot,state);bots.push(bot)
   bot.on('error',error=>{state.error=error.message})
   bot.on('kicked',reason=>{state.error=JSON.stringify(reason)})
-  if (expectWoodlandVisuals) recordWoodlandPreview(bot, state)
+  if (showcase) recordShowcasePreviews(bot, state, showcaseHints[showcase])
   if (flyoverHazard) {
     state.flyoverDots = new Map()
     bot._client.on('world_particles', packet => {
@@ -110,54 +123,63 @@ function connect(name) {
   return bot
 }
 
-function recordWoodlandPreview(bot, state) {
-  state.woodlandPreviews = new Map()
-  state.woodlandSigns = new Map()
-  state.woodlandHints = new Set()
+function recordShowcasePreviews(bot, state, hints) {
+  state.showcasePreviews = new Map()
+  state.showcaseSigns = new Map()
+  state.showcaseHints = new Set()
   let preview
   bot._client.on('set_title_subtitle', packet => {
     const text = JSON.stringify(packet.text)
-    for (const [layout, hint] of Object.entries(woodlandHints)) if (hint.test(text)) state.woodlandHints.add(layout)
+    for (const [layout, hint] of Object.entries(hints)) if (hint.test(text)) state.showcaseHints.add(layout)
   })
   bot._client.on('set_title_text', packet => {
     const text = JSON.stringify(packet.text)
-    const layout = Object.keys(woodlandHints).find(name => text.includes(name))
+    const layout = Object.keys(hints).find(name => text.includes(name))
     if (!layout) return
-    preview = {dots: new Map(), frames: 0}
-    state.woodlandPreviews.set(layout, preview)
+    preview = {dots: new Map(), frames: 0, blockedFrames: 0, carryDots: new Set()}
+    state.showcasePreviews.set(layout, preview)
   })
   bot._client.on('entity_metadata', packet => {
     const text = JSON.stringify(packet.metadata)
-    const layout = Object.keys(woodlandHints).find(name => text.includes(name))
-    if (layout && text.includes('HOLE')) state.woodlandSigns.set(layout, text)
+    const layout = Object.keys(hints).find(name => text.includes(name))
+    if (layout && text.includes('HOLE')) state.showcaseSigns.set(layout, text)
   })
   bot._client.on('world_particles', packet => {
     if (!preview || bot.game.gameMode !== 'spectator' || packet.particle.type !== 'dust') return
     if ((packet.particle.data.color & 0xffffff) !== 0xffcd5f) return
     const point = [packet.x, packet.z]
     preview.dots.set(point.join(','), point)
+    if (showcase === 'sky' && bot.blockAt(new Vec3(packet.x, packet.y - 5, packet.z))?.name === 'air')
+      preview.carryDots.add(point.join(','))
   })
   bot.on('move', () => {
-    if (preview && bot.game.gameMode === 'spectator') preview.frames++
+    if (!preview || bot.game.gameMode !== 'spectator') return
+    preview.frames++
+    if (bot.blockAt(bot.entity.position.offset(0, 1.62, 0))?.boundingBox === 'block') preview.blockedFrames++
   })
 }
 
-function checkWoodlandPreview(state) {
-  for (const [layout, hint] of Object.entries(woodlandHints)) {
-    const sign = state.woodlandSigns.get(layout)
+function checkShowcasePreviews(state, hints) {
+  for (const [layout, hint] of Object.entries(hints)) {
+    const sign = state.showcaseSigns.get(layout)
     assert.ok(sign, layout+' tee sign reached the client')
     assert.match(sign, /Par.*blocks/, 'the sign shows par and distance')
     assert.match(sign, hint, 'the sign shows the intended shot')
-    const preview = state.woodlandPreviews.get(layout)
+    const preview = state.showcasePreviews.get(layout)
     assert.ok(preview?.frames >= 40, layout+' flyover follows a moving camera')
-    assert.ok(state.woodlandHints.has(layout), 'the same cue appears in the flyover')
+    if (showcase !== 'woodland') assert.equal(preview.blockedFrames, 0, layout+' keeps the camera out of solid blocks')
+    assert.ok(state.showcaseHints.has(layout), 'the same cue appears in the flyover')
     const dots = [...preview.dots.values()]
     assert.ok(dots.length >= 9, layout+' sends a visible route trail')
     const [[x,z], [nextX,nextZ]] = dots
     const span = Math.hypot(nextX-x,nextZ-z)
     const offset = Math.max(...dots.map(([a,b]) => Math.abs((nextX-x)*(b-z)-(nextZ-z)*(a-x))/span))
     if (layout === 'Fernbend') assert.ok(offset > 8, 'the trail turns at the dogleg')
-    else assert.ok(offset < .01, layout+' shows a straight line through its landmark')
+    else if (showcase === 'woodland' || layout === 'Sandstone Gate')
+      assert.ok(offset < .01, layout+' shows a straight line through its landmark')
+    if (layout === 'Cloud Crossing' || layout === 'Driftwood Green') {
+      assert.ok(preview.carryDots.size >= 2, layout+' shows gold markers suspended over the void')
+    }
   }
 }
 async function playTurn(bot) {
@@ -276,7 +298,7 @@ function assertPreviewMatchesFlight(capture,trick) {
 async function main() {
   assert.ok(!(expectRoller && expectTrickShots),'run roller and trick checks separately')
   assert.ok(!expectTrickShots || names.length*expectedHoles>=tricks.length,'use four players or at least two holes to cover all tricks')
-  assert.ok(!expectWoodlandVisuals || (format==='ffa' && expectedHoles===3), 'use a three-hole Woodland FFA fixture')
+  assert.ok(!showcase || (format==='ffa' && expectedHoles===3), 'use a three-hole FFA showcase fixture')
   assert.ok(!flyoverHazard || hazardColors[flyoverHazard], 'use Water, Lava, or Void to name the expected main hazard')
   names.forEach(connect)
   await until(()=>bots.every(b=>states.get(b).ready), 'client connections')
@@ -334,7 +356,7 @@ async function main() {
     assert.deepEqual(b.inventory.items().map(i=>[i.name,i.count]).sort(),state.original.items,'inventory restored')
     assert.ok(state.messages.some(m=>m==='Final standings:'),'final standings announced')
     assert.ok(state.previewFrames>0 && state.maxPreviewPitch<=35.01,'preview pitch stays bounded on the client')
-    if (expectWoodlandVisuals) checkWoodlandPreview(state)
+    if (showcase) checkShowcasePreviews(state, showcaseHints[showcase])
     if (flyoverHazard) {
       assert.match(state.hazardHint ?? '', new RegExp(flyoverHazard+' (carry|beside the fairway).*Sneak to skip'), 'the preview names the hazard')
       assert.ok(state.flyoverDots.get(0xffcd5f)?.size >= 5, 'gold route markers reach the viewer')
@@ -351,7 +373,7 @@ async function main() {
   }
   if(bestShot) assert.ok(transcript.some(entry=>entry.message.includes(' selected lie ')),'played a chosen lie across holes')
   if(expectTrickShots) assert.deepEqual([...new Set(results.map(result=>result.stance))].sort(),[...tricks].sort(),'all tricks tested')
-  if(expectWoodlandVisuals) console.log('PASS: both clients received Woodland tee signs, shot cues, and route particles on all three moving flyovers.')
+  if(showcase) console.log('PASS: both clients received '+showcase+' tee signs, shot cues, and route particles on all three moving flyovers.')
   if(flyoverHazard) console.log('PASS: both clients received '+flyoverHazard.toLowerCase()+' guidance and separate route, hazard, and basket markers.')
   console.log('PASS: '+format+' '+expectedHoles+' holes, '+bots.length+' connected clients, '+results.length+' shots, flight lock, final standings, and restoration.')
   finished=true

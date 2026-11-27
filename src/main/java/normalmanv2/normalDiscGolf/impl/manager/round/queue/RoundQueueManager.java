@@ -575,7 +575,8 @@ public class RoundQueueManager {
                 .getPlugin(normalmanv2.normalDiscGolf.NormalDiscGolfPlugin.class).getConfig();
         RoundFormat format = RoundFormat.parse(roundFormat);
         boolean shortLayout = format == RoundFormat.ACE_RACE || format == RoundFormat.CLOSEST_TO_PIN;
-        int holes = Math.clamp(shortLayout ? config.getInt(format.id() + ".holes", 6) : config.getInt("course.holes", 18), 1, 18);
+        int holes = shortLayout ? Math.clamp(config.getInt(format.id() + ".holes", 6), 1, 18)
+                : CourseGenerationSettings.holes(config);
         var layout = shortLayout ? CourseGrid.Layout.SHORT : CourseGrid.Layout.PARKLAND;
         long seed = CourseGenerationSettings.seed(config);
         CourseGrid grid = new CourseGrid(23, ((holes + 2) / 3) * 7 + 2, List.of(TileTypes.values()),

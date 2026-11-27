@@ -24,9 +24,10 @@ final class HoleFlyover {
     private record Hazard(Location marker, Particle.DustOptions color, String caption) {}
 
     private final HolePreviewPath path;
-    private final boolean woodland;
+    private final boolean showcase;
     private final List<Location> fairway;
     private final Hazard hazard;
+    private final Location archFocus;
     private final Location basket;
     private final String subtitle;
 
@@ -35,9 +36,9 @@ final class HoleFlyover {
         Location tee = course.tee(world, hole);
         basket = course.basket(world, hole);
         var route = grid.centerline(hole);
-        var featured = grid.woodlandHole(hole);
-        woodland = featured != null;
-        subtitle = woodland ? featured.hint(route) : grid.terrain().label() + " • Par " + course.holePars().get(hole);
+        String hint = grid.holeHint(hole);
+        showcase = hint != null;
+        subtitle = showcase ? hint : grid.terrain().label() + " • Par " + course.holePars().get(hole);
         var waypoints = new ArrayList<Location>();
         waypoints.add(tee);
         for (int i = 1; i < route.size() - 1; i++) {
@@ -50,10 +51,19 @@ final class HoleFlyover {
         waypoints.add(basket);
         path = new HolePreviewPath(waypoints);
         var samples = samples(waypoints);
-        fairway = samples.stream().filter(point -> !grid.surfaceType(floor(point.x()), floor(point.z())).isHazard())
-                .map(point -> new Location(world, point.x(), grid.surfaceHeight(floor(point.x()), floor(point.z())) + 1.6,
-                        point.z())).toList();
+        var line = new ArrayList<Location>();
+        for (RoutePoint point : samples) {
+            int x = floor(point.x()), z = floor(point.z());
+            var type = grid.surfaceType(x, z);
+            if (!type.isHazard())
+                line.add(new Location(world, point.x(), grid.surfaceHeight(x, z) + 1.6, point.z()));
+            else if (showcase && grid.terrain() == CourseTerrain.SKY && type == TileTypes.OUT_OF_BOUNDS)
+                line.add(new Location(world, point.x(), point.routeHeight() + 1.6, point.z()));
+        }
+        fairway = List.copyOf(line);
         hazard = nearestHazard(grid, world, hole, samples);
+        var arch = grid.archFocus(hole);
+        archFocus = arch == null ? null : new Location(world, arch.x() + .5, arch.y(), arch.z() + .5);
     }
 
     String subtitle() { return subtitle; }
@@ -63,7 +73,7 @@ final class HoleFlyover {
     }
 
     Location frame(double progress) {
-        return path.previewFrame(progress, woodland, hazard == null ? null : hazard.marker());
+        return path.previewFrame(progress, showcase, hazard == null ? null : hazard.marker(), archFocus);
     }
 
     void markRoute(Player player, Location camera, double progress) {

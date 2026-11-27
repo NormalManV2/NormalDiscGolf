@@ -76,8 +76,10 @@ public final class RegressionChecks {
         checkTrickShots();
         checkMatchPlay();
         checkAceRaceCourses();
+        checkCourseProfiles();
         checkThemedCourses();
         checkWoodlandLandmarks();
+        checkDesertAndSkyLayouts();
         checkClosestToPin();
         checkCareer();
         checkArcadeFlight();
@@ -491,6 +493,38 @@ public final class RegressionChecks {
                 "wind reading improves directional and strength detail");
     }
 
+    private static void checkCourseProfiles() {
+        var config = new MemoryConfiguration();
+        config.set("course.holes", 18);
+        config.set("course.terrain", "woodland");
+        config.set("course.terrains.sky.elevation", 17);
+        config.set("course.terrains.sky.archetypes", List.of("dogleg"));
+        config.set("course.profiles.sky-event.terrain", "sky");
+        config.set("course.profiles.sky-event.holes", 3);
+        config.set("course.profiles.sky-event.seed-mode", "fixed");
+        config.set("course.profiles.sky-event.seed", -2026L);
+        config.set("course.profiles.sky-event.archetypes", List.of("air-shot", "elevated-basket"));
+        config.set("course.profiles.sky-event.terrains.sky.fairway-width", 19);
+        config.set("course.profiles.sky-event.terrains.sky.hazard-density", 0.0);
+
+        config.set("course.profile", "sky-event");
+        long seed = CourseGenerationSettings.seed(config);
+        var sky = CourseGenerationSettings.read(config, seed);
+        check(seed == -2026L && CourseGenerationSettings.holes(config) == 3
+                        && CourseGenerationSettings.availableTerrains(config).equals(List.of(CourseTerrain.SKY)),
+                "the profile controls the seed, round length and queue terrain");
+        check(sky.elevation() == 17 && sky.fairwayWidth() == 19 && sky.hazardDensity() == 0
+                        && sky.archetypes().equals(List.of(HoleArchetype.AIR_SHOT, HoleArchetype.ELEVATED_BASKET)),
+                "profile overrides preserve unspecified terrain settings and override base archetypes");
+        config.set("course.profiles.sky-event.terrains.sky.archetypes", List.of("island-green"));
+        check(CourseGenerationSettings.read(config, CourseTerrain.SKY).archetypes().equals(List.of(HoleArchetype.ISLAND_GREEN)),
+                "the terrain-specific profile archetypes take precedence");
+        config.set("course.profile", "missing");
+        check(CourseGenerationSettings.holes(config) == 18
+                        && CourseGenerationSettings.availableTerrains(config).equals(List.of(CourseTerrain.WOODLAND)),
+                "missing profiles fall back to the base settings");
+    }
+
     private static void checkThemedCourses() {
         var config = new org.bukkit.configuration.file.YamlConfiguration();
         config.set("course.seed-mode", "fixed");
@@ -527,7 +561,7 @@ public final class RegressionChecks {
                         terrain + " provides safe anchors");
                 check(a.surfaceHeight(tee.x(), tee.z()) + 1 == tee.y() && a.surfaceHeight(pin.x(), pin.z()) + 1 == pin.y(),
                         terrain + " anchors match the world surface");
-                if (a.holeName(hole).equals("Double Fairway") || a.holeName(hole).equals("Risk vs. Reward"))
+                if (Set.of("Double Fairway", "Risk vs. Reward", "Split Mesa").contains(a.holeName(hole)))
                     check(!a.alternateLane(hole).isEmpty(), "branching archetypes have a second route");
             }
             check(names.size() == HoleArchetype.values().length && distances.size() >= 6
@@ -556,6 +590,40 @@ public final class RegressionChecks {
                 && islandGreen.surfaceType(pin.x(), pin.z() - 10) == TileTypes.WATER
                 && islandGreen.surfaceType(pin.x(), pin.z() + 10) == TileTypes.WATER,
                 "an island green surrounds solid basket footing with a water carry");
+    }
+
+    private static void checkDesertAndSkyLayouts() {
+        for (var terrain : List.of(CourseTerrain.DESERT, CourseTerrain.SKY)) {
+            var expected = terrain == CourseTerrain.DESERT ? Set.of("Sandstone Gate", "Painted Rim", "Split Mesa")
+                    : Set.of("Cloud Crossing", "Driftwood Green", "Sky Crown");
+            for (int width : new int[]{8, 16, 28}) for (int seed = 0; seed < 8; seed++) {
+                var settings = new CourseGenerationSettings(terrain, 20, width, .4, .4, List.of());
+                var grid = themed(settings, 3, seed, CourseGrid.Layout.PARKLAND);
+                var names = new HashSet<String>();
+                for (int hole = 0; hole < 3; hole++) {
+                    names.add(grid.holeName(hole));
+                    check(grid.holeHint(hole) != null, "the featured hole gives an intended line");
+                    if (terrain != CourseTerrain.SKY) continue;
+                    int scenicColumns = 0;
+                    for (int x = 16 + hole * 112; x < 16 + (hole + 1) * 112; x++) for (int z = 16; z < 128; z++) {
+                        var column = grid.terrainColumn(x, z);
+                        if (column.depth() == 0 || !column.type().isHazard()) continue;
+                        scenicColumns++;
+                        check(grid.routeDistance(x, z) > 18 + width * .42 && !grid.protectedLane(x, z),
+                                "floating scenery stays beyond the mainland and remains out of bounds");
+                    }
+                    check(scenicColumns > 40, "featured Sky holes have detached scenery at width " + width + ", seed " + seed);
+                }
+                check(names.equals(expected), terrain + " opens with its three distinct layouts");
+            }
+        }
+        var settings = new CourseGenerationSettings(CourseTerrain.SKY, 0, 16, 0, 0, List.of(HoleArchetype.AIR_SHOT));
+        var grid = themed(settings, 1, 2026, CourseGrid.Layout.PARKLAND);
+        check(grid.holeHint(0).equals("Follow the ridge toward the basket."), "no carry is advertised with hazards disabled");
+        for (int x = 16; x < 128; x++) for (int z = 16; z < 128; z++) {
+            var column = grid.terrainColumn(x, z);
+            check(!column.type().isHazard() || column.depth() == 0, "zero obstacle density suppresses decorative islands");
+        }
     }
 
     private static void checkWoodlandLandmarks() {

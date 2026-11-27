@@ -135,12 +135,39 @@ course:
 
 - **Terrain selection** supports `woodland`, `mountain`, `desert`, `island`, `nether`, `sky`, and the original `parkland`. With `terrain: random`, set `enabled-terrains` to limit the pool.
 - **Seeds** use `seed-mode: random` by default. For repeatable events or testing, set `seed-mode: fixed` and enter a signed whole number under `seed`. Keep the terrain, length, and terrain settings the same when replaying a seed.
-- **Terrain settings** accept `elevation` from 0 to 32 blocks, `fairway-width` from 8 to 28 blocks, and both densities from 0 to 1. An obstacle density of 0 disables scenery obstacles. A hazard density of 0 removes generated pools and carries. Island coastlines and the Sky void are part of their terrain.
+- **Terrain settings** accept `elevation` from 0 to 32 blocks, `fairway-width` from 8 to 28 blocks, and both densities from 0 to 1. An obstacle density of 0 disables scenery obstacles, including Desert arches and Sky's decorative islands. A hazard density of 0 removes generated pools and carries. Island coastlines and the Sky void are part of their terrain.
 - **Hole archetypes** include `tunnel`, `dogleg`, `island-green`, `gap-shot`, `double-fairway`, `cliffside`, `guardian-green`, `air-shot`, `risk-reward`, and `elevated-basket`. Set a global `archetypes` list or override it under a terrain. The generator shuffles the enabled types and varies each hole within its type.
 
 Ace Race and Closest to Pin keep their shorter tee distances on every terrain. Water, lava, and void landings follow the active mode’s hazard rules. Players who fall beneath a Sky course return to their lie.
 
 Standard Woodland rounds open with **Cathedral Run**, **Fernbend**, and **Mossgate** when their archetypes are enabled. Aim through old-growth pines, play around a moss-covered boulder, and thread a pair of ruined gateposts. The seed varies the order, orientation, distances, and landmark placement. A tee board shows par, distance, and the opening shot, and gold dots mark the intended route during the skippable flyover.
+
+Standard Desert rounds feature **Sandstone Gate**, **Painted Rim**, and **Split Mesa**. Throw under a layered sandstone arch, follow the terraced canyon, or choose either side of the mesa. Sky rounds feature **Cloud Crossing**, **Driftwood Green**, and **Sky Crown**, with floating islands in the distance and a gold guide continuing across the void carries. Background islands are out of bounds. Both terrains use themed tee pads and share their intended shot between the tee board and flyover.
+
+### Reusable course profiles
+
+In `plugins/NormalDiscGolf/config.yml`, add a profile under `course.profiles`, set `course.profile` to its name, and restart. Use letters, numbers, hyphens, or underscores in the name. The bundled config includes `desert-canyon` and `sky-islands` as starting points.
+
+```yaml
+course:
+  profile: sky-quick
+  profiles:
+    sky-quick:
+      holes: 3
+      terrain: sky
+      seed-mode: random
+      terrains:
+        sky:
+          elevation: 12
+          fairway-width: 18
+          obstacle-density: 0.40
+          hazard-density: 0.30
+          archetypes: [air-shot, island-green, elevated-basket]
+```
+
+Omitted parameters inherit the base `course` settings. Profiles can also set `terrain: random` with `enabled-terrains`, or use `seed-mode: fixed` with a specific `seed` to replay the same layout. For archetypes, a profile's terrain-specific list takes precedence over its shared list. Set `course.profile: ""` to return to the base settings.
+
+Profile terrain settings also apply to newly generated Daily and weekly courses. Those events keep their own hole counts and seeds. Ace Race and Closest to Pin keep their mode-specific hole counts and short tees. Profiles apply to procedural courses, and saved custom courses use their authored layouts.
 
 ## Player career
 
@@ -392,6 +419,8 @@ For Closest to Pin, use the same fixture with `closest-to-pin.holes: 3`. Run `no
 For procedural courses, set `course.terrain: sky`, `course.seed-mode: random`, `course.terrains.sky.archetypes: [air-shot, dogleg, elevated-basket]`, and `closest-to-pin.holes: 3`. Run `node scripts/multiplayer/procedural-course-flow.cjs` to play two courses in the same environment and compare their generated seeds and tee locations.
 
 For the Woodland showcase, use `course.terrain: woodland`, `course.holes: 3`, `course.seed-mode: fixed`, and `course.seed: 2026` with the default archetypes. Run `node scripts/multiplayer/round-flow.cjs ffa 3 --expect-woodland-visuals --expect-shot-controls --expect-skill-xp`. Both clients receive the three tee boards, shot tips, moving flyovers, and gold route markers.
+
+For Desert and Sky, use the same three-hole fixed-seed setup with the corresponding terrain and run `node scripts/multiplayer/round-flow.cjs ffa 3 --expect-desert-visuals` or `--expect-sky-visuals`. Leave obstacle and hazard densities above zero. For Sky, also set `NDG_EXPECT_FLYOVER_HAZARD=Void` to assert the hazard cue and marker. The server smoke test checks the solid sandstone crown, clearance underneath, and actual floating island blocks.
 
 For flyover cues, use a one-hole Island Green on Island terrain with hazard density above zero. Set `NDG_EXPECT_FLYOVER_HAZARD=Water` and run `node scripts/multiplayer/round-flow.cjs ffa 1` to check the text cue and three distinct markers. The same check accepts `Lava` on Nether and `Void` on Sky when those holes contain a carry or a drop-off along the route.
 
