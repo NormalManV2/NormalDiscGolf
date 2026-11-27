@@ -4,6 +4,13 @@ import com.google.common.util.concurrent.AtomicDouble;
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
+import normalmanv2.normalDiscGolf.api.disc.DiscType;
+import normalmanv2.normalDiscGolf.impl.NDGManager;
+import normalmanv2.normalDiscGolf.impl.disc.DiscFlightEngine;
+import normalmanv2.normalDiscGolf.impl.disc.ArcadeDisc;
+import normalmanv2.normalDiscGolf.impl.disc.ShotSetup;
+import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
+import normalmanv2.normalDiscGolf.impl.round.RoundImpl;
 import normalmanv2.normalDiscGolf.impl.event.ThrowMechanicEvent;
 import normalmanv2.normalDiscGolf.impl.manager.task.TaskManager;
 import org.bukkit.Bukkit;
@@ -24,22 +31,43 @@ public class ThrowMechanicImpl implements ThrowMechanic {
     private final UUID playerId;
     private BossBar bossBar;
     private final Plugin plugin;
-    private AtomicDouble power;
+    private final AtomicDouble power = new AtomicDouble(.15);
     private final DiscImpl disc;
+    private final ArcadeDisc arcadeDisc;
     private final GameRound round;
     private final String throwTechnique;
+    private final ShotSetup setup;
+    private final ShotSetup.Stance stance;
+    private final PlayerSkills skills;
+    private final PlayerSkills.PracticeContext practice;
     private BukkitTask task;
     private boolean disposed;
 
     private boolean increasing = true;
-    private final double step = 0.05;
+    private boolean timing;
+    private double marker;
+    private double spreadMultiplier = 1;
+    private int elapsed;
 
     public ThrowMechanicImpl(UUID playerId, Plugin plugin, DiscImpl disc, GameRound round, String throwTechnique) {
+        this(playerId, plugin, disc, round, throwTechnique, null);
+    }
+
+    public ThrowMechanicImpl(UUID playerId, Plugin plugin, DiscImpl disc, GameRound round, String throwTechnique, ArcadeDisc arcadeDisc) {
         this.playerId = playerId;
         this.plugin = plugin;
         this.disc = disc;
+        this.arcadeDisc = arcadeDisc;
         this.round = round;
         this.throwTechnique = throwTechnique;
+        RoundImpl liveRound = round instanceof RoundImpl impl ? impl : null;
+        this.setup = liveRound == null ? ShotSetup.DEFAULT : liveRound.play().setup(playerId);
+        this.stance = setup.stance() == ShotSetup.Stance.PUTT
+                && (liveRound == null || !setup.usesPutting(disc.getType() == DiscType.PUTTER, liveRound.play().distanceToBasket(playerId)))
+                ? ShotSetup.Stance.NORMAL : setup.stance();
+        var personal = NDGManager.getInstance().getPlayerDataManager().getOrCreatePlayerData(playerId).getSkills();
+        this.skills = liveRound == null ? personal : liveRound.play().effectiveSkills(personal);
+        this.practice = liveRound == null ? PlayerSkills.PracticeContext.OPEN_LIE : liveRound.play().practiceContext(playerId);
 
         this.use();
     }
@@ -51,6 +79,8 @@ public class ThrowMechanicImpl implements ThrowMechanic {
     public DiscImpl getDisc() {
         return this.disc;
     }
+
+    public ArcadeDisc arcadeDisc() { return arcadeDisc; }
 
     public GameRound getRound() {
         return this.round;
@@ -83,6 +113,39 @@ public class ThrowMechanicImpl implements ThrowMechanic {
         return this.power;
     }
 
+    public ShotSetup.Angle releaseAngle() {
+        return round instanceof RoundImpl liveRound ? liveRound.play().setup(playerId).angle() : setup.angle();
+    }
+    public ShotSetup.Stance stance() { return stance; }
+    public boolean isPutting() { return stance == ShotSetup.Stance.PUTT; }
+    public boolean isDisposed() { return disposed; }
+    public double spreadMultiplier() { return spreadMultiplier; }
+    public PlayerSkills effectiveSkills() { return skills; }
+    public boolean recoveryLie() { return practice.recovery(); }
+
+    /** Returns true when the player has finished the release sequence. */
+    public boolean click(Player player) {
+        if (timing) {
+            double error = skills.timingError(marker, stance, practice.pressure());
+            spreadMultiplier = .12 + error * 3.38;
+            player.sendMessage(ChatColor.YELLOW + (error == 0 ? "Clean release"
+                    : marker < .5 ? "Early release" : "Late release"));
+            return true;
+        }
+        player.sendMessage(ChatColor.GRAY + "Power locked: " + Math.round(power.get() * 100) + "%");
+        if (!setup.timing()) return true;
+        timing = true;
+        updateTimingBar();
+        return false;
+    }
+
+    private void updateTimingBar() {
+        bossBar.setProgress(marker);
+        bossBar.setColor(skills.timingError(marker, stance, practice.pressure()) == 0
+                ? BarColor.GREEN : BarColor.YELLOW);
+        bossBar.setTitle("Release Timing: " + Math.round(marker * 100) + "%  |  Click in the green");
+    }
+
     public void dispose() {
         if (this.disposed) {
             return;
@@ -103,9 +166,10 @@ public class ThrowMechanicImpl implements ThrowMechanic {
     protected void use() {
         Player player = Bukkit.getPlayer(playerId);
         if (player == null) return;
+        boolean putting = isPutting();
 
-        this.power = new AtomicDouble(0.15);
-        this.bossBar = Bukkit.createBossBar("Throw Power: 15%", BarColor.BLUE, BarStyle.SEGMENTED_10);
+        if (putting) power.set(.10);
+        this.bossBar = Bukkit.createBossBar(powerTitle(), BarColor.BLUE, BarStyle.SEGMENTED_10);
         this.bossBar.setProgress(this.power.get());
         this.bossBar.setVisible(true);
         this.bossBar.addPlayer(player);
@@ -115,30 +179,40 @@ public class ThrowMechanicImpl implements ThrowMechanic {
                 return;
             }
 
-            double currentProgress = this.bossBar.getProgress();
-            double newProgress;
-
-            if (this.increasing) {
-                newProgress = currentProgress + this.step;
-                if (newProgress >= 1.0) {
-                    newProgress = 1.0;
-                    this.increasing = false;
-                }
-            } else {
-                newProgress = currentProgress - this.step;
-                if (newProgress <= 0.15) {
-                    newProgress = 0.15;
-                    this.increasing = true;
-                }
+            if (round instanceof RoundImpl liveRound && liveRound.play().validate(player) != null) {
+                dispose();
+                return;
             }
+            if (timing) {
+                marker = marker >= .99 ? 0 : marker + .1;
+                updateTimingBar();
+            } else if (elapsed % (putting ? 4 : 8) == 0) {
+                double step = putting ? .025 : .05;
+                double minimum = putting ? .10 : .15;
+                double newPower = Math.clamp(power.get() + (increasing ? step : -step), minimum, 1);
+                if (newPower >= 1) increasing = false;
+                if (newPower <= minimum) increasing = true;
+                power.set(newPower);
+                bossBar.setProgress(newPower);
+                bossBar.setTitle(powerTitle());
+            }
+            if (setup.preview() && elapsed % 6 == 0 && round instanceof RoundImpl liveRound)
+                DiscFlightEngine.preview(player, skills, this, liveRound);
+            elapsed += 2;
+        }, 0, 2);
 
-            this.bossBar.setProgress(newProgress);
-            this.bossBar.setTitle("Throw Power: " + Math.round(newProgress * 100) + "%");
-            this.power.set(newProgress);
-
-        }, 0, 8);
-
-        player.sendMessage(ChatColor.YELLOW + "Aim your throw, then click once to release.");
+        if (setup.stance() == ShotSetup.Stance.PUTT && !putting)
+            player.sendMessage(ChatColor.GRAY + "Putting stance needs a putter within 15 blocks. Using full throw.");
+        String hint = switch (stance) {
+            case ROLLER -> "Aim along open ground. Grass rolls farther than sand, and the release angle steers the roll.";
+            case FLEX -> "Aim through open air. The disc bends out early and fades back late.";
+            case TOMAHAWK -> "Aim over the obstacle. The tomahawk climbs high, pans, and drops steeply.";
+            case THUMBER -> "Aim over the obstacle. The thumber climbs steeper and pans opposite the tomahawk.";
+            default -> null;
+        };
+        if (hint != null) player.sendMessage(ChatColor.GRAY + hint);
+        player.sendMessage(ChatColor.YELLOW + (setup.timing() ? "Click to lock power, then click when the timing bar is green."
+                : "Aim your throw, then click once to release."));
 
         TaskManager.registerTask(this.task, playerId);
 
@@ -147,6 +221,10 @@ public class ThrowMechanicImpl implements ThrowMechanic {
         if (event.isCancelled()) {
             this.dispose();
         }
+    }
+
+    private String powerTitle() {
+        return stance.label() + " Power: " + Math.round(power.get() * 100) + "%";
     }
 
     public BossBar getBossBar() {

@@ -5,7 +5,6 @@ import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
 import normalmanv2.normalDiscGolf.impl.player.PlayerSkills;
-import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
@@ -18,8 +17,7 @@ public class MidRange extends DiscImpl {
 
     @Override
     public void handleThrow(Player player, PlayerSkills skills, String technique, BlockFace facing, ThrowMechanic mechanic) {
-        double power = ((ThrowMechanicImpl) mechanic).getPower().get();
-        DiscFlightEngine.launch(this, player, skills, Constants.MID_BASE_SPEED, power, 80, technique, facing);
+        DiscFlightEngine.launch(player, skills, (ThrowMechanicImpl) mechanic);
     }
 
     @Override

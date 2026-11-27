@@ -13,3 +13,9 @@ permissions:
   ndg.commands.profile.admin:
     description: Save, reload, and edit player profiles for testing.
     default: op
+  ndg.course.edit:
+    description: Create and edit your own custom courses.
+    default: true
+  ndg.course.admin:
+    description: Edit custom courses owned by other players.
+    default: op

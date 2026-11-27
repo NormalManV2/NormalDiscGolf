@@ -3,6 +3,7 @@ package normalmanv2.normalDiscGolf.impl.listener;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.event.PlayerQueueRoundEvent;
 import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
+import normalmanv2.normalDiscGolf.impl.round.RoundFormat;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -30,15 +31,11 @@ public class PlayerRoundQueueListener implements Listener {
         }
 
         if (this.queueManager.addPlayerToQueue(event.getPlayerId(), event.getRoundFormat())) {
-            player.sendMessage(ChatColor.GREEN + "You have been queued for " + this.displayFormat(event.getRoundFormat()) + ".");
+            player.sendMessage(ChatColor.GREEN + "You have been queued for " + RoundFormat.parse(event.getRoundFormat()).label() + ".");
             return;
         }
 
         player.sendMessage(ChatColor.YELLOW + "You are already queued, in a round, or this round format is unavailable.");
-    }
-
-    private String displayFormat(String roundFormat) {
-        return roundFormat.equalsIgnoreCase("doubles") ? "Doubles" : "FFA";
     }
 
 }

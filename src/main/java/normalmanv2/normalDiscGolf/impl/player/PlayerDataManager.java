@@ -3,12 +3,16 @@ package normalmanv2.normalDiscGolf.impl.player;
 import normalmanv2.normalDiscGolf.impl.player.profile.PlayerProfileStore;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.configuration.InvalidConfigurationException;
 
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.UUID;
 
 public class PlayerDataManager {
+    public enum PrizeResult { PAID, ALREADY_PAID, SAVE_FAILED }
 
     private final Map<UUID, PlayerData> playerData;
     private final PlayerProfileStore profileStore;
@@ -51,6 +55,34 @@ public class PlayerDataManager {
         return this.profileStore.save(playerId, this.getPlayerName(playerId), data);
     }
 
+    public PrizeResult creditCompetitionPrize(UUID id, String competitionId, int credits) {
+        PlayerData data = getDataByPlayer(id);
+        if (data == null) {
+            try {
+                data = profileStore.loadForCompetitionPrize(id);
+            } catch (IOException | InvalidConfigurationException failure) {
+                return PrizeResult.SAVE_FAILED;
+            }
+        }
+        var receipts = data.getCompetitionRewards();
+        if (receipts.contains(competitionId)) return PrizeResult.ALREADY_PAID;
+        var bag = data.getDiscBag();
+        var updated = new HashSet<>(receipts);
+        updated.add(competitionId);
+        data.setDiscBag(bag.earn(credits));
+        data.setCompetitionRewards(updated);
+        boolean saved = false;
+        try {
+            saved = profileStore.save(id, this.getPlayerName(id), data);
+            return saved ? PrizeResult.PAID : PrizeResult.SAVE_FAILED;
+        } finally {
+            if (!saved) {
+                data.setDiscBag(bag);
+                data.setCompetitionRewards(receipts);
+            }
+        }
+    }
+
     public void reloadPlayerData(UUID playerId) throws java.io.IOException, org.bukkit.configuration.InvalidConfigurationException {
         PlayerData loaded = this.profileStore.reload(playerId);
         PlayerData current = this.playerData.get(playerId);
@@ -60,11 +92,14 @@ public class PlayerDataManager {
         }
         var rating = loaded.getRating();
         current.getRating().restore(rating.getTotalRounds(), rating.getTotalScore(),
-                rating.getAverageScore(), rating.getRating(), rating.getDivision());
+                rating.getAverageScore(), rating.getRating(), rating.getDivision(), rating.getPeakRating(), rating.getLastRoundRating());
         loaded.getSkills().asMap().forEach((name, skill) ->
                 current.getSkills().asMap().get(name).restoreProgress(skill.getLevel(), skill.getXp()));
         current.setDiscBag(loaded.getDiscBag());
+        current.setUnavailableDiscIds(loaded.getUnavailableDiscIds());
+        current.setClubhouse(loaded.getClubhouse());
         current.setDecalLocker(loaded.getDecalLocker());
+        current.setCompetitionRewards(loaded.getCompetitionRewards());
     }
 
     public void saveAll() {

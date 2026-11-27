@@ -20,9 +20,10 @@ public final class RoundPresentation {
     public static void teleportToCurrentTee(Plugin plugin, Player player, GameRound round, boolean preview) {
         cancel(player);
         if (round.isOver() || !round.containsPlayer(player.getUniqueId())) return;
-        World world = Bukkit.getWorld(round.getId());
+        World world = ((RoundImpl) round).world();
         if (world == null) return;
-        if (preview && plugin.getConfig().getBoolean("preview.enabled", true)) playHolePreview(plugin, player, round);
+        if (preview && !((RoundImpl) round).getCourse().isCustom() && plugin.getConfig().getBoolean("preview.enabled", true))
+            playHolePreview(plugin, player, round);
         else player.teleport(teePosition(round, player, world));
     }
     public static Location getGroundedCurrentTee(GameRound round, World world) {
@@ -31,6 +32,9 @@ public final class RoundPresentation {
     public static void teleportTeamToLie(Player thrower, GameRound round, Location lie) {
         Team team = round.getTeams().stream().filter(t -> t.contains(thrower.getUniqueId())).findFirst().orElse(null);
         if (team == null) return;
+        teleportTeamToLie(team, round, lie);
+    }
+    public static void teleportTeamToLie(Team team, GameRound round, Location lie) {
         for (UUID id : team.getTeamMembers()) {
             Player player = Bukkit.getPlayer(id);
             if (player != null) {
@@ -46,15 +50,16 @@ public final class RoundPresentation {
         if (round.isOver() || !player.isOnline()) return;
         CourseImpl course = (CourseImpl)round.getCourse();
         int hole = round.getCurrentHole();
-        World world = Bukkit.getWorld(round.getId());
-        if (world == null) return;
+        World world = ((RoundImpl) round).world();
+        if (world == null || course.isCustom()) return;
         Location destination = teePosition(round, player, world), basket = course.basket(world, hole);
         List<Location> path = new ArrayList<>();
         path.add(course.tee(world, hole));
-        var route = course.grid().getHoleRoutePoints().getOrDefault(hole, List.of());
+        var route = course.grid().centerline(hole);
         for (int i = 1; i < route.size() - 1; i++) {
             var point = route.get(i);
-            int x = point.x() + 8, z = point.z() + 8;
+            int x = point.x(), z = point.z();
+            if (course.grid().surfaceType(x, z).isHazard()) continue;
             path.add(new Location(world, x + .5, course.grid().surfaceHeight(x, z) + 1, z + .5));
         }
         path.add(basket);
@@ -65,7 +70,7 @@ public final class RoundPresentation {
         player.setGameMode(GameMode.SPECTATOR);
         player.teleport(flightPath.frame(0));
         player.sendTitle("§aHole " + (hole + 1) + " • " + course.grid().holeName(hole),
-                "§fPar " + course.holePars().get(hole) + " • Sneak to skip", 5, 60, 10);
+                "§f" + course.grid().terrain().label() + " • Par " + course.holePars().get(hole) + " • Sneak to skip", 5, 60, 10);
         BukkitTask task = new BukkitRunnable() {
             private int elapsed;
             public void run() {
@@ -105,10 +110,17 @@ public final class RoundPresentation {
         direction.normalize();
         var side = new org.bukkit.util.Vector(-direction.getZ(),0,direction.getX());
         Location position = lie.clone().subtract(direction.multiply(3.5 + (index/3)*3)).add(side.multiply((index%3-1)*2.5));
+        if (round.getCourse().isCustom()) {
+            position = round.getCourse().safeLie(position, lie);
+            return position.setDirection(round.getCourse().basket(lie.getWorld(), round.getCurrentHole()).toVector().subtract(position.toVector()));
+        }
         int x = position.getBlockX(), z = position.getBlockZ();
         position.setY(round.getCourse().grid().surfaceHeight(x,z)+1);
+        var grid = round.getCourse().grid();
+        if (grid.surfaceType(x, z).isHazard()) return lie.clone();
         if (!position.getBlock().isPassable() || !position.clone().add(0,1,0).getBlock().isPassable()) {
             position = lie.clone().add(0,0,-4);
+            if (grid.surfaceType(position.getBlockX(), position.getBlockZ()).isHazard()) return lie.clone();
             position.setY(round.getCourse().grid().surfaceHeight(position.getBlockX(),position.getBlockZ())+1);
         }
         position.setDirection(round.getCourse().basket(lie.getWorld(),round.getCurrentHole()).toVector().subtract(position.toVector()));

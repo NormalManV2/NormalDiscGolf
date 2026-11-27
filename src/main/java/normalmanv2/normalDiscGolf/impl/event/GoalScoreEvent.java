@@ -12,11 +12,17 @@ public class GoalScoreEvent extends Event {
     private final Player player;
     private final int holeNumber;
     private final GameRound round;
+    private final double distance;
 
     public GoalScoreEvent(Player player, int holeNumber, GameRound round) {
+        this(player, holeNumber, round, 0);
+    }
+
+    public GoalScoreEvent(Player player, int holeNumber, GameRound round, double distance) {
         this.player = player;
         this.holeNumber = holeNumber;
         this.round = round;
+        this.distance = distance;
     }
 
     public Player getPlayer() {
@@ -26,6 +32,8 @@ public class GoalScoreEvent extends Event {
     public int getHoleNumber() {
         return this.holeNumber;
     }
+
+    public double getDistance() { return distance; }
 
     public GameRound getRound() {
         return this.round;

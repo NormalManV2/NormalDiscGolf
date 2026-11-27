@@ -3,9 +3,14 @@ package normalmanv2.normalDiscGolf.impl;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.creator.CourseCreator;
+import normalmanv2.normalDiscGolf.impl.competition.DailyCompetition;
+import normalmanv2.normalDiscGolf.impl.competition.RankedSeasons;
+import normalmanv2.normalDiscGolf.impl.competition.WeeklyTournaments;
+import normalmanv2.normalDiscGolf.impl.course.custom.CustomCourseStore;
 import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
 import normalmanv2.normalDiscGolf.impl.disc.DiscModel;
+import normalmanv2.normalDiscGolf.impl.disc.DiscCatalog;
 import normalmanv2.normalDiscGolf.impl.manager.file.FileManager;
 import normalmanv2.normalDiscGolf.impl.manager.gui.GuiManager;
 import normalmanv2.normalDiscGolf.impl.manager.course.ObstacleManager;
@@ -36,6 +41,11 @@ public class NDGManager {
     private final PlayerSessionManager playerSessionManager = new PlayerSessionManager();
     private final RoundHandler roundHandler;
     private final DiscRegistry discRegistry = new DiscRegistry();
+    private final DiscCatalog discCatalog;
+    private final CustomCourseStore customCourses;
+    private final DailyCompetition dailyCompetition;
+    private final RankedSeasons rankedSeasons;
+    private final WeeklyTournaments weeklyTournaments;
     private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
     private final InviteService inviteService = new InviteService();
     private final RegistryImpl<String, ObstacleImpl> obstacleRegistry;
@@ -53,12 +63,19 @@ public class NDGManager {
 
     private NDGManager() {
         this.plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
-        this.playerDataManager = new PlayerDataManager(new PlayerProfileStore(this.plugin));
+        this.discCatalog = DiscCatalog.load(plugin.getDataFolder().toPath().resolve("custom-discs"), plugin.getLogger());
+        this.customCourses = new CustomCourseStore(plugin.getDataFolder().toPath().resolve("custom-courses"), plugin.getLogger());
+        this.dailyCompetition = new DailyCompetition(plugin.getDataFolder().toPath().resolve("daily-courses"),
+                plugin::getConfig, java.time.Clock.systemUTC());
+        this.playerDataManager = new PlayerDataManager(new PlayerProfileStore(this.plugin, discCatalog));
+        this.rankedSeasons = new RankedSeasons(plugin, this.playerDataManager, java.time.Clock.systemUTC());
         this.obstacleRegistry = new ObstacleRegistry();
         this.fileManager = new FileManager(plugin);
         this.obstacleManager = new ObstacleManager(this.fileManager);
         this.roundHandler = new RoundHandler(plugin);
         this.roundQueueManager = new RoundQueueManager(this.roundHandler, this.playerDataManager);
+        this.weeklyTournaments = new WeeklyTournaments(plugin, this.playerDataManager, this.roundHandler,
+                this.roundQueueManager, java.time.Clock.systemUTC());
 
         this.registerDefaultDiscs();
         Bukkit.getScheduler().runTaskLater(plugin, this::registerDefaultCourseDifficulty, 20);
@@ -78,7 +95,7 @@ public class NDGManager {
 
     public PackedIntegration getPacked() throws IOException {
         if (packed == null) {
-            packed = new PackedIntegration(this.plugin);
+            packed = new PackedIntegration(this.plugin, discCatalog);
         }
 
         return packed;
@@ -118,6 +135,12 @@ public class NDGManager {
         return this.discRegistry;
     }
 
+    public DiscCatalog getDiscCatalog() { return discCatalog; }
+    public CustomCourseStore getCustomCourses() { return customCourses; }
+    public DailyCompetition getDailyCompetition() { return dailyCompetition; }
+    public RankedSeasons getRankedSeasons() { return rankedSeasons; }
+    public WeeklyTournaments getWeeklyTournaments() { return weeklyTournaments; }
+
     public InviteService getInviteService() {
         return this.inviteService;
     }
@@ -143,7 +166,7 @@ public class NDGManager {
     }
 
     private void registerDefaultDiscs() {
-        for (DiscModel model : DiscModel.values()) {
+        for (DiscModel model : discCatalog.models()) {
             this.discRegistry.register(model.displayName(), model.createDisc());
         }
     }

@@ -26,6 +26,8 @@ public final class NormalDiscGolfPlugin extends JavaPlugin {
         NDGManager.getInstance().initializeOnlinePlayers();
         this.registerCommands();
         this.registerListeners();
+        Bukkit.getScheduler().runTaskTimer(this, NDGManager.getInstance().getWeeklyTournaments()::tick, 20L, 20L);
+        Bukkit.getScheduler().runTaskTimer(this, NDGManager.getInstance().getRankedSeasons()::tick, 20L, 20L);
         try {
             NDGManager.getInstance().getPacked();
             for (var player : Bukkit.getOnlinePlayers()) NDGManager.getInstance().getPacked().send(player);
@@ -60,6 +62,7 @@ public final class NormalDiscGolfPlugin extends JavaPlugin {
         normalmanv2.normalDiscGolf.impl.round.RoundPresentation.cancelAll();
         manager.getPlayerSessionManager().restoreAllOnlinePlayers();
         manager.getRoundHandler().shutdown();
+        manager.getRankedSeasons().shutdown();
         manager.getPlayerSessionManager().clear();
         manager.getPlayerDataManager().saveAll();
         manager.getPlayerDataManager().clear();

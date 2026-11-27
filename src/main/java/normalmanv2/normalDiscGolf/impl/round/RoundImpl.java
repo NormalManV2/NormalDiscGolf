@@ -14,6 +14,7 @@ import normalmanv2.normalDiscGolf.api.round.manager.RoundTurnManager;
 import normalmanv2.normalDiscGolf.api.round.settings.RoundSettings;
 import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
+import org.bukkit.World;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -71,6 +72,8 @@ public class RoundImpl implements GameRound {
     public CourseImpl getCourse() {
         return this.courseImpl;
     }
+
+    public World world() { return courseImpl.world(id); }
 
     @Override
     public RoundScoreCardManager getRoundScoreCardManager() {

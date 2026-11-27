@@ -29,11 +29,17 @@ public class GuiManager {
 
     public void openGUI(InventoryGUI gui, Player player) {
         this.registerInventory(gui.getInventory(), gui);
-        player.openInventory(gui.getInventory());
+        if (player.openInventory(gui.getInventory()) == null) this.unregisterInventory(gui.getInventory());
 
     }
 
     public boolean manages(Inventory inventory) { return this.inventories.containsKey(inventory); }
+
+    public void refreshForPack(Player player) {
+        if (inventories.get(player.getOpenInventory().getTopInventory()) instanceof InventoryGUI gui) {
+            gui.refreshForPack(player);
+        }
+    }
 
     public void handleClick(InventoryClickEvent event) {
         InventoryHandler handler = this.inventories.get(event.getInventory());

@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.manager.round.queue;
 
+import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.round.delegate.settings.DelegateRoundSettings;
 import normalmanv2.normalDiscGolf.api.round.settings.RoundType;
@@ -8,7 +9,11 @@ import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.creator.CourseCreator;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGenerationSettings;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseTerrain;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
+import normalmanv2.normalDiscGolf.impl.course.custom.CustomCourse;
+import normalmanv2.normalDiscGolf.impl.competition.DailyCourse;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.manager.round.lifecycle.RoundHandler;
@@ -16,6 +21,10 @@ import normalmanv2.normalDiscGolf.impl.player.PlayerData;
 import normalmanv2.normalDiscGolf.impl.player.PlayerDataManager;
 import normalmanv2.normalDiscGolf.impl.round.DoublesRound;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
+import normalmanv2.normalDiscGolf.impl.round.MatchPlayRound;
+import normalmanv2.normalDiscGolf.impl.round.EliminationRound;
+import normalmanv2.normalDiscGolf.impl.round.RoundFormat;
+import normalmanv2.normalDiscGolf.impl.round.DailyRound;
 import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Bukkit;
@@ -37,8 +46,15 @@ public class RoundQueueManager {
         PLAYER_ALREADY_QUEUED,
         DIVISION_MISMATCH,
         PARTY_TOO_LARGE,
-        ROUND_FULL
+        ROUND_FULL,
+        CUSTOM_COURSE_BUSY,
+        DAILY_UNAVAILABLE,
+        LOBBY_UNAVAILABLE,
+        TERRAIN_UNAVAILABLE
     }
+
+    public record Lobby(String id, CourseTerrain terrain, long seed, int holes, int capacity,
+                        List<String> players, String status) {}
 
     private final RoundHandler roundHandler;
     private final Set<GameRound> queuedRounds;
@@ -49,7 +65,7 @@ public class RoundQueueManager {
     public RoundQueueManager(RoundHandler roundHandler, PlayerDataManager playerDataManager) {
         this.roundHandler = roundHandler;
         this.playerDataManager = playerDataManager;
-        this.queuedRounds = new HashSet<>();
+        this.queuedRounds = new LinkedHashSet<>();
         this.playerQueue = new HashMap<>();
         for (Division division : Division.values()) {
             this.playerQueue.put(division, new HashMap<>());
@@ -81,6 +97,7 @@ public class RoundQueueManager {
             return false;
         }
 
+        if (RoundFormat.DAILY.name().equals(normalizedFormat) && currentDaily() == null) return false;
         this.removePlayerFromQueue(player);
         Division division = Division.JUNIOR;
         this.playerQueue.get(division).put(player, normalizedFormat);
@@ -88,6 +105,10 @@ public class RoundQueueManager {
     }
 
     public QueueResult addPartyToQueue(Collection<UUID> players, String roundFormat) {
+        return addPartyToQueue(players, roundFormat, null, null);
+    }
+
+    public QueueResult addPartyToQueue(Collection<UUID> players, String roundFormat, String lobby, CourseTerrain terrain) {
         String normalizedFormat = normalizeRoundFormat(roundFormat);
         if (normalizedFormat == null) {
             return QueueResult.INVALID_FORMAT;
@@ -98,24 +119,105 @@ public class RoundQueueManager {
         }
 
         List<UUID> playerIds = players.stream().distinct().toList();
-        for (UUID id : playerIds) if (!packReady(id)) return QueueResult.RESOURCE_PACK_REQUIRED;
         if (playerIds.isEmpty()) {
             return QueueResult.PLAYER_DATA_MISSING;
         }
 
-        if (normalizedFormat.equalsIgnoreCase("DOUBLES") && playerIds.size() > Constants.MAXIMUM_PARTY_MEMBERS) {
+        RoundFormat format = RoundFormat.parse(normalizedFormat);
+        if (format.usesDoublesTeams() && playerIds.size() > Constants.MAXIMUM_PARTY_MEMBERS) {
             return QueueResult.PARTY_TOO_LARGE;
         }
 
-        if (normalizedFormat.equalsIgnoreCase("FFA") && playerIds.size() > Constants.FFA_ROUND_MAX_PLAYERS) {
+        if (format.usesIndividualTeams()
+                && playerIds.size() > Constants.FFA_ROUND_MAX_PLAYERS) {
+            return QueueResult.PARTY_TOO_LARGE;
+        }
+        if (normalizedFormat.equals("MATCH") && playerIds.size() > MatchPlayRound.PLAYERS) {
             return QueueResult.PARTY_TOO_LARGE;
         }
 
-        Division division = null;
+        QueueResult ready = validatePlayers(playerIds);
+        if (ready != QueueResult.SUCCESS) return ready;
+        DailyCourse.Definition daily = format == RoundFormat.DAILY ? currentDaily() : null;
+        if (format == RoundFormat.DAILY && daily == null) return QueueResult.DAILY_UNAVAILABLE;
+        if (terrain != null && (format == RoundFormat.DAILY || !availableTerrains().contains(terrain)))
+            return QueueResult.TERRAIN_UNAVAILABLE;
+        Division division = Division.JUNIOR; // Recreational matchmaking keeps friends together regardless of rating.
+        DefaultRoundSettings settings = this.createSettings(normalizedFormat, division);
+        if (lobby != null && !lobby.equalsIgnoreCase("new")) {
+            return queuedRounds.stream()
+                    .filter(round -> round.getId().equals(lobby))
+                    .filter(round -> matchesQueuedRound(round, normalizedFormat, RoundType.RECREATIONAL, division, daily))
+                    .findFirst().map(round -> commitParty(round, playerIds, normalizedFormat))
+                    .orElse(QueueResult.LOBBY_UNAVAILABLE);
+        }
+
+        if (lobby == null) {
+            var existing = queuedRounds.stream()
+                    .filter(round -> matchesQueuedRound(round, normalizedFormat, RoundType.RECREATIONAL, division, daily))
+                    .filter(round -> hasCapacityForParty(round, normalizedFormat, playerIds.size())).findFirst();
+            if (existing.isPresent()) return commitParty(existing.get(), playerIds, normalizedFormat);
+        }
+        GameRound round = createLobby(normalizedFormat, division, settings, daily, terrain);
+        QueueResult joined = commitParty(round, playerIds, normalizedFormat);
+        if (joined == QueueResult.SUCCESS) addRoundToQueue(round);
+        else roundHandler.discardRound(round);
+        return joined;
+    }
+
+    public List<CourseTerrain> availableTerrains() {
+        return CourseGenerationSettings.availableTerrains(NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class).getConfig());
+    }
+
+    public List<Lobby> lobbies(RoundFormat format) {
+        return queuedRounds.stream()
+                .filter(round -> !round.isPrivate() && !(round.getCourse() instanceof CustomCourse)
+                        && RoundFormat.of(round) == format)
+                .filter(round -> !round.getTeams().isEmpty())
+                .map(round -> {
+                    var course = (CourseImpl) round.getCourse();
+                    List<String> names = round.getTeams().stream().flatMap(team -> team.getTeamMembers().stream())
+                            .map(Bukkit::getPlayer).filter(Objects::nonNull).map(Player::getName).toList();
+                    int capacity = round.getSettings().maxTeams() * (format.usesDoublesTeams() ? 2 : 1);
+                    Long since = readySince.get(round);
+                    String status = roundHandler.isBuildingCourse(round) ? "Preparing course"
+                            : !roundHandler.courseReady(round) ? "Waiting to prepare course"
+                            : since == null ? "Course ready · Waiting for players" : "Starting in " + secondsRemaining(since) + "s";
+                    return new Lobby(round.getId(), course.grid().terrain(), course.seed(), course.holes(), capacity, names, status);
+                }).toList();
+    }
+
+    public QueueResult addPlayersToCustomCourse(Collection<UUID> players, CustomCourse course) {
+        List<UUID> playerIds = players.stream().distinct().toList();
+        if (playerIds.isEmpty()) return QueueResult.PLAYER_DATA_MISSING;
+        if (playerIds.size() > Constants.FFA_ROUND_MAX_PLAYERS) return QueueResult.PARTY_TOO_LARGE;
+        QueueResult ready = validatePlayers(playerIds);
+        if (ready != QueueResult.SUCCESS) return ready;
+        if (roundHandler.getActiveRounds().stream().anyMatch(round -> usesCustomCourse(round, course)))
+            return QueueResult.CUSTOM_COURSE_BUSY;
+        for (GameRound queued : queuedRounds) {
+            if (!usesCustomCourse(queued, course)) continue;
+            if (queued.getCourse() != course) return QueueResult.CUSTOM_COURSE_BUSY;
+            return commitParty(queued, playerIds, RoundFormat.FFA.id());
+        }
+        var settings = new DefaultRoundSettings(Constants.FFA_ROUND_MAX_PLAYERS, RoundType.RECREATIONAL, Division.JUNIOR, true);
+        GameRound round = roundHandler.createCustomRound(course, settings);
+        QueueResult joined = commitParty(round, playerIds, RoundFormat.FFA.id());
+        if (joined == QueueResult.SUCCESS) addRoundToQueue(round);
+        else roundHandler.discardRound(round);
+        return joined;
+    }
+
+    private static boolean usesCustomCourse(GameRound round, CustomCourse course) {
+        return round.getCourse() instanceof CustomCourse other && other.id().equals(course.id());
+    }
+
+    private QueueResult validatePlayers(List<UUID> playerIds) {
         for (UUID playerId : playerIds) {
             if (Bukkit.getPlayer(playerId) == null) {
                 return QueueResult.PLAYER_OFFLINE;
             }
+            if (!packReady(playerId)) return QueueResult.RESOURCE_PACK_REQUIRED;
 
             if (this.isPlayerInActiveRound(playerId)) {
                 return QueueResult.PLAYER_IN_ACTIVE_ROUND;
@@ -131,17 +233,11 @@ public class RoundQueueManager {
             }
 
         }
-        division = Division.JUNIOR; // Recreational matchmaking keeps friends together regardless of rating.
+        return QueueResult.SUCCESS;
+    }
 
-        DefaultRoundSettings settings = this.createSettings(normalizedFormat, division);
-        GameRound round = this.findOrCreateRoundForParty(
-                normalizedFormat,
-                RoundType.RECREATIONAL,
-                division,
-                settings,
-                playerIds.size());
-
-        return commitParty(round, playerIds, normalizedFormat);
+    public boolean readyForScheduledRound(UUID id) {
+        return validatePlayers(List.of(id)) == QueueResult.SUCCESS;
     }
 
     private QueueResult commitParty(GameRound round, List<UUID> playerIds, String format) {
@@ -183,12 +279,18 @@ public class RoundQueueManager {
                 .findFirst();
     }
 
+    public Optional<CustomCourse> getQueuedCustomCourse(UUID id) {
+        return queuedRounds.stream().filter(round -> round.containsPlayer(id))
+                .map(GameRound::getCourse).filter(CustomCourse.class::isInstance).map(CustomCourse.class::cast).findFirst();
+    }
+
     public void addRoundToQueue(GameRound round) {
         this.queuedRounds.add(round);
     }
 
     public void removeRoundFromQueue(GameRound round) {
         this.queuedRounds.remove(round);
+        this.readySince.remove(round);
     }
 
     public boolean isRoundQueued(GameRound round) {
@@ -225,12 +327,18 @@ public class RoundQueueManager {
                 }
 
                 String roundFormat = queuedPlayer.getValue();
+                DailyCourse.Definition daily = RoundFormat.DAILY.name().equals(roundFormat) ? currentDaily() : null;
+                if (RoundFormat.DAILY.name().equals(roundFormat) && daily == null) {
+                    iterator.remove();
+                    player.sendMessage(ChatColor.RED + "The Daily Course is currently unavailable.");
+                    continue;
+                }
                 DefaultRoundSettings settings = this.createSettings(roundFormat, division);
                 GameRound round = findOrCreateRoundForDivision(
                         roundFormat,
                         RoundType.RECREATIONAL,
                         division,
-                        settings);
+                        settings, daily);
 
                 if (round == null)
                     throw new RuntimeException("Error ticking player queue: No suitable round could be found!");
@@ -261,14 +369,14 @@ public class RoundQueueManager {
                 continue;
             }
             long since = readySince.computeIfAbsent(round, ignored -> System.currentTimeMillis());
-            int seconds = normalmanv2.normalDiscGolf.NormalDiscGolfPlugin.getPlugin(normalmanv2.normalDiscGolf.NormalDiscGolfPlugin.class)
-                    .getConfig().getInt("queue-countdown-seconds", 15);
-            long remaining = Math.max(0, seconds - (System.currentTimeMillis() - since) / 1000);
+            long remaining = secondsRemaining(since);
+            boolean courseReady = this.roundHandler.courseReady(round);
+            String message = courseReady ? "§aRound starts in " + remaining + "s" : "§eWaiting for the course to be ready";
             for (Team team : round.getTeams()) for (UUID id : team.getTeamMembers()) {
                 Player player = Bukkit.getPlayer(id);
-                if (player != null) player.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR, new net.md_5.bungee.api.chat.TextComponent("§aRound starts in " + remaining + "s §7• " + round.getTeams().size() + " teams"));
+                if (player != null) player.spigot().sendMessage(net.md_5.bungee.api.ChatMessageType.ACTION_BAR, new net.md_5.bungee.api.chat.TextComponent(message + " §7• " + round.getTeams().size() + " teams"));
             }
-            if (remaining > 0 && !round.isFull()) continue;
+            if (!courseReady || remaining > 0 && !round.isFull()) continue;
             readySince.remove(round);
 
             iterator.remove();
@@ -277,7 +385,16 @@ public class RoundQueueManager {
         }
     }
 
+    private static long secondsRemaining(long since) {
+        int seconds = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class).getConfig().getInt("queue-countdown-seconds", 15);
+        return Math.max(0, seconds - (System.currentTimeMillis() - since) / 1000);
+    }
+
     private boolean shouldStartRound(GameRound round) {
+        if (round instanceof EliminationRound elimination) return elimination.hasOpponents();
+        if (round instanceof MatchPlayRound) {
+            return round.getTeams().size() == MatchPlayRound.PLAYERS && round.getTeams().stream().allMatch(Team::isFull);
+        }
         if (round.isPrivate()) {
             return true;
         }
@@ -328,41 +445,27 @@ public class RoundQueueManager {
             String roundFormat,
             RoundType type,
             Division division,
-            DefaultRoundSettings settings) {
+            DefaultRoundSettings settings, DailyCourse.Definition daily) {
         return this.queuedRounds.stream()
-                .filter(round -> this.matchesQueuedRound(round, roundFormat, type, division))
-                .filter(round -> !round.isFull())
+                .filter(round -> this.matchesQueuedRound(round, roundFormat, type, division, daily))
+                .filter(round -> this.hasCapacityForParty(round, roundFormat, 1))
                 .findFirst()
                 .orElseGet(() -> {
-                    String worldName = this.createWorldName(roundFormat, division);
-                    CourseImpl course = this.createCourse(roundFormat, division, worldName);
-                    GameRound newRound = this.roundHandler.createRound(roundFormat, course, worldName, settings);
+                    GameRound newRound = createLobby(roundFormat, division, settings, daily, null);
                     this.addRoundToQueue(newRound);
                     return newRound;
                 });
     }
 
-    private GameRound findOrCreateRoundForParty(
-            String roundFormat,
-            RoundType type,
-            Division division,
-            DefaultRoundSettings settings,
-            int partySize) {
-        return this.queuedRounds.stream()
-                .filter(round -> this.matchesQueuedRound(round, roundFormat, type, division))
-                .filter(round -> this.hasCapacityForParty(round, roundFormat, partySize))
-                .findFirst()
-                .orElseGet(() -> {
-                    String worldName = this.createWorldName(roundFormat, division);
-                    CourseImpl course = this.createCourse(roundFormat, division, worldName);
-                    GameRound newRound = this.roundHandler.createRound(roundFormat, course, worldName, settings);
-                    this.addRoundToQueue(newRound);
-                    return newRound;
-                });
+    private GameRound createLobby(String roundFormat, Division division, DefaultRoundSettings settings,
+                                  DailyCourse.Definition daily, CourseTerrain terrain) {
+        String worldName = this.createWorldName(roundFormat, division);
+        CourseImpl course = this.createCourse(roundFormat, division, worldName, daily, terrain);
+        return this.roundHandler.createQueuedRound(roundFormat, course, worldName, settings);
     }
 
     private boolean addPlayerToQueuedRound(GameRound round, UUID playerId, String roundFormat) {
-        if (round instanceof FFARound) {
+        if (round instanceof FFARound || round instanceof MatchPlayRound) {
             return round.addTeam(new TeamImpl(playerId, 1));
         }
 
@@ -385,15 +488,19 @@ public class RoundQueueManager {
     }
 
     private boolean addPartyToQueuedRound(GameRound round, List<UUID> playerIds, String roundFormat) {
-        if (round instanceof FFARound) {
+        if (round instanceof FFARound || round instanceof MatchPlayRound) {
             if (!this.hasCapacityForParty(round, roundFormat, playerIds.size())) {
                 return false;
             }
 
+            List<Team> added = new ArrayList<>();
             for (UUID playerId : playerIds) {
-                if (!round.addTeam(new TeamImpl(playerId, 1))) {
+                Team team = new TeamImpl(playerId, 1);
+                if (!round.addTeam(team)) {
+                    added.forEach(round::removeTeam);
                     return false;
                 }
+                added.add(team);
             }
             return true;
         }
@@ -424,11 +531,11 @@ public class RoundQueueManager {
     }
 
     private boolean hasCapacityForParty(GameRound round, String roundFormat, int partySize) {
-        if (roundFormat.equalsIgnoreCase("FFA")) {
+        if (round instanceof FFARound || round instanceof MatchPlayRound) {
             return round.getTeams().size() + partySize <= round.getSettings().maxTeams();
         }
 
-        if (roundFormat.equalsIgnoreCase("DOUBLES")) {
+        if (RoundFormat.parse(roundFormat).usesDoublesTeams()) {
             if (partySize == 1) {
                 return round.getTeams().stream().anyMatch(team -> !team.isFull())
                         || round.getTeams().size() < round.getSettings().maxTeams();
@@ -442,7 +549,7 @@ public class RoundQueueManager {
     }
 
     private DefaultRoundSettings createSettings(String roundFormat, Division division) {
-        if (roundFormat.equalsIgnoreCase("DOUBLES")) {
+        if (RoundFormat.parse(roundFormat).usesDoublesTeams()) {
             return (DefaultRoundSettings) DelegateRoundSettings.create(
                     Constants.DOUBLES_ROUND_MAX_TEAMS,
                     RoundType.RECREATIONAL,
@@ -451,33 +558,47 @@ public class RoundQueueManager {
         }
 
         return (DefaultRoundSettings) DelegateRoundSettings.create(
-                Constants.FFA_ROUND_MAX_PLAYERS,
+                roundFormat.equalsIgnoreCase("MATCH") ? MatchPlayRound.PLAYERS : Constants.FFA_ROUND_MAX_PLAYERS,
                 RoundType.RECREATIONAL,
                 division,
                 false);
     }
 
-    private boolean matchesQueuedRound(GameRound round, String roundFormat, RoundType type, Division division) {
-        if (round.type() != type || round.division() != division || round.isPrivate()) {
+    private boolean matchesQueuedRound(GameRound round, String roundFormat, RoundType type, Division division,
+                                       DailyCourse.Definition daily) {
+        if (round.type() != type || round.division() != division || round.isPrivate() || round.getCourse() instanceof CustomCourse) {
             return false;
         }
 
-        if (roundFormat.equalsIgnoreCase("FFA")) {
-            return round instanceof FFARound;
-        }
-
-        if (roundFormat.equalsIgnoreCase("DOUBLES")) {
-            return round instanceof DoublesRound;
-        }
-
-        return false;
+        RoundFormat requested = RoundFormat.parse(roundFormat);
+        return requested != null && requested == RoundFormat.of(round)
+                && (daily == null || round instanceof DailyRound existing && daily.equals(existing.definition()));
     }
 
-    private CourseImpl createCourse(String roundFormat, Division division, String worldName) {
-        int holes = Math.clamp(normalmanv2.normalDiscGolf.NormalDiscGolfPlugin.getPlugin(normalmanv2.normalDiscGolf.NormalDiscGolfPlugin.class)
-                .getConfig().getInt("course.holes", 18), 1, 18);
-        CourseGrid grid = new CourseGrid(23, ((holes + 2) / 3) * 7 + 2, List.of(TileTypes.values()), holes, normalmanv2.normalDiscGolf.NormalDiscGolfPlugin.getPlugin(normalmanv2.normalDiscGolf.NormalDiscGolfPlugin.class).getConfig().getLong("course.seed", 2026));
+    private CourseImpl createCourse(String roundFormat, Division division, String worldName, DailyCourse.Definition daily,
+                                    CourseTerrain terrain) {
+        if (daily != null) return new DailyCourse(daily, division, worldName);
+        var config = normalmanv2.normalDiscGolf.NormalDiscGolfPlugin
+                .getPlugin(normalmanv2.normalDiscGolf.NormalDiscGolfPlugin.class).getConfig();
+        RoundFormat format = RoundFormat.parse(roundFormat);
+        boolean shortLayout = format == RoundFormat.ACE_RACE || format == RoundFormat.CLOSEST_TO_PIN;
+        int holes = Math.clamp(shortLayout ? config.getInt(format.id() + ".holes", 6) : config.getInt("course.holes", 18), 1, 18);
+        var layout = shortLayout ? CourseGrid.Layout.SHORT : CourseGrid.Layout.PARKLAND;
+        long seed = CourseGenerationSettings.seed(config);
+        CourseGrid grid = new CourseGrid(23, ((holes + 2) / 3) * 7 + 2, List.of(TileTypes.values()),
+                holes, seed, layout, terrain == null ? CourseGenerationSettings.read(config, seed)
+                        : CourseGenerationSettings.read(config, terrain));
         return new CourseCreator().create(division, grid, worldName);
+    }
+
+    private DailyCourse.Definition currentDaily() {
+        try {
+            return NDGManager.getInstance().getDailyCompetition().today().course();
+        } catch (java.io.IOException failure) {
+            normalmanv2.normalDiscGolf.NormalDiscGolfPlugin.getPlugin(normalmanv2.normalDiscGolf.NormalDiscGolfPlugin.class)
+                    .getLogger().log(java.util.logging.Level.WARNING, "Could not load the Daily Course", failure);
+            return null;
+        }
     }
 
     private String createWorldName(String roundFormat, Division division) {
@@ -495,6 +616,7 @@ public class RoundQueueManager {
                 .anyMatch(round -> round.containsPlayer(playerId))
                 || this.roundHandler.getPreparingRounds()
                 .stream()
+                .filter(round -> !this.isRoundQueued(round))
                 .anyMatch(round -> round.containsPlayer(playerId));
     }
 
@@ -511,26 +633,16 @@ public class RoundQueueManager {
     }
 
     private static String normalizeRoundFormat(String roundFormat) {
-        if (roundFormat == null) {
-            return null;
-        }
-
-        if (roundFormat.equalsIgnoreCase("FFA")) {
-            return "FFA";
-        }
-
-        if (roundFormat.equalsIgnoreCase("DOUBLES")) {
-            return "DOUBLES";
-        }
-
-        return null;
+        RoundFormat format = RoundFormat.parse(roundFormat);
+        return format == null || !format.canQueueDirectly() ? null : format.name();
     }
 
     private static String displayRoundFormat(String roundFormat) {
-        return roundFormat.equalsIgnoreCase("DOUBLES") ? "Doubles" : "FFA";
+        return RoundFormat.parse(roundFormat).label();
     }
 
     private String formatForRound(GameRound round) {
-        return round instanceof DoublesRound ? "DOUBLES" : "FFA";
+        RoundFormat format = RoundFormat.of(round);
+        return format == null ? "FFA" : format.name();
     }
 }

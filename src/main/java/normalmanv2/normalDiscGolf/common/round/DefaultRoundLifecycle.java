@@ -6,10 +6,26 @@ import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundResult;
 import normalmanv2.normalDiscGolf.api.round.delegate.lifecycle.DelegateRoundLifecycle;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
+import normalmanv2.normalDiscGolf.impl.competition.RankedSeason;
+import normalmanv2.normalDiscGolf.impl.competition.StrokeStandings;
 import normalmanv2.normalDiscGolf.impl.player.PlayerData;
+import normalmanv2.normalDiscGolf.impl.player.clubhouse.ClubhouseMedal;
+import normalmanv2.normalDiscGolf.impl.player.clubhouse.DailyChallenge;
 import normalmanv2.normalDiscGolf.impl.player.score.PDGARating;
 import normalmanv2.normalDiscGolf.impl.player.score.ScoreCard;
+import normalmanv2.normalDiscGolf.impl.player.score.RoundSummary;
 import normalmanv2.normalDiscGolf.impl.round.RoundPresentation;
+import normalmanv2.normalDiscGolf.impl.round.MatchPlayRound;
+import normalmanv2.normalDiscGolf.impl.round.EliminationRound;
+import normalmanv2.normalDiscGolf.impl.round.AceRaceRound;
+import normalmanv2.normalDiscGolf.impl.round.ClosestToPinRound;
+import normalmanv2.normalDiscGolf.impl.round.SingleThrowRound;
+import normalmanv2.normalDiscGolf.impl.round.RoundImpl;
+import normalmanv2.normalDiscGolf.impl.round.ArcadeRound;
+import normalmanv2.normalDiscGolf.impl.round.DailyRound;
+import normalmanv2.normalDiscGolf.impl.round.CompetitionRound;
+import normalmanv2.normalDiscGolf.impl.round.WeeklyTournamentRound;
+import normalmanv2.normalDiscGolf.impl.round.RoundFormat;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -26,6 +42,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.UUID;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 
 public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
     private boolean started = false;
@@ -73,11 +91,16 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
     public RoundResult start() {
         if (this.started) return RoundResult.ALREADY_STARTED;
         if (this.round.getTeams().isEmpty()) return RoundResult.NOT_ENOUGH_TEAMS;
+        if (this.round instanceof WeeklyTournamentRound weekly
+                && this.round.getTeams().stream().filter(team -> Bukkit.getPlayer(team.getOwner()) != null).count() < weekly.event().minimum())
+            return RoundResult.NOT_ENOUGH_TEAMS;
+        if (this.round instanceof MatchPlayRound match && !match.hasOpponents()) return RoundResult.NOT_ENOUGH_TEAMS;
+        if (this.round instanceof EliminationRound elimination && !elimination.hasOpponents()) return RoundResult.NOT_ENOUGH_TEAMS;
 
         this.started = true;
         this.state = RoundState.START;
 
-        World world = Bukkit.getWorld(this.round.getId());
+        World world = ((RoundImpl) this.round).world();
         if (world == null) {
             throw new IllegalStateException("World " + this.round.getId() + " does not exist");
         }
@@ -102,7 +125,8 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                 player.setFoodLevel(20);
                 player.setFireTicks(0);
                 player.closeInventory();
-                normalmanv2.normalDiscGolf.impl.listener.RoundPlayerListener.giveKit(player);
+                normalmanv2.normalDiscGolf.impl.listener.RoundPlayerListener.giveKit(player,
+                        (normalmanv2.normalDiscGolf.impl.round.RoundImpl) this.round);
             }
 
             missingPlayers.forEach(team::removePlayer);
@@ -112,7 +136,36 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
             }
         }
 
+        if (this.round instanceof MatchPlayRound match) match.openMatch();
+        if (this.round instanceof EliminationRound elimination) elimination.open();
+        if (this.round instanceof ArcadeRound arcade)
+            sendRoundMessage(ChatColor.LIGHT_PURPLE + "Arcade adds Phantom, Rocket, and Sticky discs with "
+                    + arcade.chargeLimit() + " charge(s) each for this round. Check /ndg status for charges.");
+        if (this.round instanceof AceRaceRound)
+            sendRoundMessage(ChatColor.GOLD + "Ace Race: One throw per hole. Most aces wins, and equal totals share a place.");
+        if (this.round instanceof ClosestToPinRound) {
+            sendRoundMessage(ChatColor.AQUA + "Closest to Pin gives you one throw per hole.");
+            sendRoundMessage(ChatColor.GRAY + "Fewest faults wins. Among equal fault counts, the lowest total distance wins.");
+        }
+        if (RoundFormat.of(this.round) == RoundFormat.BEST_SHOT) {
+            sendRoundMessage(ChatColor.GREEN + "Best Shot Doubles. Both teammates throw from the same lie.");
+            sendRoundMessage(ChatColor.GRAY + "Click a lie after both throws, or use /ndg lie 1 or /ndg lie 2.");
+        }
+        if (RoundFormat.of(this.round) == RoundFormat.WORST_SHOT) {
+            sendRoundMessage(ChatColor.GOLD + "Worst Shot Doubles. Both teammates throw from the same lie.");
+            sendRoundMessage(ChatColor.GRAY + "Play the worse result. Both players must hole out to finish the stroke in the basket.");
+        }
         this.round.getRoundTurnManager().selectRandomTeamTurn();
+        if (this.round instanceof DailyRound daily) {
+            sendRoundMessage(ChatColor.AQUA + daily.definition().description());
+            sendRoundMessage(ChatColor.GRAY + "Everyone uses starter discs and the same skill bonuses. Hole out on every hole to post a daily score.");
+        } else if (this.round instanceof WeeklyTournamentRound weekly) {
+            sendRoundMessage(ChatColor.GOLD + "Weekly tournament is live. " + weekly.event().date() + " UTC.");
+            sendRoundMessage(ChatColor.GRAY + "Everyone uses starter discs and the same skill bonuses. Hole out on every hole to place.");
+        } else if (this.round.getCourse() instanceof normalmanv2.normalDiscGolf.impl.course.CourseImpl course)
+            sendRoundMessage(ChatColor.AQUA + course.generationInfo());
+        if (this.round instanceof RoundImpl liveRound && !(liveRound instanceof CompetitionRound) && liveRound.play().normalizesCareerSkills())
+            sendRoundMessage(ChatColor.GRAY + "Career XP is active. Every player uses the same skill bonuses in this rated format.");
         ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)this.round).play().startHole();
         for (Team team : this.round.getTeams()) for (UUID id : team.getTeamMembers()) {
             Player player = Bukkit.getPlayer(id);
@@ -134,6 +187,9 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
         try {
             this.applyRoundRewards();
             this.sendRoundResults();
+            this.sendRoundSummaries();
+            if (round instanceof DailyRound daily) publishDailyResults(daily);
+            if (round instanceof WeeklyTournamentRound weekly) NDGManager.getInstance().getWeeklyTournaments().finish(weekly);
         } finally {
             this.restoreRoundPlayers();
             this.round.dispose();
@@ -142,7 +198,29 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
     }
 
     private void applyRoundRewards() {
+        if (round instanceof WeeklyTournamentRound) return;
         int creditsPerBasket = Math.max(0, plugin.getConfig().getInt("disc-shop.credits-per-basket", 10));
+        if (round instanceof MatchPlayRound match) {
+            payMatchBaskets(match, creditsPerBasket);
+            return;
+        }
+        if (round instanceof EliminationRound elimination) {
+            for (UUID id : elimination.entrants()) payBasketCredits(id, elimination.rewardBaskets(id), creditsPerBasket);
+            return;
+        }
+        if (round instanceof SingleThrowRound || round instanceof ArcadeRound || round instanceof DailyRound
+                || round instanceof RoundImpl impl && impl.getCourse().isCustom()) {
+            for (Team team : round.getTeams())
+                payBasketCredits(team.getOwner(), round.getScoreCardByTeam(team).getHoledOutCount(), creditsPerBasket);
+            return;
+        }
+        LocalDate day = LocalDate.now(ZoneOffset.UTC);
+        RoundFormat format = RoundFormat.of(round);
+        if (format == null) format = RoundFormat.FFA;
+        int holes = round.getCourse().holes();
+        var seasons = NDGManager.getInstance().getRankedSeasons();
+        var completedAt = seasons.now();
+        var seasonScores = new ArrayList<RankedSeason.Score>();
         for (Team team : this.round.getTeams()) {
             ScoreCard scoreCard = this.round.getScoreCardByTeam(team);
             if (scoreCard == null || scoreCard.getHoleScores().size() != this.round.getCourse().holes()) {
@@ -155,19 +233,106 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                     continue;
                 }
 
-                PDGARating rating = playerData.getRating();
-                rating.handleRoundEnd(scoreCard.getTotalScore() * 18.0 / this.round.getCourse().holes());
-                rating.updateRating(this.round.getSettings().division().getDifficulty());
-                long credits = (long) scoreCard.getHoledOutCount() * creditsPerBasket;
+                Player player = Bukkit.getPlayer(playerId);
+                if (format.countsForStrokeRating()) {
+                    var change = applyCareerRating(player, playerData.getRating(), playerId, scoreCard, holes);
+                    if (change != null)
+                        seasonScores.add(new RankedSeason.Score(playerId, formatPlayerName(playerId), change.roundRating(), holes));
+                }
+                var clubhouse = playerData.getClubhouse();
+                var result = clubhouse.recordRound(scoreCard, playerId, format.id(), holes, day);
+                playerData.setClubhouse(result.progress());
+                long credits = (long) scoreCard.getHoledOutCount() * creditsPerBasket + result.bonusCredits();
                 playerData.setDiscBag(playerData.getDiscBag().earn(credits));
                 this.round.getPlayerDataManager().savePlayerData(playerId);
-                Player player = Bukkit.getPlayer(playerId);
                 if (player != null && credits > 0) {
                     player.sendMessage(ChatColor.GOLD + "Round reward: +" + credits + " credits. Balance: "
                             + playerData.getDiscBag().credits() + ". Open /ndg shop.");
+                    if (result.streakCredits() > 0)
+                        player.sendMessage(ChatColor.GOLD + "Basket streak bonus: +" + result.streakCredits() + " credits.");
+                    if (result.dailyCredits() > 0)
+                        player.sendMessage(ChatColor.GREEN + "Daily challenge complete: " + DailyChallenge.forDay(day).title()
+                                + " (+" + result.dailyCredits() + " credits).");
+                    for (ClubhouseMedal medal : result.newMedals())
+                        player.sendMessage(ChatColor.LIGHT_PURPLE + "Clubhouse medal: " + medal.title() + " (+" + medal.credits() + " credits).");
+                }
+                if (player != null && result.bestCard()) {
+                    player.sendMessage(ChatColor.AQUA + "New personal best: " + formatRelativeScore(scoreCard.getTotalScore())
+                            + " on a " + holes + "-hole " + format.label() + " card.");
                 }
             }
         }
+        seasons.recordRound(completedAt, seasonScores);
+    }
+
+    private void publishDailyResults(DailyRound daily) {
+        var attempts = new ArrayList<StrokeStandings.Entry>();
+        for (Team team : daily.getTeams()) {
+            UUID id = team.getOwner();
+            ScoreCard card = daily.getScoreCardByTeam(team);
+            if (daily.eligible(card, id)) {
+                attempts.add(new StrokeStandings.Entry(id, formatPlayerName(id), card.getTotalStrokes(), card.getTotalScore()));
+            } else {
+                Player player = Bukkit.getPlayer(id);
+                if (player != null) player.sendMessage(ChatColor.YELLOW + "Hole out on every hole to post to the Daily Course leaderboard.");
+            }
+        }
+        if (attempts.isEmpty()) return;
+        try {
+            var updated = NDGManager.getInstance().getDailyCompetition().submit(daily.definition(), attempts);
+            Set<UUID> finished = new HashSet<>();
+            for (var attempt : attempts) finished.add(attempt.player());
+            for (var standing : updated.standings()) {
+                UUID id = standing.entry().player();
+                if (!finished.contains(id)) continue;
+                Player player = Bukkit.getPlayer(id);
+                if (player != null) player.sendMessage(ChatColor.AQUA + "Daily best: " + standing.entry().score()
+                        + " • Place " + standing.place() + " • " + daily.definition().date() + " UTC");
+            }
+        } catch (java.io.IOException failure) {
+            plugin.getLogger().log(java.util.logging.Level.WARNING, "Could not save daily scores", failure);
+            sendRoundMessage(ChatColor.RED + "Your round finished. The Daily Course leaderboard could not save the scores.");
+        }
+    }
+
+    private PDGARating.Change applyCareerRating(Player player, PDGARating rating, UUID id, ScoreCard card, int holes) {
+        if (card.getHoledOutCount() != holes || !card.participated(id)) {
+            if (player != null)
+                player.sendMessage(ChatColor.GRAY + "To earn a rating, throw in the round and hole out on every hole.");
+            return null;
+        }
+        int difficulty = round.getCourse() instanceof normalmanv2.normalDiscGolf.impl.course.CourseImpl course
+                ? course.grid().difficultyRating() : 0;
+        var change = rating.recordRound(card.getTotalScore(), holes, difficulty);
+        if (player == null) return change;
+        player.sendMessage(ChatColor.AQUA + "Round rating: " + change.roundRating() + " • Career rating: "
+                + (change.before() == 0 ? "Unrated" : change.before()) + " → " + change.after());
+        if (change.division() != change.previousDivision()) {
+            boolean promoted = change.division().ordinal() > change.previousDivision().ordinal();
+            player.sendMessage((promoted ? ChatColor.GOLD + "Promoted to " : ChatColor.YELLOW + "Division changed to ")
+                    + change.division().label() + ".");
+        }
+        return change;
+    }
+
+    private void payMatchBaskets(MatchPlayRound match, int creditsPerBasket) {
+        for (UUID id : List.of(match.score().first(), match.score().second())) {
+            if (id.equals(match.score().forfeiter())) continue;
+            ScoreCard card = match.getScoreCardById(id);
+            if (card != null) payBasketCredits(id, card.getHoledOutCount(), creditsPerBasket);
+        }
+    }
+
+    private void payBasketCredits(UUID id, int baskets, int creditsPerBasket) {
+        long credits = (long) baskets * creditsPerBasket;
+        if (credits == 0) return;
+        var profiles = round.getPlayerDataManager();
+        PlayerData data = profiles.getOrCreatePlayerData(id);
+        data.setDiscBag(data.getDiscBag().earn(credits));
+        profiles.savePlayerData(id);
+        Player player = Bukkit.getPlayer(id);
+        if (player != null) player.sendMessage(ChatColor.GOLD + "Round reward: +" + credits + " credits. Balance: "
+                + data.getDiscBag().credits() + ". Open /ndg shop.");
     }
 
     @Override
@@ -201,10 +366,43 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
 
     private void restoreRoundPlayers() {
         RoundPresentation.cancelRound(this.round);
+        if (this.round instanceof RoundImpl active) active.play().spectating().dispose();
         NDGManager.getInstance().getPlayerSessionManager().restoreRoundSessions(this.round);
     }
 
     private void sendRoundResults() {
+        if (round instanceof ClosestToPinRound closest) {
+            var standings = closest.standings();
+            sendRoundMessage(ChatColor.GREEN + "Round complete!");
+            sendRoundMessage(ChatColor.GOLD + closest.result(standings));
+            sendRoundMessage(ChatColor.GRAY + "Final standings:");
+            for (var entry : standings) sendRoundMessage(ChatColor.GRAY + entry.line());
+            return;
+        }
+        if (round instanceof AceRaceRound race) {
+            var standings = race.standings();
+            sendRoundMessage(ChatColor.GREEN + "Round complete!");
+            sendRoundMessage(ChatColor.GOLD + race.result(standings));
+            sendRoundMessage(ChatColor.GRAY + "Final standings:");
+            for (var entry : standings) sendRoundMessage(ChatColor.GRAY + entry.line());
+            return;
+        }
+        if (round instanceof EliminationRound elimination) {
+            var results = elimination.results();
+            for (UUID id : elimination.entrants()) {
+                Player player = Bukkit.getPlayer(id);
+                if (player == null) continue;
+                player.sendMessage(ChatColor.GREEN + "Round complete!");
+                for (String result : results) player.sendMessage(ChatColor.GOLD + result);
+            }
+            return;
+        }
+        if (round instanceof MatchPlayRound match) {
+            sendRoundMessage(ChatColor.GREEN + "Round complete!");
+            sendRoundMessage(ChatColor.GOLD + match.resultLine());
+            sendRoundMessage(ChatColor.GRAY + match.resultsLine());
+            return;
+        }
         List<Map.Entry<Team, ScoreCard>> standings = new ArrayList<>(this.round.getScoreCards().entrySet());
         standings.sort(Comparator
                 .comparingInt((Map.Entry<Team, ScoreCard> entry) -> entry.getValue().getTotalScore())
@@ -218,7 +416,6 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                     continue;
                 }
 
-                PlayerData playerData = this.round.getPlayerDataManager().getDataByPlayer(playerId);
                 player.sendMessage(ChatColor.GREEN + "Round complete!");
                 player.sendMessage(ChatColor.GRAY + "Final standings:");
 
@@ -235,18 +432,41 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                             + scoreCard.getTotalStrokes()
                             + " strokes)");
                 }
-
-                if (playerData != null) {
-                    PDGARating rating = playerData.getRating();
-                    player.sendMessage(ChatColor.GRAY
-                            + "Rating: "
-                            + rating.getRating()
-                            + " after "
-                            + rating.getTotalRounds()
-                            + " rounds.");
-                }
             }
         }
+    }
+
+    private void sendRoundSummaries() {
+        if (!(round instanceof RoundImpl active)) return;
+        RoundFormat format = RoundFormat.of(active);
+        var course = active.getCourse();
+        String label = (format == null ? "Disc Golf" : format.label()) + " | "
+                + (course.isCustom() ? course.name() : course.grid().terrain().label());
+        Set<UUID> recipients = new HashSet<>();
+        if (round instanceof EliminationRound elimination) recipients.addAll(elimination.entrants());
+        else for (Team team : round.getTeams()) recipients.addAll(team.getTeamMembers());
+        for (UUID id : recipients) {
+            var summary = new RoundSummary(label, summaryScore(active, id), active.play().analytics(id), !course.isCustom());
+            active.getPlayerDataManager().getOrCreatePlayerData(id).setLatestRoundSummary(summary);
+            Player player = Bukkit.getPlayer(id);
+            if (player != null) summary.sendTo(player);
+        }
+    }
+
+    private String summaryScore(RoundImpl active, UUID player) {
+        if (active instanceof EliminationRound elimination)
+            return "Score: place " + elimination.place(player) + " of " + elimination.entrants().size();
+        Team team = active.play().team(player);
+        if (team == null) return "Score: —";
+        if (active instanceof ClosestToPinRound closest) return "Score: " + closest.total(team).label();
+        if (active instanceof MatchPlayRound match)
+            return "Score: " + match.score().wins(player) + " hole wins, " + match.score().halved() + " halved";
+        ScoreCard card = active.getScoreCardByTeam(team);
+        if (card == null) return "Score: —";
+        if (active instanceof AceRaceRound) return "Score: " + AceRaceRound.aceCount(card.getHoledOutCount());
+        return (team.getMaximumPlayers() > 1 ? "Team score: " : "Score: ") + formatRelativeScore(card.getTotalScore())
+                + " (" + MatchPlayRound.strokeCount(card.getTotalStrokes()) + ", par " + (card.getTotalStrokes() - card.getTotalScore())
+                + ") • " + card.getHoleScores().size() + "/" + active.getCourse().holes() + " holes";
     }
 
     private void sendRoundMessage(String message) {

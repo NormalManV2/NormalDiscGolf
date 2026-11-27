@@ -5,13 +5,13 @@ import normalmanv2.normalDiscGolf.impl.event.DiscThrowEvent;
 import normalmanv2.normalDiscGolf.impl.event.ThrowMechanicEvent;
 import normalmanv2.normalDiscGolf.impl.manager.flight.DiscFlightManager;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,19 +40,24 @@ public class ThrowMechanicListener implements Listener {
 
     @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.getAction() == Action.PHYSICAL) {
+        if (event.getAction() == Action.PHYSICAL || event.getHand() == EquipmentSlot.OFF_HAND) {
             return;
         }
 
-        ThrowMechanicImpl mechanic = this.activeMechanics.remove(event.getPlayer().getUniqueId());
+        UUID playerId = event.getPlayer().getUniqueId();
+        ThrowMechanicImpl mechanic = this.activeMechanics.get(playerId);
         if (mechanic == null) {
+            return;
+        }
+        if (mechanic.isDisposed()) {
+            this.activeMechanics.remove(playerId);
             return;
         }
 
         releases.add(event);
         event.setCancelled(true);
-        int lockedPower = (int) Math.round(mechanic.getPower().get() * 100);
-        event.getPlayer().sendMessage(ChatColor.GRAY + "Power locked: " + lockedPower + "%");
+        if (!mechanic.click(event.getPlayer())) return;
+        this.activeMechanics.remove(playerId);
         mechanic.dispose();
 
         Bukkit.getPluginManager().callEvent(new DiscThrowEvent(mechanic));
@@ -66,7 +71,8 @@ public class ThrowMechanicListener implements Listener {
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        if (!this.activeMechanics.containsKey(event.getPlayer().getUniqueId())) {
+        ThrowMechanicImpl mechanic = activeMechanics.get(event.getPlayer().getUniqueId());
+        if (mechanic == null || mechanic.isDisposed()) {
             return;
         }
 

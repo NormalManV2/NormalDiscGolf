@@ -47,6 +47,19 @@ resource-pack:
   port: 18088
   required: false
 '@ -replace '18088', "$ResourcePackPort" | Set-Content -LiteralPath (Join-Path $testPath 'plugins/NormalDiscGolf/config.yml') -Encoding ASCII
+    $customPath = Join-Path $testPath 'plugins/NormalDiscGolf/custom-discs'
+    $generated = Join-Path $customPath 'smoke-generated'
+    $imported = Join-Path $customPath 'smoke-imported'
+    $fallback = Join-Path $customPath 'smoke-fallback'
+    New-Item -ItemType Directory -Path $generated,(Join-Path $imported 'textures'),$fallback -Force | Out-Null
+    $template = Get-Content -LiteralPath (Join-Path $workspacePath 'src/main/resources/custom-discs/_example/disc.yml')
+    $template -replace '^name: .*','name: Smoke Generated' | Set-Content -LiteralPath (Join-Path $generated 'disc.yml') -Encoding ASCII
+    $template -replace '^name: .*','name: Smoke Imported' | Set-Content -LiteralPath (Join-Path $imported 'disc.yml') -Encoding ASCII
+    $template -replace '^name: .*','name: Smoke Fallback' | Set-Content -LiteralPath (Join-Path $fallback 'disc.yml') -Encoding ASCII
+    '{"parent":"item/generated","textures":{"layer0":"smoke:item/stamp"}}' | Set-Content -LiteralPath (Join-Path $imported 'model.json') -Encoding ASCII
+    '{"parent":"item/generated","textures":{"layer0":"smoke:missing"}}' | Set-Content -LiteralPath (Join-Path $fallback 'model.json') -Encoding ASCII
+    $png = [Convert]::FromBase64String('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+XnXcAAAAASUVORK5CYII=')
+    [IO.File]::WriteAllBytes((Join-Path $imported 'textures/stamp.png'), $png)
     Push-Location $testPath
     try {
         $ErrorActionPreference = 'Continue'

@@ -3,9 +3,16 @@ package normalmanv2.normalDiscGolf.impl.course.grid;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import org.bukkit.WorldCreator;
+import org.bukkit.World;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
+import org.bukkit.block.Biome;
+import org.bukkit.generator.BiomeProvider;
 import org.bukkit.generator.ChunkGenerator;
+import org.bukkit.generator.WorldInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import java.util.List;
 
 public class CourseGridWorldCreator extends WorldCreator {
 
@@ -16,6 +23,15 @@ public class CourseGridWorldCreator extends WorldCreator {
         this.course = course;
         generateStructures(false);
         course.grid().generate(division);
+        seed(course.grid().seed());
+        if (course.grid().isThemed()) {
+            if (course.grid().terrain() == CourseTerrain.NETHER) environment(World.Environment.NETHER);
+            Biome biome = Registry.BIOME.getOrThrow(NamespacedKey.minecraft(course.grid().terrain().biome()));
+            biomeProvider(new BiomeProvider() {
+                @Override public Biome getBiome(WorldInfo world, int x, int y, int z) { return biome; }
+                @Override public List<Biome> getBiomes(WorldInfo world) { return List.of(biome); }
+            });
+        }
     }
 
     @Override

@@ -2,6 +2,8 @@ package normalmanv2.normalDiscGolf.impl.course.grid;
 
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 
+import java.util.List;
+
 /** Each layout fits a seven-tile cell. Rotation and reflection keep the same safe spacing. */
 public enum ParklandHole {
     MEADOW("Meadow", 3, new int[][]{{2,2},{4,3}}, 3, 4, TileTypes.SAND),
@@ -10,6 +12,8 @@ public enum ParklandHole {
     POND("Pond Bend", 4, new int[][]{{1,1},{1,4},{3,5},{5,5}}, 3, 3, TileTypes.WATER),
     QUARRY("Quarry Approach", 3, new int[][]{{1,1},{4,1},{5,2}}, 4, 2, TileTypes.SAND),
     PINES("Pine Switchback", 5, new int[][]{{0,1},{2,5},{4,5},{6,2}}, 4, 3, TileTypes.WATER);
+
+    static final List<ParklandHole> SHORT_ROTATION = List.of(MEADOW, GROVE, QUARRY, POND);
 
     final String title;
     final int par;
@@ -25,6 +29,16 @@ public enum ParklandHole {
         this.hazardX = hazardX;
         this.hazardZ = hazardZ;
         this.hazard = hazard;
+    }
+
+    int[][] shortWaypoints() {
+        return switch (this) {
+            case MEADOW -> waypoints;
+            case GROVE -> new int[][]{{2,3},{3,4}};
+            case QUARRY -> new int[][]{{2,1},{4,1}};
+            case POND -> new int[][]{{1,2},{4,2}};
+            default -> throw new IllegalStateException("No short route for " + title);
+        };
     }
 
     static int[] transform(int x, int z, int orientation) {

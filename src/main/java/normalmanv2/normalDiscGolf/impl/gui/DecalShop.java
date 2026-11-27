@@ -1,6 +1,5 @@
 package normalmanv2.normalDiscGolf.impl.gui;
 
-import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.cosmetic.ScoreDecal;
 import normalmanv2.normalDiscGolf.impl.disc.DiscFlightResolver;
@@ -101,13 +100,17 @@ public final class DecalShop extends InventoryGUI {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         int slot = event.getRawSlot();
         if (slot == 18 && event.getClick() == ClickType.LEFT) {
-            nextTick(() -> DiscShop.open(player));
+            ShopItems.navigate(player, getInventory(), () -> DiscShop.open(player));
+            return;
+        }
+        if (slot == 26 && event.getClick() == ClickType.LEFT) {
+            ShopItems.navigate(player, getInventory(), () -> BagMenu.open(player));
             return;
         }
         if (slot < 10 || slot > 16 || slot % 2 != 0) return;
         ScoreDecal decal = ScoreDecal.values()[(slot - 10) / 2];
         if (event.getClick() == ClickType.RIGHT) {
-            nextTick(() -> preview(player, decal));
+            ShopItems.navigate(player, getInventory(), () -> preview(player, decal));
         } else if (event.getClick() == ClickType.LEFT) {
             PlayerData data = profile(player);
             change(player, decal, !data.getDecalLocker().owns(decal));
@@ -131,6 +134,7 @@ public final class DecalShop extends InventoryGUI {
         getInventory().setItem(18, icon(Material.ARROW, ChatColor.YELLOW + "Back to Disc Shop", List.of()));
         getInventory().setItem(22, icon(Material.GOLD_NUGGET,
                 ChatColor.GOLD + "Balance: " + data.getDiscBag().credits() + " credits", List.of()));
+        getInventory().setItem(26, icon(Material.BUNDLE, ChatColor.AQUA + "Your Bag", List.of()));
     }
 
     private static ItemStack icon(Material material, String title, List<String> lore) {
@@ -146,8 +150,4 @@ public final class DecalShop extends InventoryGUI {
         return NDGManager.getInstance().getPlayerDataManager().getOrCreatePlayerData(player.getUniqueId());
     }
 
-    private static void nextTick(Runnable action) {
-        var plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
-        Bukkit.getScheduler().runTask(plugin, action);
-    }
 }

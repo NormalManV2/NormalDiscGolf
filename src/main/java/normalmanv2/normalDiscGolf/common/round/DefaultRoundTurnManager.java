@@ -7,6 +7,9 @@ import normalmanv2.normalDiscGolf.api.round.delegate.manager.DelegateRoundTurnMa
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.round.EliminationRound;
+import normalmanv2.normalDiscGolf.impl.round.MatchPlayRound;
+import normalmanv2.normalDiscGolf.impl.round.RoundImpl;
 import normalmanv2.normalDiscGolf.impl.round.RoundPresentation;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -28,6 +31,7 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
     private final Random random = new Random();
     private int currentIndex = 0;
     private int hole = 0;
+    private Team teeOpener;
 
     public DefaultRoundTurnManager() {
         this.scoredGoals = new HashMap<>();
@@ -86,15 +90,44 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
         }
 
         if (this.allTeamsScoredCurrentHole(teams)) {
+            if (round instanceof EliminationRound elimination) {
+                boolean replay = elimination.finishStage();
+                teams = getTurnOrder();
+                if (teams.size() == 1) {
+                    NDGManager.getInstance().getRoundHandler().endRound(round);
+                    return;
+                }
+                if (replay) {
+                    Set<Team> safe = new HashSet<>();
+                    for (Team team : teams) if (elimination.isSafe(team)) safe.add(team);
+                    scoredGoals.put(hole, safe);
+                    currentIndex = -1;
+                    currentIndex = findNextUnscoredTeamIndex(teams);
+                    elimination.play().startHole();
+                    teleportTeamsToCurrentTee(teams, false);
+                    return;
+                }
+            }
+            if (round instanceof MatchPlayRound match) {
+                match.finishMatchHole();
+                if (match.score().isComplete()) {
+                    NDGManager.getInstance().getRoundHandler().endRound(round);
+                    return;
+                }
+                UUID winner = match.score().holes().getLast().winner();
+                if (winner != null) teeOpener = teams.stream().filter(team -> team.contains(winner)).findFirst().orElse(teeOpener);
+            }
             this.advanceHole();
+            if (round instanceof MatchPlayRound && teeOpener != null)
+                this.currentIndex = Math.max(0, teams.indexOf(teeOpener));
 
             if (this.hole >= this.round.getCourse().holes()) {
                 NDGManager.getInstance().getRoundHandler().endRound(this.round);
                 return;
             }
 
-            ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)this.round).play().startHole();
-            this.teleportTeamsToCurrentTee(teams);
+            ((RoundImpl) this.round).play().startHole();
+            this.teleportTeamsToCurrentTee(teams, true);
             return;
         }
 
@@ -104,19 +137,24 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
         }
 
         this.currentIndex = nextIndex;
-        ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)this.round).play().turnChanged();
+        ((RoundImpl) this.round).play().turnChanged();
     }
 
     @Override
     public void selectRandomTeamTurn() {
         List<Team> teams = this.getTurnOrder();
         this.currentIndex = teams.isEmpty() ? 0 : this.random.nextInt(teams.size());
+        this.teeOpener = teams.isEmpty() ? null : teams.get(this.currentIndex);
     }
 
     @Override
     public void advanceHole() {
         this.hole++;
         this.currentIndex = 0;
+        if (round instanceof EliminationRound) {
+            this.hole %= round.getCourse().holes();
+            this.scoredGoals.clear();
+        }
         this.scoredGoals.putIfAbsent(this.hole, new HashSet<>());
     }
 
@@ -126,7 +164,7 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
         return !teams.isEmpty()
                 && this.currentIndex >= 0
                 && teams.get(this.currentIndex).equals(team)
-                && !this.hasTeamScoredCurrentHole(team);
+                && !this.hasFinishedHole(team);
     }
 
     @Override
@@ -172,7 +210,7 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
 
     public void reconcile() {
         List<Team> teams = getTurnOrder();
-        if (teams.isEmpty() || currentIndex < 0 || allTeamsScoredCurrentHole(teams) || hasTeamScoredCurrentHole(teams.get(currentIndex))) nextTurn();
+        if (teams.isEmpty() || currentIndex < 0 || allTeamsScoredCurrentHole(teams) || hasFinishedHole(teams.get(currentIndex))) nextTurn();
     }
 
     private boolean allTeamsScoredCurrentHole(List<Team> teams) {
@@ -192,11 +230,11 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
         return -1;
     }
 
-    private boolean hasTeamScoredCurrentHole(Team team) {
+    public boolean hasFinishedHole(Team team) {
         return this.scoredGoals.getOrDefault(this.hole, Collections.emptySet()).contains(team);
     }
 
-    private void teleportTeamsToCurrentTee(List<Team> teams) {
+    private void teleportTeamsToCurrentTee(List<Team> teams, boolean preview) {
         for (Team team : teams) {
             for (UUID playerId : team.getTeamMembers()) {
                 Player player = Bukkit.getPlayer(playerId);
@@ -204,7 +242,7 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
                     continue;
                 }
 
-                RoundPresentation.teleportToCurrentTee(this.plugin, player, this.round, true);
+                RoundPresentation.teleportToCurrentTee(this.plugin, player, this.round, preview);
             }
         }
     }

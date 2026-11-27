@@ -6,6 +6,7 @@ import normalmanv2.normalDiscGolf.impl.course.tile.Tile;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 
 import java.util.*;
@@ -18,6 +19,9 @@ public class CourseGrid {
     private final Random random;
     private final long seed;
     private final int numHoles;
+    private final Layout courseLayout;
+    private final CourseGenerationSettings terrainSettings;
+    private ThemedCourse themed;
     private final Map<Integer, GridPoint> teeLocations;
     private final Map<Integer, GridPoint> holeLocations;
     private final Map<Integer, Integer> holePars;
@@ -30,6 +34,21 @@ public class CourseGrid {
     private boolean generated;
 
     public record GridPoint(int x, int y, int z) {}
+    public record TerrainColumn(int height, TileTypes type, Material surface, int depth, int liquidDepth) {}
+    public enum Layout {
+        PARKLAND, SHORT, DAILY;
+
+        boolean shortHoles() { return this != PARKLAND; }
+
+        int par(int standardPar) {
+            return switch (this) {
+                case PARKLAND -> standardPar;
+                case SHORT -> 1;
+                case DAILY -> 3;
+            };
+        }
+    }
+    public static final int SKY_RECOVERY_HEIGHT = 90;
 
     private static final int TILE_SIZE = Constants.DEFAULT_TILE_SIZE;
 
@@ -38,6 +57,15 @@ public class CourseGrid {
     }
 
     public CourseGrid(int width, int depth, List<TileTypes> tileTypes, int numHoles, long seed) {
+        this(width, depth, tileTypes, numHoles, seed, Layout.PARKLAND);
+    }
+
+    public CourseGrid(int width, int depth, List<TileTypes> tileTypes, int numHoles, long seed, Layout layout) {
+        this(width, depth, tileTypes, numHoles, seed, layout, CourseGenerationSettings.defaults(CourseTerrain.PARKLAND));
+    }
+
+    public CourseGrid(int width, int depth, List<TileTypes> tileTypes, int numHoles, long seed,
+                      Layout layout, CourseGenerationSettings terrainSettings) {
         if (width <= 0) throw new IllegalArgumentException("Course grid width must be greater than zero");
         if (depth <= 0) throw new IllegalArgumentException("Course grid depth must be greater than zero");
         if (numHoles <= 0) throw new IllegalArgumentException("Course hole count must be greater than zero");
@@ -50,6 +78,8 @@ public class CourseGrid {
         this.random = new Random(seed);
         this.seed = seed;
         this.numHoles = numHoles;
+        this.courseLayout = Objects.requireNonNull(layout);
+        this.terrainSettings = Objects.requireNonNull(terrainSettings);
         this.teeLocations = new HashMap<>();
         this.holeLocations = new HashMap<>();
         this.holePars = new HashMap<>();
@@ -74,6 +104,11 @@ public class CourseGrid {
         if (this.generated) return;
 
         initializeSuperposition();
+        if (terrain() != CourseTerrain.PARKLAND) {
+            generateThemed();
+            this.generated = true;
+            return;
+        }
 
         placeTeesAndPins();
 
@@ -109,12 +144,35 @@ public class CourseGrid {
         this.obstacleGenerator.generateObstacles(world);
     }
 
+    private void generateThemed() {
+        if (width < 23 || depth < ((numHoles + 2) / 3) * 7 + 2)
+            throw new IllegalStateException("Grid is too small for themed courses");
+        themed = new ThemedCourse(terrainSettings, seed, numHoles, courseLayout.shortHoles());
+        for (int i = 0; i < numHoles; i++) {
+            var hole = themed.hole(i);
+            var tee = new GridPoint(hole.tee().x(), hole.teeY() + 1, hole.tee().z());
+            var basket = new GridPoint(hole.basket().x(), hole.basketY() + 1, hole.basket().z());
+            teeLocations.put(i, tee);
+            holeLocations.put(i, basket);
+            holeRoutePoints.put(i, hole.route());
+            holePars.put(i, courseLayout.par(hole.par()));
+        }
+        for (int tx = 0; tx < width; tx++) for (int tz = 0; tz < depth; tz++)
+            grid[tx][tz].collapseTo(surfaceType(tx * TILE_SIZE + 8, tz * TILE_SIZE + 8));
+        teeLocations.values().forEach(tee -> tileAtPoint(tee).collapseTo(TileTypes.TEE));
+        holeLocations.values().forEach(pin -> tileAtPoint(pin).collapseTo(TileTypes.PIN));
+    }
+
     private void placeTeesAndPins() {
         if (width >= 23 && depth >= ((numHoles + 2) / 3) * 7 + 2) {
-            List<ParklandHole> rotation = new ArrayList<>(List.of(ParklandHole.values()));
-            // Every three-hole row contains a short, a medium and a longer look.
-            Collections.shuffle(rotation.subList(0, 3), random);
-            Collections.shuffle(rotation.subList(3, 6), random);
+            boolean shortLayout = courseLayout.shortHoles();
+            List<ParklandHole> rotation = new ArrayList<>(shortLayout ? ParklandHole.SHORT_ROTATION : List.of(ParklandHole.values()));
+            if (shortLayout) Collections.shuffle(rotation, random);
+            else {
+                // Every three-hole row contains a short, a medium and a longer look.
+                Collections.shuffle(rotation.subList(0, 3), random);
+                Collections.shuffle(rotation.subList(3, 6), random);
+            }
             for (int i = 0; i < numHoles; i++) {
                 int cellX = 1 + (i % 3) * 7, cellZ = 1 + (i / 3) * 7;
                 ParklandHole layout = rotation.get(i % rotation.size());
@@ -122,7 +180,7 @@ public class CourseGrid {
                 int orientation = random.nextInt(8);
                 List<Tile> path = new ArrayList<>();
                 int[] last = null;
-                for (int[] waypoint : layout.waypoints) {
+                for (int[] waypoint : shortLayout ? layout.shortWaypoints() : layout.waypoints) {
                     int[] next = ParklandHole.transform(waypoint[0], waypoint[1], orientation);
                     if (last != null) {
                         int steps = Math.max(Math.abs(next[0] - last[0]), Math.abs(next[1] - last[1]));
@@ -142,13 +200,14 @@ public class CourseGrid {
                 GridPoint pin = centerPoint(end.getGridPoint().x / TILE_SIZE, end.getGridPoint().z / TILE_SIZE);
                 teeLocations.put(i, tee); holeLocations.put(i, pin);
                 tileAtPoint(tee).collapseTo(TileTypes.TEE); tileAtPoint(pin).collapseTo(TileTypes.PIN);
-                holePars.put(i, layout.par);
+                holePars.put(i, courseLayout.par(layout.par));
                 int[] hazard = ParklandHole.transform(layout.hazardX, layout.hazardZ, orientation);
                 Tile hazardTile = grid[cellX + hazard[0]][cellZ + hazard[1]];
                 if (!path.contains(hazardTile)) plannedHazards.put(hazardTile, layout.hazard);
             }
             return;
         }
+        if (courseLayout.shortHoles()) throw new IllegalStateException("Grid is too small for the short layouts");
         int availablePlacementTiles = countPlacementTiles();
         if (numHoles * 2 > availablePlacementTiles) {
             throw new IllegalStateException("Grid is too small for " + numHoles + " unique tee/pin pairs");
@@ -600,10 +659,12 @@ public class CourseGrid {
     }
 
     public TileTypes getTileTypeAtLocation(Location location) {
+        if (terrain() == CourseTerrain.SKY && location.getY() < SKY_RECOVERY_HEIGHT) return TileTypes.OUT_OF_BOUNDS;
         return surfaceType(location.getBlockX(), location.getBlockZ());
     }
 
     public TileTypes surfaceType(int x, int z) {
+        if (themed != null) return terrainColumn(x, z).type();
         Tile tile = getTile(Math.floorDiv(x, TILE_SIZE), Math.floorDiv(z, TILE_SIZE));
         if (tile == null) return TileTypes.OUT_OF_BOUNDS;
         TileTypes type = tile.getCollapsedState();
@@ -618,16 +679,35 @@ public class CourseGrid {
     }
 
     public long seed() { return seed; }
+    public CourseTerrain terrain() { return terrainSettings.terrain(); }
+    public CourseGenerationSettings terrainSettings() { return terrainSettings; }
+    public boolean isThemed() { return themed != null; }
+    public int difficultyRating() { return themed == null ? 0 : themed.difficulty(); }
+
+    public TerrainColumn terrainColumn(int x, int z) {
+        return themed.sample(x, z, x >= 16 && z >= 16 && x < (width - 1) * 16 && z < (depth - 1) * 16);
+    }
 
     public String holeName(int hole) {
+        if (themed != null) return themed.hole(hole).archetype().label();
         return layouts.isEmpty() ? "Parkland" : layouts.get(hole).title;
     }
 
     public GridPoint openingTarget(int hole) {
+        if (themed != null) return themed.hole(hole).route().get(1);
         List<GridPoint> route = holeRoutePoints.get(hole);
         GridPoint target = route.get(Math.min(2, route.size() - 1));
         return new GridPoint(target.x() + TILE_SIZE / 2, target.y(), target.z() + TILE_SIZE / 2);
     }
+
+    public List<GridPoint> centerline(int hole) {
+        var points = holeRoutePoints.get(hole);
+        return themed != null ? points : points.stream()
+                .map(point -> new GridPoint(point.x() + 8, point.y(), point.z() + 8)).toList();
+    }
+
+    public List<GridPoint> alternateLane(int hole) { return themed == null ? List.of() : themed.hole(hole).alternative(); }
+    public List<GridPoint> guards(int hole) { return themed == null ? List.of() : themed.hole(hole).guards(); }
 
     public ParklandHole landscapeAt(int tileX, int tileZ) {
         if (layouts.isEmpty() || tileX < 1 || tileZ < 1 || tileX > 21) return ParklandHole.MEADOW;
@@ -636,6 +716,7 @@ public class CourseGrid {
     }
 
     public int surfaceHeight(int x, int z) {
+        if (themed != null) return terrainColumn(x, z).height();
         double elevation = Math.sin(x / 38.0) * 2.0 + Math.cos(z / 45.0) * 1.6;
         for (GridPoint point : teeLocations.values())
             elevation *= Math.clamp((Math.hypot(x - point.x(), z - point.z()) - 7) / 10, 0, 1);
@@ -645,6 +726,7 @@ public class CourseGrid {
     }
 
     public double routeDistance(double x, double z) {
+        if (themed != null) return themed.routeDistance(x, z);
         double best = Double.MAX_VALUE;
         for (List<GridPoint> points : holeRoutePoints.values()) {
             for (int i = 1; i < points.size(); i++) {
@@ -661,6 +743,7 @@ public class CourseGrid {
         return Math.hypot(x - ax - t * dx, z - az - t * dz);
     }
     public boolean protectedLane(double x, double z) {
+        if (themed != null) return themed.protectedLane((int)Math.floor(x), (int)Math.floor(z));
         if (routeDistance(x, z) < 7) return true;
         return java.util.stream.Stream.concat(teeLocations.values().stream(), holeLocations.values().stream())
                 .anyMatch(p -> Math.hypot(x - p.x(), z - p.z()) < 8);

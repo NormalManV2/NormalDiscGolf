@@ -23,6 +23,7 @@ public class PlayerJoinListener implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         NDGManager manager = NDGManager.getInstance();
+        manager.getCustomCourses().closeDraft(player.getUniqueId());
         manager.getRoundQueueManager().removePlayerFromQueue(player.getUniqueId());
         manager.getRoundHandler().leavePlayer(player);
         manager.getPlayerSessionManager().restorePlayer(player);

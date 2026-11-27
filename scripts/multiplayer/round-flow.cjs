@@ -5,9 +5,18 @@ const { createHash } = require('node:crypto')
 const format = process.argv[2] || 'ffa'
 const expectedHoles = Number(process.argv[3] || 18)
 const expectLocalPack = process.argv.includes('--expect-local-pack')
+const configuredPackUrl = process.env.NDG_TEST_PACK_URL
+const expectPack = expectLocalPack || Boolean(configuredPackUrl)
 const expectSkillXp = process.argv.includes('--expect-skill-xp')
+const expectTrickShots = process.argv.includes('--expect-trick-shots')
+const expectShotControls = process.argv.includes('--expect-shot-controls') || expectTrickShots
+const expectRoller = process.argv.includes('--expect-roller')
+const trickColors = {flex:0xffff00,tomahawk:0xff00ff,thumber:0xae7aff}
+const tricks = Object.keys(trickColors)
 const port = Number(process.env.NDG_TEST_PORT || 25569)
-const names = format === 'doubles' ? ['NDG_Alice','NDG_Bob','NDG_Cara','NDG_Drew'] : ['NDG_Alice','NDG_Bob']
+const bestShot = format === 'best-shot'
+const teamFormat = format === 'doubles' || bestShot
+const names = teamFormat ? ['NDG_Alice','NDG_Bob','NDG_Cara','NDG_Drew'] : ['NDG_Alice','NDG_Bob']
 const bots = [], transcript = [], states = new Map(), results = []
 const pause = ms => new Promise(r => setTimeout(r,ms))
 const until = async (predicate, label, ms=90000) => {
@@ -18,14 +27,26 @@ const command = (bot,text) => bot.chat('/ndg '+text)
 let finished = false
 function connect(name) {
   const bot=mineflayer.createBot({host:'127.0.0.1',port,username:name,version:'1.21.8',auth:'offline',physicsEnabled:false})
-  const state={messages:[],ready:false,active:false,hole:0,shots:new Map(),completed:false,lock:false,previewFrames:0,maxPreviewPitch:0}
+  const state={messages:[],ready:false,active:false,hole:0,shots:new Map(),completed:false,lock:false,previewFrames:0,maxPreviewPitch:0,aimParticles:0}
   states.set(bot,state);bots.push(bot)
   bot.on('error',error=>{state.error=error.message})
   bot.on('kicked',reason=>{state.error=JSON.stringify(reason)})
-  if (expectLocalPack) bot._client.on('add_resource_pack', async pack => {
+  if (expectShotControls) bot._client.on('world_particles', packet => {
+    const capture = state.trickCapture
+    const point = [packet.x,packet.y,packet.z]
+    if (packet.particle.type === 'dust') {
+      state.aimParticles++
+      if (capture?.locked && (packet.particle.data.color & 0xffffff) === capture.color)
+        capture.preview.push(point)
+    } else if (capture && packet.particle.type === 'end_rod') {
+      capture.flight.push(point)
+    }
+  })
+  if (expectPack) bot._client.on('add_resource_pack', async pack => {
     try {
       const url = new URL(pack.url)
-      assert.equal(url.hostname, '127.0.0.1', 'pack uses the local server')
+      if (configuredPackUrl) assert.equal(url.href, configuredPackUrl, 'pack uses the configured address')
+      else assert.equal(url.hostname, '127.0.0.1', 'pack uses the local server')
       assert.equal(pack.forced, true, 'pack is required')
       const response = await fetch(url)
       assert.ok(response.ok, 'pack available over HTTP')
@@ -49,6 +70,14 @@ function connect(name) {
       return
     }
     state.messages.push(message)
+    if (bestShot) {
+      if (message.startsWith('Choose a Best Shot lie')) state.choosing = true
+      if (message.includes(' selected lie ') || message.startsWith('Choice timed out.')) state.choosing = false
+    }
+    if (state.trickCapture) {
+      if (message.startsWith('Power locked:')) state.trickCapture.locked = true
+      if (message === 'Disc released.') state.trickCapture.locked = false
+    }
     transcript.push({player:name,message,time:new Date().toISOString()})
     const hole=message.match(/^Hole: (\d+)\/(\d+)/)
     if(hole) {
@@ -76,32 +105,120 @@ async function playTurn(bot) {
     command(bot,'lie');await pause(350)
     bot.setQuickBarSlot(2)
     await bot.look(bot.entity.yaw, Math.PI / 15, true)
+    if (expectShotControls) {
+      command(bot,'shot timing on')
+      await until(()=>state.messages.some(m=>m.includes('timing on')), 'enable release timing',10000)
+    }
+    const trick = expectTrickShots ? tricks[((hole - 1) * names.length + names.indexOf(bot.username)) % tricks.length] : null
+    const stance = trick || (expectRoller ? 'roller' : null)
+    if (stance) {
+      const setup = state.messages.length
+      command(bot,'shot stance '+stance)
+      await until(()=>state.messages.slice(setup).some(m=>m.includes(stance+' stance')), 'enable '+stance+' stance',10000)
+    }
+    if (trick) state.trickCapture = { color:trickColors[trick], locked:false, preview:[], flight:[] }
+    const beforeParticles = new Map(bots.map(client=>[client,states.get(client).aimParticles]))
     const armed=state.messages.length
+    let releaseQuality
     bot.activateItem()
     await until(()=>state.messages.slice(armed).some(m=>m.includes('Throw meter started')), 'hotbar meter',10000)
-    await pause(1500)
-    bot.swingArm('right')
+    if (expectShotControls) {
+      await until(()=>state.aimParticles > beforeParticles.get(bot), 'aiming particles',10000)
+      for (const other of bots.filter(client=>client!==bot))
+        assert.equal(states.get(other).aimParticles,beforeParticles.get(other),'aiming particles are private')
+      const angled = state.messages.length
+      bot._client.write('player_input',{inputs:{shift:true}})
+      bot._client.write('block_dig',{status:6,location:{x:0,y:0,z:0},face:0,sequence:0})
+      bot._client.write('player_input',{inputs:{shift:false}})
+      await until(()=>state.messages.slice(angled).some(m=>m.startsWith('Release angle:')), 'sneak plus swap changes angle',10000)
+      if (stance) await waitForStancePower(bot,stance)
+      bot.swingArm('right')
+      await until(()=>state.messages.slice(armed).some(m=>m.startsWith('Power locked:')), 'first click locks power',10000)
+      assert.ok(!state.messages.slice(armed).includes('Disc released.'),'first click does not release')
+      let centered = false
+      const releaseInGreen = bar => {
+        if (centered || !String(bar.title).includes('Release Timing') || Math.abs(bar.health - .5) > .02) return
+        centered = true
+        bot.swingArm('right')
+      }
+      bot.on('bossBarUpdated',releaseInGreen)
+      try {
+        await until(()=>centered,'green timing window',10000)
+      } finally {
+        bot.off('bossBarUpdated',releaseInGreen)
+      }
+      await until(()=>(releaseQuality=state.messages.slice(armed).find(message=>/^(Clean|Early|Late) release$/.test(message))),
+        'release timing feedback on hole '+hole,10000)
+    } else {
+      if (stance) await waitForStancePower(bot,stance)
+      else await pause(1500)
+      bot.swingArm('right')
+    }
     await until(()=>state.messages.slice(armed).some(m=>m==='Disc released.'), 'shot release',10000)
     state.shots.set(hole,previous+1)
     // A second command during flight must never start a second shot.
     const overlapping=state.messages.length
     bot.chat('/throwdisc putter')
     await until(()=>state.messages.slice(overlapping).some(m=>m.includes('Wait for the disc to land.')||m.includes('not your')), 'in-flight rejection',10000)
-    results.push({player:bot.username,hole,shot:'released',overlap:'rejected'})
+    const result = {player:bot.username,hole,shot:'released',overlap:'rejected',stance,releaseQuality}
+    results.push(result)
+    if (trick) {
+      // Changing the next shot while the disc flies must leave the current throw's XP intact.
+      const switched = state.messages.length
+      command(bot,'shot stance normal')
+      await until(()=>state.messages.slice(switched).some(m=>m.includes('normal stance')), 'switch next shot during flight',10000)
+      await until(()=>state.messages.slice(armed).some(m=>m.startsWith('Skill XP:')), 'trick shot resolves',10000)
+      const awards = state.messages.slice(armed).filter(m=>m.startsWith('Skill XP:'))
+      assert.equal(awards.length,1,'one resolved XP award')
+      assert.deepEqual(tricks.filter(name=>awards[0].includes(name+' +')),[trick],'only the launched trick gets XP')
+      assert.ok(state.messages.indexOf(awards[0],armed) > state.messages.findIndex((m,i)=>i>=switched && m.includes('normal stance')),
+        'stance changed before the old shot resolved')
+      result.matchedPreviewPoints = assertPreviewMatchesFlight(state.trickCapture,trick)
+    }
+    if (expectRoller) {
+      await until(()=>state.messages.slice(armed).includes('Disc is rolling'), 'live disc enters a roll',10000)
+      await until(()=>state.messages.slice(armed).some(m=>m.startsWith('Skill XP:') && m.includes('roller +')),
+        'roller XP after landing',10000)
+    }
     if (expectSkillXp) {
       await until(()=>state.messages.slice(armed).filter(m=>m.startsWith('Skill XP:')).length===1,
         'one XP award for the resolved throw',10000)
     } else await pause(5500)
-  } finally {state.lock=false}
+    if (bestShot) await pause(1000)
+  } finally {
+    state.trickCapture = null
+    state.lock = false
+  }
+}
+async function waitForStancePower(bot,stance) {
+  await until(()=>Object.values(bot.bossBars).some(bar=>String(bar.title).toLowerCase().startsWith(stance+' power') && bar.health >= .55),
+    'usable '+stance+' power',10000)
+}
+function assertPreviewMatchesFlight(capture,trick) {
+  const unique = [...new Map(capture.preview.map(point=>[point.join(','),point])).values()]
+  assert.ok(unique.length>=3,trick+' sends a colored preview at locked power')
+  const distance = (a,b)=>Math.hypot(...a.map((value,i)=>value-b[i]))
+  const matched = unique.filter(point=>capture.flight.some(sample=>distance(point,sample)<.4))
+  assert.ok(matched.length>=3,trick+' preview follows the actual disc path')
+  return matched.length
 }
 async function main() {
+  assert.ok(!(expectRoller && expectTrickShots),'run roller and trick checks separately')
+  assert.ok(!expectTrickShots || names.length*expectedHoles>=tricks.length,'use four players or at least two holes to cover all tricks')
   names.forEach(connect)
   await until(()=>bots.every(b=>states.get(b).ready), 'client connections')
-  if (expectLocalPack) await until(()=>{
+  if (expectPack) await until(()=>{
     for (const state of states.values()) if (state.error) throw Error(state.error)
     return bots.every(b=>states.get(b).packReady)
-  }, 'required local pack', 15000)
+  }, 'required pack', 15000)
   await pause(1200)
+  for (const bot of bots) {
+    const state = states.get(bot)
+    const before = state.messages.length
+    command(bot,'party leave')
+    command(bot,'party status')
+    await until(()=>state.messages.slice(before).includes('You are not in a party.'),'clear previous test party',10000)
+  }
   for(const b of bots.slice(1)) {
     command(bots[0],'party invite '+b.username);await pause(350)
     command(b,'party accept');await pause(350)
@@ -114,13 +231,17 @@ async function main() {
     if (rejected) throw Error(rejected)
     return state.messages.some(m=>m.startsWith('Your party has been queued') || m.startsWith('You have been queued'))
   }, 'queue confirmation',10000)
-  const deadline=Date.now()+Math.max(240000,expectedHoles*(format==='doubles'?60000:35000))
+  const deadline=Date.now()+Math.max(240000,expectedHoles*(teamFormat?60000:35000))
   while(!bots.every(b=>states.get(b).completed)) {
     if(Date.now()>deadline) throw Error('Round did not complete')
     for(const b of bots) {
       const state=states.get(b)
       if(state.error) throw Error(b.username+': '+state.error)
-      if(state.active && !state.lock && b.game.gameMode==='adventure') await playTurn(b)
+      if (state.choosing) {
+        state.choosing = false
+        command(b,'lie 1')
+        await pause(1200)
+      } else if(state.active && !state.lock && b.game.gameMode==='adventure') await playTurn(b)
     }
     await pause(150)
   }
@@ -134,7 +255,14 @@ async function main() {
     assert.ok(state.previewFrames>0 && state.maxPreviewPitch<=35.01,'preview pitch stays bounded on the client')
   }
   assert.ok(results.length>=expectedHoles*2,'network throws covered every hole')
-  if(format==='doubles') for(const b of bots) assert.ok(states.get(b).shots.size>0,'each doubles teammate threw')
+  if(teamFormat) for(const b of bots) assert.ok(states.get(b).shots.size>0,'each doubles teammate threw')
+  if (expectShotControls) for (const b of bots) {
+    const releases = results.filter(result=>result.player===b.username)
+    assert.ok(releases.some(result=>result.releaseQuality==='Clean release'),b.username+' reached the clean timing window')
+    console.log(b.username+': '+releases.filter(result=>result.releaseQuality==='Clean release').length+'/'+releases.length+' clean releases')
+  }
+  if(bestShot) assert.ok(transcript.some(entry=>entry.message.includes(' selected lie ')),'played a chosen lie across holes')
+  if(expectTrickShots) assert.deepEqual([...new Set(results.map(result=>result.stance))].sort(),[...tricks].sort(),'all tricks tested')
   console.log('PASS: '+format+' '+expectedHoles+' holes, '+bots.length+' connected clients, '+results.length+' shots, flight lock, final standings, and restoration.')
   finished=true
 }

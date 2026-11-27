@@ -1,0 +1,14 @@
+# Copy this folder to custom-discs/<your-id> and restart the server.
+name: Riverstone
+type: midrange
+price: 110
+speed: 6
+glide: 5
+turn: -1
+fade: 2
+appearance:
+  # classic, rounded, dome, puddle, beveled, or low-profile
+  shape: rounded
+  plate: "#369E96"
+  rim: "#204453"
+  accent: "#FECA7C"

@@ -2,17 +2,23 @@ package normalmanv2.normalDiscGolf.impl.course.grid;
 
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 import org.bukkit.Material;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
 import java.util.Random;
 
-/** Natural parkland terrain with continuous elevation and blended fairway edges. */
+/** Builds the terrain columns used by both collision rules and the generated world. */
 public final class CourseGridChunkGenerator extends ChunkGenerator {
     private final CourseGrid grid;
     public CourseGridChunkGenerator(CourseGrid grid) { this.grid = grid; }
     @Override public void generateSurface(WorldInfo info, Random random, int chunkX, int chunkZ, ChunkData data) {
         for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) {
             int wx = chunkX * 16 + x, wz = chunkZ * 16 + z;
+            if (grid.isThemed()) {
+                writeThemedColumn(data, x, z, grid.terrainColumn(wx, wz));
+                continue;
+            }
             int y = grid.surfaceHeight(wx, wz);
             var type = grid.surfaceType(wx, wz);
             double route = grid.routeDistance(wx + .5, wz + .5);
@@ -39,6 +45,22 @@ public final class CourseGridChunkGenerator extends ChunkGenerator {
             }
             data.setBlock(x, y, z, surface);
         }
+    }
+
+    private void writeThemedColumn(ChunkData data, int x, int z, CourseGrid.TerrainColumn column) {
+        if (column.depth() == 0) return;
+        var terrain = grid.terrain();
+        int top = column.height(), dry = top - column.liquidDepth();
+        for (int y = Math.max(data.getMinHeight(), top - column.depth()); y < dry; y++)
+            data.setBlock(x, y, z, y < dry - 3 ? terrain.rock : terrain.fill);
+        data.setBlock(x, dry, z, column.liquidDepth() == 0 ? column.surface() : terrain.fill);
+        for (int y = dry + 1; y <= top; y++) data.setBlock(x, y, z, column.surface());
+    }
+
+    @Override public Location getFixedSpawnLocation(World world, Random random) {
+        if (!grid.isThemed()) return super.getFixedSpawnLocation(world, random);
+        var tee = grid.getTeePoints().get(0);
+        return new Location(world, tee.x() + .5, tee.y(), tee.z() + .5);
     }
     @Override public boolean shouldGenerateNoise() { return false; }
     @Override public boolean shouldGenerateCaves() { return false; }

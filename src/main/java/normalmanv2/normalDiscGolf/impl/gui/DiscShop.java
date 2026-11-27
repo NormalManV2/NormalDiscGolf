@@ -1,11 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.gui;
 
-import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
-import normalmanv2.normalDiscGolf.impl.disc.DiscFlightResolver;
 import normalmanv2.normalDiscGolf.impl.disc.DiscModel;
-import normalmanv2.normalDiscGolf.impl.player.DiscBag;
-import normalmanv2.normalDiscGolf.impl.resourcepack.DiscItems;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -14,67 +10,32 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
 
-import java.util.List;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 
 public final class DiscShop extends InventoryGUI {
-    private static final DiscModel[] MODELS = DiscModel.values();
-    private static final int[] DISC_SLOTS = {1, 4, 7, 10, 13, 16, 19, 22, 25};
+    private static final DateTimeFormatter RESTOCK_TIME =
+            DateTimeFormatter.ofPattern("EEE HH:mm 'UTC'", java.util.Locale.ENGLISH).withZone(ZoneOffset.UTC);
+    private DiscModel selected;
+    private final Map<Integer, DiscModel> shown = new HashMap<>();
+    private int page;
+    private int lastPage;
 
     public static void open(Player player) {
-        if (available(player)) NDGManager.getInstance().getGuiManager().openGUI(new DiscShop(), player);
-    }
-
-    private static boolean available(Player player) {
-        if (DiscFlightResolver.findActiveRound(player) == null) return true;
-        player.sendMessage(ChatColor.RED + "Use the disc shop between rounds.");
-        return false;
+        if (ShopActions.betweenRounds(player)) NDGManager.getInstance().getGuiManager().openGUI(new DiscShop(), player);
     }
 
     public static void change(Player player, DiscModel model, boolean purchase) {
-        if (!available(player)) return;
-        var manager = NDGManager.getInstance().getPlayerDataManager();
-        var data = manager.getOrCreatePlayerData(player.getUniqueId());
-        DiscBag previous = data.getDiscBag();
-        DiscBag next;
-        if (purchase) {
-            if (previous.owns(model)) {
-                player.sendMessage(ChatColor.YELLOW + "You already own " + model.displayName() + ".");
-                return;
-            }
-            if (previous.credits() < model.price()) {
-                player.sendMessage(ChatColor.RED + "You need " + (model.price() - previous.credits())
-                        + " more credits to unlock " + model.displayName() + ".");
-                return;
-            }
-            next = previous.unlock(model);
-        } else {
-            if (!previous.owns(model)) {
-                player.sendMessage(ChatColor.RED + "Unlock " + model.displayName() + " before equipping it.");
-                return;
-            }
-            if (previous.equipped(model.type()) == model) {
-                player.sendMessage(ChatColor.YELLOW + model.displayName() + " is already equipped.");
-                return;
-            }
-            next = previous.equip(model);
-        }
-
-        data.setDiscBag(next);
-        if (!manager.savePlayerData(player.getUniqueId())) {
-            data.setDiscBag(previous);
-            player.sendMessage(ChatColor.RED + "The shop could not save your change. Please try again.");
-            return;
-        }
-        player.sendMessage(ChatColor.GREEN + (purchase
-                ? "Unlocked " + model.displayName() + " for " + model.price() + " credits. Balance: " + next.credits() + "."
-                : "Equipped " + model.displayName() + " for your next round."));
+        if (purchase) ShopActions.buy(player, model);
+        else ShopActions.pack(player, model);
     }
 
     @Override
     protected Inventory createInventory() {
-        return Bukkit.createInventory(null, 36, "Disc Shop");
+        return Bukkit.createInventory(null, 54, "Parkland Pro Shop");
     }
 
     @Override
@@ -82,52 +43,124 @@ public final class DiscShop extends InventoryGUI {
         if (event.getPlayer() instanceof Player player) refresh(player);
     }
 
+    @Override public void refreshForPack(Player player) { refresh(player); }
+
     @Override
     public void onClick(InventoryClickEvent event) {
         if (event.getClick() != ClickType.LEFT || !(event.getWhoClicked() instanceof Player player)) return;
-        if (event.getRawSlot() == 34) {
-            var plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
-            Bukkit.getScheduler().runTask(plugin, () -> DecalShop.open(player));
+        int slot = event.getRawSlot();
+        if (slot == 48) {
+            ShopItems.navigate(player, getInventory(), () -> BagMenu.open(player));
             return;
         }
-        for (int i = 0; i < DISC_SLOTS.length; i++) {
-            if (DISC_SLOTS[i] != event.getRawSlot()) continue;
-            DiscModel model = MODELS[i];
-            change(player, model, !bag(player).owns(model));
+        if (slot == 47) {
+            player.performCommand("ndg pack retry");
             refresh(player);
-            break;
+            return;
+        }
+        if (slot == 53) {
+            ShopItems.navigate(player, getInventory(), () -> DecalShop.open(player));
+            return;
+        }
+        if (slot == 44) {
+            ShopItems.navigate(player, getInventory(), () -> ClubhouseMenu.open(player));
+            return;
+        }
+        if (selected != null) {
+            if (slot == 45) selected = null;
+            else if (slot == 31) {
+                var bag = ShopActions.bag(player);
+                if (!bag.owns(selected)) ShopActions.buy(player, selected);
+                else if (!bag.packed().contains(selected)) ShopActions.pack(player, selected);
+            } else return;
+            refresh(player);
+            return;
+        }
+        if (slot == 4) {
+            refresh(player);
+            return;
+        }
+        if (slot == CatalogPages.PREVIOUS && page > 0) {
+            page--;
+            refresh(player);
+        } else if (slot == CatalogPages.NEXT && page < lastPage) {
+            page++;
+            refresh(player);
+        } else if (shown.containsKey(slot)) {
+            selected = shown.get(slot);
+            refresh(player);
         }
     }
 
     private void refresh(Player player) {
-        DiscBag bag = bag(player);
-        for (int i = 0; i < MODELS.length; i++) {
-            DiscModel model = MODELS[i];
-            ItemStack item = DiscItems.discItem(model.type(), model.displayName(), player, false);
-            var meta = item.getItemMeta();
-            String action = bag.equipped(model.type()) == model ? ChatColor.AQUA + "Equipped"
-                    : bag.owns(model) ? ChatColor.GREEN + "Click to equip"
-                    : ChatColor.GOLD + "Click to unlock for " + model.price() + " credits";
-            meta.setLore(List.of(ChatColor.GRAY + model.flightStats(), action));
-            item.setItemMeta(meta);
-            getInventory().setItem(DISC_SLOTS[i], item);
+        Inventory menu = getInventory();
+        menu.clear();
+        shown.clear();
+        var bag = ShopActions.bag(player);
+        var stock = ShopActions.stock();
+        menu.setItem(4, ShopItems.icon(Material.CLOCK, ChatColor.GOLD + "Featured Rack",
+                ChatColor.GRAY + (stock.restockAt() == null ? "All discs are available."
+                        : "Next restock: " + RESTOCK_TIME.format(stock.restockAt())),
+                ChatColor.GRAY + "Click to refresh stock"));
+        menu.setItem(48, ShopItems.icon(Material.BUNDLE, ChatColor.AQUA + "Your Bag",
+                ChatColor.GRAY + "" + bag.packed().size() + "/" + bag.capacity() + " discs packed"));
+        String modelStatus = "Vanilla icons · click to retry";
+        try {
+            var pack = NDGManager.getInstance().getPacked();
+            if (pack.loaded(player)) modelStatus = "Custom disc models active";
+            else if (pack.pending(player)) modelStatus = "Waiting for Minecraft to load the pack";
+        } catch (java.io.IOException ignored) { /* Keep the fallback status visible. */ }
+        menu.setItem(47, ShopItems.icon(Material.PAINTING, ChatColor.AQUA + "Disc Models", ChatColor.GRAY + modelStatus));
+        menu.setItem(49, ShopItems.icon(Material.GOLD_NUGGET, ChatColor.GOLD + "" + bag.credits() + " credits",
+                ChatColor.GRAY + "Earn credits by sinking baskets and finishing rounds."));
+        menu.setItem(53, ShopItems.icon(Material.FIREWORK_STAR, ChatColor.LIGHT_PURPLE + "Score Decals"));
+        menu.setItem(44, ShopItems.icon(Material.WRITABLE_BOOK, ChatColor.AQUA + "Clubhouse",
+                ChatColor.GRAY + "Daily challenge, records and medals"));
+        if (selected == null) {
+            var custom = CatalogPages.custom(model -> true);
+            lastPage = CatalogPages.lastPage(custom);
+            page = Math.min(page, lastPage);
+            CatalogPages.controls(menu, page, lastPage);
+            if (page == 0) {
+                menu.setItem(9, ShopItems.icon(Material.LIME_DYE, ChatColor.GREEN + "Putters"));
+                menu.setItem(18, ShopItems.icon(Material.LIGHT_BLUE_DYE, ChatColor.AQUA + "Midranges"));
+                menu.setItem(27, ShopItems.icon(Material.ORANGE_DYE, ChatColor.GOLD + "Drivers"));
+            }
+            shown.putAll(CatalogPages.entries(page, custom, model -> true));
+            if (stock.restockAt() != null) {
+                int featuredSlot = 5;
+                for (DiscModel featured : stock.offers().stream()
+                        .sorted(java.util.Comparator.comparing(DiscModel::type).reversed()).toList()) {
+                    shown.put(featuredSlot++, featured);
+                }
+            }
+            shown.forEach((slot, model) -> {
+                String status;
+                if (bag.packed().contains(model)) status = ChatColor.AQUA + "Packed";
+                else if (bag.owns(model)) status = ChatColor.GREEN + "Owned";
+                else if (stock.offers().contains(model)) status = ChatColor.GOLD + "In stock · " + model.price() + " credits";
+                else status = ChatColor.DARK_GRAY + "Out of stock";
+                menu.setItem(slot, ShopItems.disc(player, model, status, ChatColor.GRAY + "Click to inspect"));
+            });
+            return;
         }
-
-        ItemStack balance = new ItemStack(Material.GOLD_NUGGET);
-        var meta = balance.getItemMeta();
-        meta.setDisplayName(ChatColor.GOLD + "Balance: " + bag.credits() + " credits");
-        meta.setLore(List.of(ChatColor.GRAY + "Complete rounds to earn credits for baskets scored."));
-        balance.setItemMeta(meta);
-        getInventory().setItem(31, balance);
-        ItemStack decals = new ItemStack(Material.FIREWORK_STAR);
-        var decalsMeta = decals.getItemMeta();
-        decalsMeta.setDisplayName(ChatColor.LIGHT_PURPLE + "Score Decals");
-        decalsMeta.setLore(List.of(ChatColor.GRAY + "Preview, unlock, and equip basket celebrations."));
-        decals.setItemMeta(decalsMeta);
-        getInventory().setItem(34, decals);
-    }
-
-    private DiscBag bag(Player player) {
-        return NDGManager.getInstance().getPlayerDataManager().getOrCreatePlayerData(player.getUniqueId()).getDiscBag();
+        menu.setItem(45, ShopItems.icon(Material.ARROW, ChatColor.YELLOW + "Back to the rack"));
+        menu.setItem(22, ShopItems.disc(player, selected,
+                bag.owns(selected) ? ChatColor.GREEN + "In your collection" : ChatColor.GOLD + "Price: " + selected.price() + " credits"));
+        if (bag.packed().contains(selected)) {
+            menu.setItem(31, ShopItems.icon(Material.LIME_DYE, ChatColor.GREEN + "Already packed"));
+        } else if (bag.owns(selected)) {
+            menu.setItem(31, ShopItems.icon(Material.BUNDLE, ChatColor.AQUA + "Pack for next round",
+                    ChatColor.GRAY + "" + bag.packed().size() + "/" + bag.capacity() + " slots used"));
+        } else if (!stock.offers().contains(selected)) {
+            menu.setItem(31, ShopItems.icon(Material.GRAY_DYE, ChatColor.GRAY + "Out of stock"));
+        } else if (bag.credits() >= selected.price()) {
+            menu.setItem(31, ShopItems.icon(Material.EMERALD, ChatColor.GREEN + "Confirm purchase",
+                    ChatColor.GOLD + "Spend " + selected.price() + " credits",
+                    ChatColor.GRAY + "Balance after purchase: " + (bag.credits() - selected.price())));
+        } else {
+            menu.setItem(31, ShopItems.icon(Material.GRAY_DYE, ChatColor.GRAY + "Insufficient credits",
+                    ChatColor.GOLD + "You need " + (selected.price() - bag.credits()) + " more"));
+        }
     }
 }

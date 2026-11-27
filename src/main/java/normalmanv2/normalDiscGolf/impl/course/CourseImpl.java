@@ -3,6 +3,8 @@ package normalmanv2.normalDiscGolf.impl.course;
 import normalmanv2.normalDiscGolf.api.course.Course;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 
@@ -78,6 +80,39 @@ public class CourseImpl implements Course {
 
     public CourseGrid grid() {
         return this.grid;
+    }
+
+    public World world(String roundId) { return Bukkit.getWorld(roundId); }
+    public boolean isCustom() { return false; }
+    public String holeName(int hole) { return grid.holeName(hole); }
+    public long seed() { return grid.seed(); }
+    public TileTypes tileAt(Location location) { return grid.getTileTypeAtLocation(location); }
+
+    public Location safeLie(Location landing, Location fallback) {
+        World world = landing.getWorld();
+        int x = landing.getBlockX(), z = landing.getBlockZ();
+        // Use the generated surface, including on holes with obstacles above it.
+        for (int radius = 0; radius <= 3; radius++) for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+            if (grid.surfaceType(x + dx, z + dz).isHazard()) continue;
+            int y = grid.surfaceHeight(x + dx, z + dz) + 1;
+            if (canStandHere(world, x + dx, y, z + dz))
+                return new Location(world, x + dx + .5, y, z + dz + .5, landing.getYaw(), 0);
+        }
+        return fallback.clone();
+    }
+
+    protected static boolean canStandHere(World world, int x, int y, int z) {
+        if (y <= world.getMinHeight() || y >= world.getMaxHeight() - 1) return false;
+        var feet = world.getBlockAt(x, y, z);
+        var head = world.getBlockAt(x, y + 1, z);
+        return world.getBlockAt(x, y - 1, z).getType().isSolid()
+                && feet.isPassable() && !feet.isLiquid() && head.isPassable() && !head.isLiquid();
+    }
+
+    public String generationInfo() {
+        int difficulty = grid.difficultyRating();
+        return grid.terrain().label() + " • Seed " + grid.seed()
+                + (difficulty == 0 ? "" : " • Difficulty " + difficulty + "/100");
     }
 
 }

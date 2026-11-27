@@ -5,6 +5,7 @@ import normalmanv2.normalDiscGolf.common.button.Button;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 
 import java.util.HashMap;
@@ -53,5 +54,7 @@ public abstract class InventoryGUI implements InventoryHandler {
     public Inventory getInventory() {
         return this.inventory;
     }
+
+    public void refreshForPack(Player player) {}
 
 }

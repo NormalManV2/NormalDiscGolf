@@ -4,14 +4,30 @@ import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundResult;
 import normalmanv2.normalDiscGolf.api.team.Team;
+import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.common.round.*;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
+import normalmanv2.normalDiscGolf.impl.course.custom.CustomCourse;
+import normalmanv2.normalDiscGolf.impl.competition.DailyCourse;
+import normalmanv2.normalDiscGolf.impl.competition.WeeklyCourse;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGridWorldCreator;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.generator.ObstacleGenerator;
 import normalmanv2.normalDiscGolf.impl.manager.flight.DiscFlightManager;
 import normalmanv2.normalDiscGolf.impl.round.DoublesRound;
+import normalmanv2.normalDiscGolf.impl.round.BestShotRound;
+import normalmanv2.normalDiscGolf.impl.round.WorstShotRound;
+import normalmanv2.normalDiscGolf.impl.round.OneDiscRound;
+import normalmanv2.normalDiscGolf.impl.round.DiscRouletteRound;
+import normalmanv2.normalDiscGolf.impl.round.EliminationRound;
+import normalmanv2.normalDiscGolf.impl.round.AceRaceRound;
+import normalmanv2.normalDiscGolf.impl.round.ClosestToPinRound;
+import normalmanv2.normalDiscGolf.impl.round.ArcadeRound;
+import normalmanv2.normalDiscGolf.impl.round.DailyRound;
+import normalmanv2.normalDiscGolf.impl.round.WeeklyTournamentRound;
 import normalmanv2.normalDiscGolf.impl.round.FFARound;
+import normalmanv2.normalDiscGolf.impl.round.MatchPlayRound;
+import normalmanv2.normalDiscGolf.impl.round.RoundFormat;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -23,18 +39,17 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
-import java.util.function.Supplier;
 
 public class RoundHandler {
 
     private static final int OBSTACLE_TILES_PER_TICK = 16;
-    private static final long OBSTACLE_START_DELAY_TICKS = 40L;
     private static final long OBSTACLE_BAR_HIDE_DELAY_TICKS = 60L;
 
     private final Set<GameRound> activeRounds;
     private final Set<GameRound> preparingRounds;
     private final Set<GameRound> roundsRequiringPreparation;
     private final Set<GameRound> preparedRounds;
+    private final Set<GameRound> startWhenPrepared = new LinkedHashSet<>();
     private final Map<GameRound, BukkitTask> preparationTasks;
     private final Map<GameRound, BossBar> preparationBars;
     private final NormalDiscGolfPlugin plugin;
@@ -58,8 +73,10 @@ public class RoundHandler {
         }
 
         this.queueTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            NDGManager.getInstance().getRoundQueueManager().tickPlayerQueue();
-            NDGManager.getInstance().getRoundQueueManager().tickRoundQueue();
+            var queue = NDGManager.getInstance().getRoundQueueManager();
+            queue.tickPlayerQueue();
+            queue.tickRoundQueue();
+            prepareNext(queue.getQueuedRounds());
         }, 0, 20);
     }
 
@@ -72,12 +89,9 @@ public class RoundHandler {
             round.wire(round, this.plugin);
         }
 
-        if (this.preparingRounds.contains(round)) {
-            return;
-        }
-
-        if (this.needsPreparation(round)) {
-            this.prepareRound(round);
+        if (!this.courseReady(round)) {
+            this.startWhenPrepared.add(round);
+            this.prepareNext(List.of());
             return;
         }
 
@@ -85,6 +99,14 @@ public class RoundHandler {
     }
 
     private void startPreparedRound(GameRound round) {
+        if (round.getCourse() instanceof CustomCourse course) {
+            List<String> errors = course.validate();
+            if (!errors.isEmpty()) {
+                this.sendRoundMessage(round, ChatColor.RED + "Custom course could not start. " + errors.getFirst());
+                discardRound(round);
+                return;
+            }
+        }
         round.setState(RoundState.START);
         this.activeRounds.add(round);
         try {
@@ -100,7 +122,7 @@ public class RoundHandler {
     }
 
     public void endRound(GameRound round) {
-        if (this.preparingRounds.contains(round)) {
+        if (this.preparingRounds.contains(round) || startWhenPrepared.contains(round)) {
             this.cancelPreparingRound(round, ChatColor.RED + "Round canceled while the course was preparing.");
             return;
         }
@@ -111,7 +133,7 @@ public class RoundHandler {
     }
 
     public void cancelRound(GameRound round) {
-        if (this.preparingRounds.contains(round)) {
+        if (this.preparingRounds.contains(round) || startWhenPrepared.contains(round)) {
             this.cancelPreparingRound(round, ChatColor.RED + "Round canceled while the course was preparing.");
             return;
         }
@@ -131,45 +153,85 @@ public class RoundHandler {
         return createRound(roundFormat, course, courseName, settings, true);
     }
 
+    public GameRound createCustomRound(CustomCourse course, DefaultRoundSettings settings) {
+        var round = new FFARound(course, "ndg_custom_" + UUID.randomUUID(), settings);
+        round.wire(round, this.plugin);
+        return round;
+    }
+
     public GameRound createRound(
             String roundFormat,
             CourseImpl course,
             String courseName,
             DefaultRoundSettings settings,
             boolean generateObstacles) {
+        GameRound round = createQueuedRound(roundFormat, course, courseName, settings);
+        try { createCourseWorld(course, courseName, settings.division()); }
+        catch (RuntimeException failure) { discardRound(round); throw failure; }
+        if (!generateObstacles) {
+            roundsRequiringPreparation.remove(round);
+            preparedRounds.add(round);
+        }
+        return round;
+    }
 
+    public GameRound createQueuedRound(String roundFormat, CourseImpl course, String courseName,
+                                       DefaultRoundSettings settings) {
+
+        RoundFormat format = RoundFormat.parse(roundFormat);
+        if (format == null) throw new IllegalArgumentException("Unknown round type: " + roundFormat);
+        if (format == RoundFormat.DAILY && !(course instanceof DailyCourse))
+            throw new IllegalArgumentException("Daily rounds require a date-specific course");
+        if (format == RoundFormat.WEEKLY && !(course instanceof WeeklyCourse))
+            throw new IllegalArgumentException("Weekly rounds require an event course");
+        GameRound round = switch (format) {
+            case FFA -> createFFARound(course, courseName, settings);
+            case DOUBLES -> createDoublesRound(course, courseName, settings);
+            case BEST_SHOT -> new BestShotRound(course, courseName, settings);
+            case WORST_SHOT -> new WorstShotRound(course, courseName, settings);
+            case ONE_DISC -> new OneDiscRound(course, courseName, settings);
+            case DISC_ROULETTE -> new DiscRouletteRound(course, courseName, settings);
+            case ELIMINATION -> new EliminationRound(course, courseName, settings);
+            case ACE_RACE -> new AceRaceRound(course, courseName, settings);
+            case CLOSEST_TO_PIN -> new ClosestToPinRound(course, courseName, settings);
+            case ARCADE -> new ArcadeRound(course, courseName, settings, plugin.getConfig().getInt("arcade.charges-per-disc", 1));
+            case DAILY -> new DailyRound((DailyCourse)course, courseName, settings);
+            case WEEKLY -> new WeeklyTournamentRound((WeeklyCourse)course, courseName, settings);
+            case MATCH -> new MatchPlayRound(course, courseName, settings);
+        };
+
+        round.wire(round, this.plugin);
+        this.roundsRequiringPreparation.add(round);
+        return round;
+    }
+
+    private World createCourseWorld(CourseImpl course, String courseName, Division division) {
         boolean fresh = !new java.io.File(Bukkit.getWorldContainer(), courseName).exists();
-        World world = Bukkit.createWorld(new CourseGridWorldCreator(courseName, course, settings.division()));
-        if (fresh && world != null && courseName.startsWith("ndg_")) {
+        World world = Bukkit.createWorld(new CourseGridWorldCreator(courseName, course, division));
+        if (world == null) throw new IllegalStateException("World " + courseName + " could not be created");
+        if (fresh && courseName.startsWith("ndg_")) {
             ownedWorlds.add(courseName);
             try { java.nio.file.Files.writeString(world.getWorldFolder().toPath().resolve(".ndg-generated"), courseName); }
             catch (java.io.IOException exception) { plugin.getLogger().warning("Could not mark generated world: " + exception.getMessage()); }
         }
-
-        if (world == null) throw new RuntimeException("World is null!");
         world.setGameRule(org.bukkit.GameRule.DO_DAYLIGHT_CYCLE, false);
         world.setGameRule(org.bukkit.GameRule.DO_WEATHER_CYCLE, false);
         world.setGameRule(org.bukkit.GameRule.DO_MOB_SPAWNING, false);
         world.setTime(6000);
         world.setStorm(false);
         world.setDifficulty(org.bukkit.Difficulty.PEACEFUL);
+        return world;
+    }
 
-        Supplier<GameRound> roundSupplier = switch (roundFormat.toLowerCase()) {
-            case "ffa" -> () -> createFFARound(course, courseName, settings);
-            case "doubles" -> () -> createDoublesRound(course, courseName, settings);
-            default -> throw new IllegalArgumentException("Unknown round type: " + roundFormat);
-        };
+    public boolean courseReady(GameRound round) { return !roundsRequiringPreparation.contains(round); }
 
-        GameRound round = roundSupplier.get();
-        round.wire(round, this.plugin);
+    public boolean isBuildingCourse(GameRound round) { return preparingRounds.contains(round); }
 
-        if (generateObstacles) {
-            this.roundsRequiringPreparation.add(round);
-        } else {
-            this.preparedRounds.add(round);
-        }
-
-        return round;
+    public void prepareNext(Collection<GameRound> queued) {
+        if (!preparingRounds.isEmpty()) return;
+        java.util.stream.Stream.concat(startWhenPrepared.stream(), queued.stream())
+                .filter(this::needsPreparation).filter(round -> !round.getTeams().isEmpty())
+                .findFirst().ifPresent(this::prepareRound);
     }
 
     private boolean needsPreparation(GameRound round) {
@@ -183,35 +245,25 @@ public class RoundHandler {
             return;
         }
 
-        World world = Bukkit.getWorld(round.getId());
-        if (world == null) {
-            this.failPreparation(round, null, new RuntimeException("World " + round.getId() + " does not exist"));
-            return;
-        }
-
         round.setState(RoundState.PREPARING);
         this.preparingRounds.add(round);
-        this.sendRoundMessage(round, ChatColor.YELLOW + "Preparing course. The round will start when the pins, tees, and obstacles are ready.");
-
-        this.scheduleObstacleGeneration((CourseImpl) round.getCourse(), world, round.getId(), round);
+        this.sendRoundMessage(round, ChatColor.YELLOW + "Preparing course. The lobby stays open while the course builds.");
+        long started = System.nanoTime();
+        try {
+            CourseImpl course = (CourseImpl) round.getCourse();
+            World world = Bukkit.getWorld(round.getId());
+            if (world == null) world = createCourseWorld(course, round.getId(), round.division());
+            this.scheduleObstacleGeneration(course, world, round.getId(), round, started);
+        } catch (RuntimeException failure) {
+            this.failPreparation(round, null, failure);
+        }
     }
 
     private void scheduleObstacleGeneration(
             CourseImpl course,
             World world,
             String courseName,
-            GameRound round) {
-        Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
-            if (!this.preparingRounds.contains(round)) {
-                return;
-            }
-
-            World activeWorld = Bukkit.getWorld(world.getName());
-            if (activeWorld == null) {
-                this.failPreparation(round, null, new RuntimeException("World " + courseName + " unloaded before obstacle generation"));
-                return;
-            }
-
+            GameRound round, long started) {
             BossBar loadingBar = Bukkit.createBossBar("Preparing course: 0%", BarColor.GREEN, BarStyle.SEGMENTED_10);
             loadingBar.setProgress(0.0);
             loadingBar.setVisible(true);
@@ -221,7 +273,7 @@ public class RoundHandler {
 
             BukkitTask task = new ObstacleGenerator(course.grid(), round.division()).generateObstaclesIncrementally(
                     this.plugin,
-                    activeWorld,
+                    world,
                     OBSTACLE_TILES_PER_TICK,
                     (completedTiles, totalTiles) -> {
                         this.addRoundPlayersToBossBar(round, loadingBar);
@@ -235,7 +287,8 @@ public class RoundHandler {
                         loadingBar.setTitle("Course ready");
                         this.sendRoundMessage(round, ChatColor.GREEN + "Course obstacles are ready.");
                         Bukkit.getScheduler().runTaskLater(this.plugin, loadingBar::removeAll, OBSTACLE_BAR_HIDE_DELAY_TICKS);
-                        this.plugin.getLogger().info("Obstacle generation completed for " + courseName);
+                        long millis = (System.nanoTime() - started) / 1_000_000;
+                        this.plugin.getLogger().info("Obstacle generation completed for " + courseName + " in " + millis + " ms");
                         this.finishPreparation(round);
                     },
                     exception -> {
@@ -244,7 +297,6 @@ public class RoundHandler {
                     }
             );
             this.preparationTasks.put(round, task);
-        }, OBSTACLE_START_DELAY_TICKS);
     }
 
     private void finishPreparation(GameRound round) {
@@ -259,8 +311,10 @@ public class RoundHandler {
             return;
         }
 
-        this.sendRoundMessage(round, ChatColor.GREEN + "Course ready. Starting round.");
-        this.startPreparedRound(round);
+        if (this.startWhenPrepared.remove(round)) {
+            this.sendRoundMessage(round, ChatColor.GREEN + "Course ready. Starting round.");
+            this.startPreparedRound(round);
+        }
     }
 
     private void failPreparation(GameRound round, BossBar loadingBar, RuntimeException exception) {
@@ -288,8 +342,10 @@ public class RoundHandler {
         }
 
         this.preparingRounds.remove(round);
+        this.startWhenPrepared.remove(round);
         this.roundsRequiringPreparation.remove(round);
         this.preparedRounds.remove(round);
+        NDGManager.getInstance().getRoundQueueManager().removeRoundFromQueue(round);
 
         if (message != null) {
             this.sendRoundMessage(round, message);
@@ -307,6 +363,9 @@ public class RoundHandler {
             return;
         }
 
+        for (Player player : bossBar.getPlayers()) {
+            if (!round.containsPlayer(player.getUniqueId())) bossBar.removePlayer(player);
+        }
         for (Team team : round.getTeams()) {
             for (UUID playerId : team.getTeamMembers()) {
                 Player player = Bukkit.getPlayer(playerId);
@@ -385,22 +444,29 @@ public class RoundHandler {
         for (GameRound round : getActiveRounds()) {
             if (round.containsPlayer(player.getUniqueId())) {
                 ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)round).play().leave(player.getUniqueId());
-                player.sendMessage("§eYou forfeited the round.");
+                if (!(round instanceof MatchPlayRound match) || player.getUniqueId().equals(match.score().forfeiter()))
+                    player.sendMessage("§eYou forfeited the round.");
             }
         }
         for (GameRound round : getPreparingRounds()) {
+            if (NDGManager.getInstance().getRoundQueueManager().isRoundQueued(round)) continue;
             for (Team team : round.getTeams()) if (team.contains(player.getUniqueId())) {
                 team.removePlayer(player.getUniqueId());
                 if (team.getTeamMembers().isEmpty()) round.removeTeam(team);
             }
-            if (round.getTeams().isEmpty()) cancelRound(round);
+            if (round instanceof EliminationRound elimination && !elimination.hasOpponents())
+                cancelPreparingRound(round, ChatColor.YELLOW + "Elimination needs at least two players.");
+            else if (round.getTeams().isEmpty() || round instanceof MatchPlayRound match && !match.hasOpponents()) cancelRound(round);
         }
         NDGManager.getInstance().getPlayerSessionManager().restorePlayer(player);
     }
 
     /** Used for queues that never started, so cancellation does not require an active lifecycle. */
     public void discardRound(GameRound round) {
-        if (this.preparingRounds.contains(round)) { cancelPreparingRound(round, null); return; }
+        if (this.preparingRounds.contains(round) || this.startWhenPrepared.contains(round)) {
+            cancelPreparingRound(round, null);
+            return;
+        }
         roundsRequiringPreparation.remove(round);
         preparedRounds.remove(round);
         round.setState(RoundState.CANCEL);
@@ -412,6 +478,7 @@ public class RoundHandler {
         if (!ownedWorlds.contains(name)) return;
         World world = Bukkit.getWorld(name);
         if (world != null) {
+            world.removePluginChunkTickets(plugin);
             World lobby = Bukkit.getWorlds().stream().filter(w -> !ownedWorlds.contains(w.getName())).findFirst().orElse(null);
             for (Player player : new ArrayList<>(world.getPlayers())) {
                 NDGManager.getInstance().getPlayerSessionManager().restorePlayer(player);
@@ -443,7 +510,9 @@ public class RoundHandler {
     }
 
     public List<GameRound> getPreparingRounds() {
-        return new ArrayList<>(this.preparingRounds);
+        var pending = new LinkedHashSet<>(this.preparingRounds);
+        pending.addAll(this.startWhenPrepared);
+        return new ArrayList<>(pending);
     }
 
     public void shutdown() {
@@ -480,6 +549,7 @@ public class RoundHandler {
         NDGManager.getInstance().getRoundQueueManager().clear();
         this.activeRounds.clear();
         this.preparingRounds.clear();
+        this.startWhenPrepared.clear();
         this.roundsRequiringPreparation.clear();
         this.preparedRounds.clear();
         for (String name : new HashSet<>(ownedWorlds)) releaseWorld(name);

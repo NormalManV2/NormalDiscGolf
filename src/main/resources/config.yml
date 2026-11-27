@@ -1,15 +1,83 @@
 # Recreational rounds accept players from every rating division.
 queue-countdown-seconds: 15
 turn-timeout-seconds: 90
+# Best Shot uses the closer legal lie if neither teammate chooses in time.
+best-shot-choice-seconds: 20
+flight:
+  # Wind is shared by all players on a hole and reproduced by its course seed.
+  wind: true
+course-events:
+  enabled: true
+  # FFA and Doubles count toward career ratings.
+  include-rated: false
+  chance-percent: 25
+  # Relative selection weights. Use 0 to disable an event in random schedules.
+  weights: { thunderstorm: 1, fog: 1, night-golf: 1 }
+  # Optional repeating sequence, for example [thunderstorm, fog, night-golf, clear].
+  sequence: []
+  thunderstorm:
+    wind-scale: 1.0
+    lightning-flashes: true
 max-strokes-per-hole: 12
+career:
+  # Stroke play uses level-one skill effects for every player and still awards personal XP.
+  normalize-rated-skills: true
 disc-shop:
   credits-per-basket: 10
+  # UTC hours per rotation. Set to 0 to offer every disc year-round.
+  rotation-hours: 24
 course:
   holes: 18
+  # Use one terrain ID instead of random to keep the same environment across rounds.
+  terrain: random
+  enabled-terrains: [woodland, mountain, desert, island, nether, sky]
+  # Random draws a fresh seed per course. Fixed uses the seed below.
+  seed-mode: random
   seed: 2026
+  archetypes: [tunnel, dogleg, island-green, gap-shot, double-fairway, cliffside, guardian-green, air-shot, risk-reward, elevated-basket]
+  # Elevation 0–32, fairway width 8–28 blocks, both densities 0–1.
+  terrains:
+    woodland: { elevation: 7, fairway-width: 13, obstacle-density: 0.68, hazard-density: 0.24 }
+    mountain: { elevation: 24, fairway-width: 15, obstacle-density: 0.43, hazard-density: 0.24 }
+    desert: { elevation: 11, fairway-width: 17, obstacle-density: 0.33, hazard-density: 0.37 }
+    island: { elevation: 5, fairway-width: 17, obstacle-density: 0.46, hazard-density: 0.50 }
+    nether: { elevation: 12, fairway-width: 15, obstacle-density: 0.53, hazard-density: 0.55 }
+    sky: { elevation: 11, fairway-width: 16, obstacle-density: 0.32, hazard-density: 0.38 }
+ace-race:
+  holes: 6
+closest-to-pin:
+  holes: 6
+arcade:
+  # Per player, per special disc, per round. Valid range is 0–9.
+  charges-per-disc: 1
+daily-course:
+  # The day's layout and course settings are saved together at first use.
+  holes: 6
+weekly-tournament:
+  enabled: true
+  day: saturday
+  time-utc: "20:00"
+  signup-hours: 72
+  holes: 9
+  min-players: 2
+  max-players: 8
+  # Credit prizes for first, second, and third place.
+  prizes: [100, 60, 30]
+ranked-seasons:
+  enabled: true
+  # UTC days per season. Length, qualification, and prizes apply to newly opened seasons.
+  length-days: 30
+  minimum-rounds: 3
+  # Credit prizes for first, second, and third place.
+  prizes: [300, 180, 100]
 preview:
   enabled: true
   seconds: 6
+spectating:
+  disc-camera: true
+  replays: true
+  # Successful putts in putting stance at this distance or farther qualify.
+  long-putt-blocks: 10
 resource-pack:
   enabled: true
   # Set to a publicly reachable HTTP(S) address for remote players.
