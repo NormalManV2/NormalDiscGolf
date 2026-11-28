@@ -27,7 +27,7 @@ final class HoleFlyover {
     private final boolean showcase;
     private final List<Location> fairway;
     private final Hazard hazard;
-    private final Location archFocus;
+    private final Location landmarkFocus;
     private final Location basket;
     private final String subtitle;
 
@@ -43,7 +43,7 @@ final class HoleFlyover {
         waypoints.add(tee);
         for (int i = 1; i < route.size() - 1; i++) {
             var point = route.get(i);
-            double height = grid.surfaceType(point.x(), point.z()) == TileTypes.OUT_OF_BOUNDS
+            double height = grid.surfaceType(point.x(), point.z()).isHazard()
                     ? tee.getY() + (basket.getY() - tee.getY()) * i / (route.size() - 1)
                     : grid.surfaceHeight(point.x(), point.z()) + 1;
             waypoints.add(new Location(world, point.x() + .5, height, point.z() + .5));
@@ -55,15 +55,27 @@ final class HoleFlyover {
         for (RoutePoint point : samples) {
             int x = floor(point.x()), z = floor(point.z());
             var type = grid.surfaceType(x, z);
-            if (!type.isHazard())
+            if (!type.isHazard()) {
                 line.add(new Location(world, point.x(), grid.surfaceHeight(x, z) + 1.6, point.z()));
-            else if (showcase && grid.terrain() == CourseTerrain.SKY && type == TileTypes.OUT_OF_BOUNDS)
-                line.add(new Location(world, point.x(), point.routeHeight() + 1.6, point.z()));
+            } else if (showcase && carriesHere(grid.terrain(), type)) {
+                double height = type == TileTypes.OUT_OF_BOUNDS ? point.routeHeight()
+                        : Math.max(point.routeHeight(), grid.surfaceHeight(x, z));
+                line.add(new Location(world, point.x(), height + 1.6, point.z()));
+            }
         }
         fairway = List.copyOf(line);
         hazard = nearestHazard(grid, world, hole, samples);
-        var arch = grid.archFocus(hole);
-        archFocus = arch == null ? null : new Location(world, arch.x() + .5, arch.y(), arch.z() + .5);
+        var landmark = grid.showcaseFocus(hole);
+        landmarkFocus = landmark == null ? null : new Location(world, landmark.x() + .5, landmark.y(), landmark.z() + .5);
+    }
+
+    private static boolean carriesHere(CourseTerrain terrain, TileTypes type) {
+        return switch (terrain) {
+            case ISLAND -> type == TileTypes.WATER;
+            case NETHER -> type == TileTypes.LAVA;
+            case SKY -> type == TileTypes.OUT_OF_BOUNDS;
+            default -> false;
+        };
     }
 
     String subtitle() { return subtitle; }
@@ -73,7 +85,7 @@ final class HoleFlyover {
     }
 
     Location frame(double progress) {
-        return path.previewFrame(progress, showcase, hazard == null ? null : hazard.marker(), archFocus);
+        return path.previewFrame(progress, showcase, hazard == null ? null : hazard.marker(), landmarkFocus);
     }
 
     void markRoute(Player player, Location camera, double progress) {

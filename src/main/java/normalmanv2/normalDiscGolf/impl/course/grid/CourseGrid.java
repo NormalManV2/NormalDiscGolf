@@ -700,7 +700,11 @@ public class CourseGrid {
 
     public String holeHint(int hole) { return themed == null ? null : themed.showcaseHint(hole); }
 
-    public GridPoint archFocus(int hole) { return themed == null ? null : themed.archFocus(hole); }
+    public GridPoint showcaseFocus(int hole) { return themed == null ? null : themed.showcaseFocus(hole); }
+
+    TerrainLandmark terrainLandmarkAt(int x, int z) {
+        return themed.terrainLandmarkAt(x, z, 0);
+    }
 
     ThemedCourse.ArchColumn archColumn(int x, int z, int ground) {
         return themed.archColumn(x, z, ground);
@@ -712,7 +716,7 @@ public class CourseGrid {
         return themed == null ? List.of() : themed.hole(hole).landmarks();
     }
 
-    public boolean nearWoodlandLandmark(int x, int z, int clearance) {
+    public boolean nearLandmark(int x, int z, int clearance) {
         return themed != null && themed.nearLandmark(x, z, clearance);
     }
 

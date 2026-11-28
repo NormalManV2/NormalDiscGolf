@@ -136,7 +136,7 @@ public final class ObstacleGenerator {
         var random = new Random(grid.seed() ^ tx * 341873128712L ^ tz * 132897987541L);
         for (int i = 0; i < 5; i++) {
             int x = tx * 16 + 2 + random.nextInt(12), z = tz * 16 + 2 + random.nextInt(12);
-            if (grid.nearWoodlandLandmark(x, z, 2)) continue;
+            if (grid.nearLandmark(x, z, 3)) continue;
             if (random.nextDouble() < density * .58 && protectedFootprint(world, x, z, 3)) {
                 feature(world, x, z, random, false);
             } else if (random.nextDouble() < density && protectedFootprint(world, x, z, 0)) {
@@ -218,14 +218,18 @@ public final class ObstacleGenerator {
         int ty = grid.surfaceHeight(tee.x(), tee.z()), py = grid.surfaceHeight(pin.x(), pin.z());
         if (grid.isThemed() && grid.terrainSettings().obstacleDensity() > 0) {
             var random = new Random(grid.seed() + hole);
-            for (var guard : grid.guards(hole)) if (protectedFootprint(world, guard.x(), guard.z(), 3))
+            for (var guard : grid.guards(hole)) if (!grid.nearLandmark(guard.x(), guard.z(), 3)
+                    && protectedFootprint(world, guard.x(), guard.z(), 3))
                 feature(world, guard.x(), guard.z(), random, true);
         }
         for (var landmark : grid.woodlandLandmarks(hole)) WoodlandLandmarks.place(world, grid, landmark);
 
         String hint = grid.holeHint(hole);
         Material teeBorder = hint == null ? Material.STONE_BRICKS : switch (grid.terrain()) {
+            case MOUNTAIN -> Material.POLISHED_ANDESITE;
             case DESERT -> Material.CHISELED_RED_SANDSTONE;
+            case ISLAND -> Material.STRIPPED_JUNGLE_WOOD;
+            case NETHER -> Material.POLISHED_BLACKSTONE_BRICKS;
             case SKY -> Material.POLISHED_TUFF;
             default -> Material.STRIPPED_SPRUCE_WOOD;
         };
@@ -266,7 +270,8 @@ public final class ObstacleGenerator {
         world.spawn(sign, TextDisplay.class, display -> {
             String tipColor = switch (grid.terrain()) {
                 case DESERT -> "§e";
-                case SKY -> "§b";
+                case MOUNTAIN, ISLAND, SKY -> "§b";
+                case NETHER -> "§6";
                 default -> "§a";
             };
             display.setText("§6§lHOLE " + (hole + 1) + "  §r§f§l" + grid.holeName(hole) + "\n" + details
@@ -274,7 +279,10 @@ public final class ObstacleGenerator {
             display.setLineWidth(230);
             display.setBillboard(Display.Billboard.VERTICAL);
             display.setBackgroundColor(switch (grid.terrain()) {
+                case MOUNTAIN -> Color.fromARGB(224, 30, 43, 54);
                 case DESERT -> Color.fromARGB(224, 56, 31, 15);
+                case ISLAND -> Color.fromARGB(224, 11, 51, 55);
+                case NETHER -> Color.fromARGB(224, 52, 19, 28);
                 case SKY -> Color.fromARGB(224, 20, 31, 53);
                 default -> Color.fromARGB(224, 17, 33, 24);
             });

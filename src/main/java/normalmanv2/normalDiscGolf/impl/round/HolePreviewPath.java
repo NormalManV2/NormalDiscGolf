@@ -45,12 +45,12 @@ public final class HolePreviewPath {
         return movingFrame(progress, false, null, null);
     }
 
-    Location previewFrame(double progress, boolean showcase, Location hazard, Location arch) {
+    Location previewFrame(double progress, boolean showcase, Location hazard, Location landmark) {
         // Finish the move early enough to give the basket a brief, steady frame.
-        return movingFrame(Math.min(1, progress / .87), showcase, hazard, arch);
+        return movingFrame(Math.min(1, progress / .87), showcase, hazard, landmark);
     }
 
-    private Location movingFrame(double progress, boolean showcase, Location hazard, Location arch) {
+    private Location movingFrame(double progress, boolean showcase, Location hazard, Location landmark) {
         double eased = .5 - .5 * Math.cos(Math.PI * Math.clamp(progress, 0, 1));
         int behindTee = showcase ? 6 : 0;
         double distance = Math.max(0, length - (showcase ? 14 : 16)) * eased - behindTee * (1 - eased);
@@ -66,10 +66,10 @@ public final class HolePreviewPath {
             double strength = .55 * proximity * proximity * (1 - Math.clamp((progress - .68) / .22, 0, 1));
             focus.add(hazard.toVector().subtract(focus.toVector()).multiply(strength));
         }
-        if (arch != null) {
-            double span = Math.hypot(arch.getX() - focus.getX(), arch.getZ() - focus.getZ());
+        if (landmark != null) {
+            double span = Math.hypot(landmark.getX() - focus.getX(), landmark.getZ() - focus.getZ());
             double strength = .75 * (1 - Math.clamp(span / 24, 0, 1));
-            focus.add(0, Math.max(0, arch.getY() - focus.getY()) * strength, 0);
+            focus.add(0, Math.max(0, landmark.getY() - focus.getY()) * strength, 0);
         }
         camera.setDirection(focus.toVector().subtract(camera.toVector()));
         camera.setPitch(Math.clamp(camera.getPitch(), -10f, 35f));

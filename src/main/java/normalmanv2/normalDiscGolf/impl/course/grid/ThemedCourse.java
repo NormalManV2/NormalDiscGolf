@@ -19,6 +19,7 @@ final class ThemedCourse {
     private final CourseGenerationSettings settings;
     private final long seed;
     private final List<Hole> holes;
+    private final List<List<TerrainLandmark>> terrainLandmarks;
     private final double phaseX;
     private final double phaseZ;
     private final int waterline;
@@ -81,7 +82,7 @@ final class ThemedCourse {
             if (index % rotation.size() == 0) {
                 Collections.shuffle(rotation, random);
                 if (featuredWoodland) rotation.sort(Comparator.comparing(type -> WoodlandHole.forArchetype(type) == null));
-                else if (standard && (settings.terrain() == CourseTerrain.DESERT || settings.terrain() == CourseTerrain.SKY))
+                else if (standard)
                     rotation.sort(Comparator.comparing(type -> TerrainShowcase.forArchetype(settings.terrain(), type) == null));
             }
             HoleArchetype archetype = rotation.get(index % rotation.size());
@@ -90,6 +91,9 @@ final class ThemedCourse {
             generated.add(plan(index, archetype, random, layout.shortHoles(), woodlandHole, showcase));
         }
         holes = List.copyOf(generated);
+        var scenery = new ArrayList<List<TerrainLandmark>>(count);
+        for (int index = 0; index < count; index++) scenery.add(planTerrainLandmarks(index));
+        terrainLandmarks = List.copyOf(scenery);
     }
 
     private Hole plan(int index, HoleArchetype archetype, Random random, boolean shortLayout, WoodlandHole woodlandHole,
@@ -108,7 +112,8 @@ final class ThemedCourse {
             drift = woodlandHole == WoodlandHole.FERNBEND ? side * random.nextInt(24, 34) : 0;
             if (woodlandHole == WoodlandHole.FERNBEND) length = random.nextInt(61, 104 - x0);
         }
-        if (showcase == TerrainShowcase.SANDSTONE_GATE) drift = 0;
+        boolean straightShowcase = showcase != null && showcase.straight();
+        if (straightShowcase) drift = 0;
         GridPoint tee = orient(index, orientation, x0, z0);
         GridPoint basket = orient(index, orientation, x0 + length, z0 + drift);
         int bend = switch (archetype) {
@@ -123,7 +128,7 @@ final class ThemedCourse {
         if (woodlandHole == WoodlandHole.FERNBEND) {
             near = orient(index, orientation, x0 + length * 3 / 5, z0);
             far = orient(index, orientation, x0 + length * 4 / 5, z0 + drift / 2);
-        } else if (woodlandHole != null || showcase == TerrainShowcase.SANDSTONE_GATE) {
+        } else if (woodlandHole != null || straightShowcase) {
             near = orient(index, orientation, x0 + length * 2 / 5, z0);
             far = orient(index, orientation, x0 + length * 7 / 10, z0);
         }
@@ -151,7 +156,7 @@ final class ThemedCourse {
                         ? interpolate(near, far, .5) : interpolate(tee, basket, .54);
                 pools.add(new Pool(carry, 0, 3.2 + hazard * 6, true));
             }
-            if (random.nextDouble() < hazard && showcase != TerrainShowcase.SANDSTONE_GATE) {
+            if (random.nextDouble() < hazard && !straightShowcase) {
                 int pocketZ = woodlandHole == null ? z0 + drift / 2 - side * (17 + random.nextInt(6))
                         : Math.clamp(z0 - side * ((int)Math.ceil(lane) + 24), 17, CELL - 17);
                 var pocket = orient(index, orientation, x0 + length / 2, pocketZ);
@@ -161,7 +166,7 @@ final class ThemedCourse {
             }
         }
         var guards = new ArrayList<GridPoint>();
-        if (woodlandHole == null && showcase != TerrainShowcase.SANDSTONE_GATE
+        if (woodlandHole == null && !straightShowcase
                 && (archetype == HoleArchetype.GAP_SHOT || archetype == HoleArchetype.GUARDIAN_GREEN)) {
             int at = archetype == HoleArchetype.GAP_SHOT ? length / 2 : length * 4 / 5;
             int offset = (int)Math.ceil(lane) + 7;
@@ -216,13 +221,72 @@ final class ThemedCourse {
         return List.copyOf(result);
     }
 
+    private List<TerrainLandmark> planTerrainLandmarks(int index) {
+        Hole hole = hole(index);
+        if (hole.showcase() == null || settings.obstacleDensity() == 0) return List.of();
+        var kind = TerrainLandmark.Kind.forShowcase(hole.showcase());
+        if (kind == null) return List.of();
+        var random = new Random(seed ^ (index + 1L) * 0x632be59bd9b4e019L);
+        int preferredSegment = switch (kind) {
+            case CAIRN, KEEP -> 2;
+            case LIGHTHOUSE -> 0;
+            default -> 1;
+        };
+        int flank = random.nextBoolean() ? 1 : -1;
+        var landmarks = new ArrayList<TerrainLandmark>(2);
+        tryLandmark(index, hole, kind, preferredSegment, flank, random, landmarks);
+        if (landmarks.isEmpty() || kind == TerrainLandmark.Kind.GLACIER || kind == TerrainLandmark.Kind.BASALT
+                || kind == TerrainLandmark.Kind.PALM)
+            tryLandmark(index, hole, kind, preferredSegment, -flank, random, landmarks);
+        return List.copyOf(landmarks);
+    }
+
+    private void tryLandmark(int index, Hole hole, TerrainLandmark.Kind kind, int preferredSegment, int flank,
+                             Random random, List<TerrainLandmark> landmarks) {
+        int startOffset = (int)Math.ceil(hole.width()) + kind.radius + 1;
+        double preferredCenter = random.nextDouble(.36, .65);
+        for (int attempt = 0; attempt < 3; attempt++) {
+            int segment = (preferredSegment + attempt) % 3;
+            GridPoint first = hole.route().get(segment), last = hole.route().get(segment + 1);
+            int dx = last.x() - first.x(), dz = last.z() - first.z();
+            double length = Math.hypot(dx, dz);
+            for (double fraction : new double[]{preferredCenter, .25, .75}) {
+                for (int offset = startOffset; offset <= startOffset + 12; offset += 2) {
+                    int x = (int)Math.round(first.x() + dx * fraction - dz / length * flank * offset);
+                    int z = (int)Math.round(first.z() + dz * fraction + dx / length * flank * offset);
+                    if (!landmarkFootprint(index, hole, x, z, kind.radius)) continue;
+                    int ground = sample(x, z, true).height();
+                    int rotation = Math.abs(dx) >= Math.abs(dz) ? (dx >= 0 ? 0 : 2) : (dz >= 0 ? 1 : 3);
+                    if (flank < 0) rotation = (rotation + 2) % 4;
+                    landmarks.add(new TerrainLandmark(kind, new GridPoint(x, ground, z),
+                            random.nextInt(kind.minHeight, kind.maxHeight), rotation));
+                    return;
+                }
+            }
+        }
+    }
+
+    private boolean landmarkFootprint(int index, Hole hole, int x, int z, int radius) {
+        if (holeIndexAt(x - radius - 1, z - radius - 1) != index
+                || holeIndexAt(x + radius + 1, z + radius + 1) != index) return false;
+        if (hole.distance(x, z) < hole.width() + radius || hole.nearAnchor(x, z, 9 + radius)) return false;
+        for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+            int checkX = x + dx, checkZ = z + dz;
+            if (protectedLane(checkX, checkZ) || sample(checkX, checkZ, true).type().isHazard()) return false;
+        }
+        return true;
+    }
+
     String showcaseHint(int index) {
         Hole hole = hole(index);
         if (hole.woodlandHole() != null) return hole.woodlandHole().hint(hole.route());
         if (hole.showcase() == null) return null;
         boolean featurePresent = switch (hole.showcase()) {
             case SANDSTONE_GATE -> hole.arch() != null;
-            case CLOUD_CROSSING, DRIFTWOOD_GREEN -> hole.pools().stream().anyMatch(Pool::crossesFairway);
+            case CLOUD_CROSSING, DRIFTWOOD_GREEN, WRECK_LAGOON, LANTERN_CAY, EMBER_CROSSING ->
+                    hole.pools().stream().anyMatch(Pool::crossesFairway);
+            case GLACIER_PASS, BASALT_GATE -> terrainLandmarks.get(index).size() == 2;
+            case ASHEN_KEEP -> !terrainLandmarks.get(index).isEmpty();
             default -> true;
         };
         return hole.showcase().hint(featurePresent);
@@ -234,9 +298,20 @@ final class ThemedCourse {
         return hole.arch().column(x, z, ground);
     }
 
-    GridPoint archFocus(int index) {
+    GridPoint showcaseFocus(int index) {
         CanyonArch arch = hole(index).arch();
-        return arch == null ? null : new GridPoint(arch.center().x(), arch.spring() + arch.rise() / 2, arch.center().z());
+        if (arch != null) return new GridPoint(arch.center().x(), arch.spring() + arch.rise() / 2, arch.center().z());
+        var marks = terrainLandmarks.get(index);
+        if (marks.isEmpty()) return null;
+        var mark = marks.getFirst();
+        return new GridPoint(mark.base().x(), mark.base().y() + mark.height() * 2 / 3, mark.base().z());
+    }
+
+    TerrainLandmark terrainLandmarkAt(int x, int z, int padding) {
+        int index = holeIndexAt(x, z);
+        if (index < 0) return null;
+        for (var mark : terrainLandmarks.get(index)) if (mark.covers(x, z, padding)) return mark;
+        return null;
     }
 
     private static List<Landmark> landmarks(WoodlandHole hole, int index, int orientation, int x, int z, int length,
@@ -277,7 +352,8 @@ final class ThemedCourse {
         Hole hole = at(x, z);
         if (hole == null) return false;
         int reach = Landmark.RADIUS + clearance;
-        return hole.landmarks().stream().anyMatch(landmark -> Math.abs(x - landmark.position().x()) <= reach
+        return terrainLandmarkAt(x, z, clearance) != null
+                || hole.landmarks().stream().anyMatch(landmark -> Math.abs(x - landmark.position().x()) <= reach
                 && Math.abs(z - landmark.position().z()) <= reach);
     }
 
@@ -295,11 +371,16 @@ final class ThemedCourse {
     Hole hole(int index) { return holes.get(index); }
     CourseGenerationSettings settings() { return settings; }
 
-    private Hole at(int x, int z) {
+    private int holeIndexAt(int x, int z) {
         int column = Math.floorDiv(x - MARGIN, CELL), row = Math.floorDiv(z - MARGIN, CELL);
-        if (column < 0 || column >= COLUMNS || row < 0 || row >= (holes.size() + 2) / 3) return null;
+        if (column < 0 || column >= COLUMNS || row < 0 || row >= (holes.size() + 2) / 3) return -1;
         int index = row * COLUMNS + column;
-        return index < holes.size() ? holes.get(index) : null;
+        return index < holes.size() ? index : -1;
+    }
+
+    private Hole at(int x, int z) {
+        int index = holeIndexAt(x, z);
+        return index < 0 ? null : holes.get(index);
     }
 
     double routeDistance(double x, double z) {

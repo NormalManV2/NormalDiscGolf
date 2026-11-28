@@ -4,6 +4,7 @@ import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 import org.bukkit.Material;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.block.data.type.Leaves;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
 import java.util.Random;
@@ -23,6 +24,8 @@ public final class CourseGridChunkGenerator extends ChunkGenerator {
                     if (arch != null) for (int y = arch.bottom(); y <= arch.top(); y++)
                         data.setBlock(x, y, z, canyonLayer(y));
                 }
+                var landmark = grid.terrainLandmarkAt(wx, wz);
+                if (landmark != null) writeLandmark(data, x, z, wx, wz, column.height(), landmark);
                 continue;
             }
             int y = grid.surfaceHeight(wx, wz);
@@ -50,6 +53,20 @@ public final class CourseGridChunkGenerator extends ChunkGenerator {
                 data.setBlock(x, ground, z, base);
             }
             data.setBlock(x, y, z, surface);
+        }
+    }
+
+    private static void writeLandmark(ChunkData data, int x, int z, int wx, int wz, int ground, TerrainLandmark landmark) {
+        int top = landmark.base().y() + landmark.height();
+        for (int y = ground + 1; y <= top; y++) {
+            Material material = landmark.materialAt(wx, y, wz);
+            if (material == Material.JUNGLE_LEAVES) {
+                var leaves = (Leaves) material.createBlockData();
+                leaves.setPersistent(true);
+                data.setBlock(x, y, z, leaves);
+            } else if (material != null) {
+                data.setBlock(x, y, z, material);
+            }
         }
     }
 

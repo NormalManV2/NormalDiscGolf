@@ -12,7 +12,6 @@ const expectSkillXp = process.argv.includes('--expect-skill-xp')
 const expectTrickShots = process.argv.includes('--expect-trick-shots')
 const expectShotControls = process.argv.includes('--expect-shot-controls') || expectTrickShots
 const expectRoller = process.argv.includes('--expect-roller')
-const showcase = ['woodland', 'desert', 'sky'].find(terrain => process.argv.includes('--expect-'+terrain+'-visuals'))
 const flyoverHazard = process.env.NDG_EXPECT_FLYOVER_HAZARD
 const queueTerrain = process.env.NDG_TEST_QUEUE_TERRAIN
 const hazardColors = { Water: 0x4ad3ff, Lava: 0xff6c32, Void: 0xc57dff }
@@ -22,16 +21,39 @@ const showcaseHints = {
     Fernbend: /Aim for the bend, then turn (left|right)/,
     Mossgate: /Aim through the gap in the fairway/
   },
+  mountain: {
+    'Glacier Pass': /Aim between the blue ice walls/,
+    'Eagle Ridge': /Follow the ridge above the drop/,
+    'Summit Steps': /Aim uphill to the raised basket/
+  },
   desert: {
     'Sandstone Gate': /Keep the drive low through the arch/,
     'Painted Rim': /Follow the fairway below the canyon rim/,
     'Split Mesa': /Follow the gold line or play the other rim/
+  },
+  island: {
+    'Wreck Lagoon': /Carry the lagoon along the gold line/,
+    'Lantern Cay': /Carry the water to the basket island/,
+    'Palm Cove': /Play to the bend before turning to the green/
+  },
+  nether: {
+    'Basalt Gate': /Thread the basalt pillars/,
+    'Ember Crossing': /Carry the lava to the far bank/,
+    'Ashen Keep': /Hold the center on the approach to the keep/
   },
   sky: {
     'Cloud Crossing': /Follow the gold line across the gap/,
     'Driftwood Green': /Carry the gap to the basket island/,
     'Sky Crown': /Aim up the ridge to the raised basket/
   }
+}
+const showcase = Object.keys(showcaseHints).find(terrain => process.argv.includes('--expect-'+terrain+'-visuals'))
+const carrySurfaces = {
+  'Cloud Crossing': 'air',
+  'Driftwood Green': 'air',
+  'Wreck Lagoon': 'water',
+  'Lantern Cay': 'water',
+  'Ember Crossing': 'lava'
 }
 const trickColors = {flex:0xffff00,tomahawk:0xff00ff,thumber:0xae7aff}
 const tricks = Object.keys(trickColors)
@@ -136,7 +158,8 @@ function recordShowcasePreviews(bot, state, hints) {
     const text = JSON.stringify(packet.text)
     const layout = Object.keys(hints).find(name => text.includes(name))
     if (!layout) return
-    preview = {dots: new Map(), frames: 0, blockedFrames: 0, carryDots: new Set()}
+    preview = {dots: new Map(), frames: 0, checkedFrames: 0, blockedFrames: 0,
+      carryDots: new Set(), carrySurface: carrySurfaces[layout]}
     state.showcasePreviews.set(layout, preview)
   })
   bot._client.on('entity_metadata', packet => {
@@ -149,14 +172,28 @@ function recordShowcasePreviews(bot, state, hints) {
     if ((packet.particle.data.color & 0xffffff) !== 0xffcd5f) return
     const point = [packet.x, packet.z]
     preview.dots.set(point.join(','), point)
-    if (showcase === 'sky' && bot.blockAt(new Vec3(packet.x, packet.y - 5, packet.z))?.name === 'air')
-      preview.carryDots.add(point.join(','))
+    if (preview.carrySurface && !preview.carryDots.has(point.join(','))) {
+      const location = new Vec3(packet.x, packet.y, packet.z)
+      if (preview.carrySurface === 'air' ? bot.blockAt(location.offset(0, -5, 0))?.name === 'air'
+        : hasLiquidBelow(bot, location, preview.carrySurface)) preview.carryDots.add(point.join(','))
+    }
   })
   bot.on('move', () => {
     if (!preview || bot.game.gameMode !== 'spectator') return
     preview.frames++
-    if (bot.blockAt(bot.entity.position.offset(0, 1.62, 0))?.boundingBox === 'block') preview.blockedFrames++
+    const block = bot.blockAt(bot.entity.position.offset(0, 1.62, 0))
+    if (block) preview.checkedFrames++
+    if (block?.boundingBox === 'block') preview.blockedFrames++
   })
+}
+
+function hasLiquidBelow(bot, position, liquid) {
+  for (let depth = 1; depth <= 18; depth++) {
+    const block = bot.blockAt(position.offset(0, -depth, 0))
+    if (block?.name === liquid) return true
+    if (!block || block.boundingBox === 'block') break
+  }
+  return false
 }
 
 function checkShowcasePreviews(state, hints) {
@@ -167,19 +204,21 @@ function checkShowcasePreviews(state, hints) {
     assert.match(sign, hint, 'the sign shows the intended shot')
     const preview = state.showcasePreviews.get(layout)
     assert.ok(preview?.frames >= 40, layout+' flyover follows a moving camera')
-    if (showcase !== 'woodland') assert.equal(preview.blockedFrames, 0, layout+' keeps the camera out of solid blocks')
+    if (showcase !== 'woodland') {
+      assert.ok(preview.checkedFrames >= 20, layout+' camera is checked against loaded terrain')
+      assert.equal(preview.blockedFrames, 0, layout+' keeps the camera out of solid blocks')
+    }
     assert.ok(state.showcaseHints.has(layout), 'the same cue appears in the flyover')
     const dots = [...preview.dots.values()]
     assert.ok(dots.length >= 9, layout+' sends a visible route trail')
     const [[x,z], [nextX,nextZ]] = dots
     const span = Math.hypot(nextX-x,nextZ-z)
     const offset = Math.max(...dots.map(([a,b]) => Math.abs((nextX-x)*(b-z)-(nextZ-z)*(a-x))/span))
-    if (layout === 'Fernbend') assert.ok(offset > 8, 'the trail turns at the dogleg')
-    else if (showcase === 'woodland' || layout === 'Sandstone Gate')
+    if (layout === 'Fernbend' || layout === 'Palm Cove') assert.ok(offset > 8, 'the trail turns at the dogleg')
+    else if (showcase === 'woodland' || ['Sandstone Gate','Glacier Pass','Basalt Gate'].includes(layout))
       assert.ok(offset < .01, layout+' shows a straight line through its landmark')
-    if (layout === 'Cloud Crossing' || layout === 'Driftwood Green') {
-      assert.ok(preview.carryDots.size >= 2, layout+' shows gold markers suspended over the void')
-    }
+    if (preview.carrySurface)
+      assert.ok(preview.carryDots.size >= 2, layout+' shows gold markers suspended over '+preview.carrySurface)
   }
 }
 async function playTurn(bot) {

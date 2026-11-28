@@ -117,6 +117,7 @@ public final class ServerSmokeChecks extends JavaPlugin {
         checkThemedWorlds(manager);
         checkWoodlandWorld(manager);
         checkDesertAndSkyWorlds(manager);
+        checkMountainIslandNetherWorlds(manager);
         finishRound(round,world);
         verifyRoundRewards(round, players);
         var limitedTeam=doubles.play().currentTeam();
@@ -859,6 +860,43 @@ public final class ServerSmokeChecks extends JavaPlugin {
             }
         }
         check(crownColumns >= 4, "a generated sandstone crown spans the fairway opening");
+    }
+
+    private void checkMountainIslandNetherWorlds(NDGManager manager) {
+        var materials = Map.of("Glacier Pass", Material.BLUE_ICE, "Eagle Ridge", Material.CALCITE,
+                "Summit Steps", Material.LANTERN, "Wreck Lagoon", Material.STRIPPED_DARK_OAK_LOG,
+                "Lantern Cay", Material.SEA_LANTERN, "Palm Cove", Material.STRIPPED_JUNGLE_LOG,
+                "Basalt Gate", Material.POLISHED_BASALT, "Ember Crossing", Material.MAGMA_BLOCK,
+                "Ashen Keep", Material.CRACKED_POLISHED_BLACKSTONE_BRICKS);
+        var settings = new DefaultRoundSettings(8, RoundType.RECREATIONAL, Division.JUNIOR, false);
+        for (var terrain : List.of(CourseTerrain.MOUNTAIN, CourseTerrain.ISLAND, CourseTerrain.NETHER)) {
+            var grid = new CourseGrid(23, 9, List.of(TileTypes.values()), 3, 2026, CourseGrid.Layout.PARKLAND,
+                    CourseGenerationSettings.defaults(terrain));
+            String name = "ndg_smoke_landmarks_" + UUID.randomUUID();
+            var round = manager.getRoundHandler().createRound("ffa", new CourseImpl(Division.JUNIOR, grid, name),
+                    name, settings, false);
+            try {
+                World world = Bukkit.getWorld(name);
+                check(world != null, terrain + " showcase world exists");
+                for (int hole = 0; hole < 3; hole++) {
+                    var point = grid.showcaseFocus(hole);
+                    check(point != null && containsLandmark(world, grid, point, materials.get(grid.holeName(hole))),
+                            grid.holeName(hole) + " has its landmark blocks in the generated world");
+                }
+            } finally {
+                manager.getRoundHandler().discardRound(round);
+            }
+        }
+        getLogger().info("NDG_MOUNTAIN_ISLAND_NETHER_PASS");
+    }
+
+    private boolean containsLandmark(World world, CourseGrid grid, CourseGrid.GridPoint point, Material material) {
+        for (int x = point.x() - 3; x <= point.x() + 3; x++) for (int z = point.z() - 3; z <= point.z() + 3; z++) {
+            for (int y = grid.surfaceHeight(x, z) + 1; y <= point.y() + 10; y++) {
+                if (world.getBlockAt(x, y, z).getType() == material) return true;
+            }
+        }
+        return false;
     }
 
     private void checkSkySatellite(CourseGrid grid, World world, int hole) {

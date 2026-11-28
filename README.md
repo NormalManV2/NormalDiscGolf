@@ -144,6 +144,10 @@ Standard Woodland rounds open with **Cathedral Run**, **Fernbend**, and **Mossga
 
 Standard Desert rounds feature **Sandstone Gate**, **Painted Rim**, and **Split Mesa**. Throw under a layered sandstone arch, follow the terraced canyon, or choose either side of the mesa. Sky rounds feature **Cloud Crossing**, **Driftwood Green**, and **Sky Crown**, with floating islands in the distance and a gold guide continuing across the void carries. Background islands are out of bounds. Both terrains use themed tee pads and share their intended shot between the tee board and flyover.
 
+Mountain showcases **Glacier Pass**, **Eagle Ridge**, and **Summit Steps** with blue ice walls, a snowy crag, and a lantern cairn. Island showcases **Wreck Lagoon**, **Lantern Cay**, and **Palm Cove** with a shipwreck, lighthouse, and palms on a dogleg. Nether showcases **Basalt Gate**, **Ember Crossing**, and **Ashen Keep** with basalt pillars, magma vents, and blackstone ruins. Each terrain opens standard rounds with its enabled showcase archetypes. The seed varies the order, orientation, terrain, and landmark placement.
+
+The themed tee boards show the hole number, par, distance, and opening shot. Follow the gold dots in the flyover to see the intended route. On Island and Nether carries, the dots continue above the water or lava, with a separate hazard marker near the crossing. A zero obstacle density removes the landmarks. The terrain can still generate carries when hazard density is above zero.
+
 ### Reusable course profiles
 
 In `plugins/NormalDiscGolf/config.yml`, add a profile under `course.profiles`, set `course.profile` to its name, and restart. Use letters, numbers, hyphens, or underscores in the name. The bundled config includes `desert-canyon` and `sky-islands` as starting points.
@@ -421,6 +425,8 @@ For procedural courses, set `course.terrain: sky`, `course.seed-mode: random`, `
 For the Woodland showcase, use `course.terrain: woodland`, `course.holes: 3`, `course.seed-mode: fixed`, and `course.seed: 2026` with the default archetypes. Run `node scripts/multiplayer/round-flow.cjs ffa 3 --expect-woodland-visuals --expect-shot-controls --expect-skill-xp`. Both clients receive the three tee boards, shot tips, moving flyovers, and gold route markers.
 
 For Desert and Sky, use the same three-hole fixed-seed setup with the corresponding terrain and run `node scripts/multiplayer/round-flow.cjs ffa 3 --expect-desert-visuals` or `--expect-sky-visuals`. Leave obstacle and hazard densities above zero. For Sky, also set `NDG_EXPECT_FLYOVER_HAZARD=Void` to assert the hazard cue and marker. The server smoke test checks the solid sandstone crown, clearance underneath, and actual floating island blocks.
+
+For Mountain, Island, and Nether, use that same fixture with `--expect-mountain-visuals`, `--expect-island-visuals`, or `--expect-nether-visuals`. Set `NDG_EXPECT_FLYOVER_HAZARD=Water` for Island or `Lava` for Nether. The harness checks tee boards, route shape, camera clearance, and gold markers above the carries. The smoke test verifies the landmark materials in the generated chunks.
 
 For flyover cues, use a one-hole Island Green on Island terrain with hazard density above zero. Set `NDG_EXPECT_FLYOVER_HAZARD=Water` and run `node scripts/multiplayer/round-flow.cjs ffa 1` to check the text cue and three distinct markers. The same check accepts `Lava` on Nether and `Void` on Sky when those holes contain a carry or a drop-off along the route.
 

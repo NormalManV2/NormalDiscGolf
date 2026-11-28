@@ -80,6 +80,7 @@ public final class RegressionChecks {
         checkThemedCourses();
         checkWoodlandLandmarks();
         checkDesertAndSkyLayouts();
+        checkMountainIslandNetherLayouts();
         checkClosestToPin();
         checkCareer();
         checkArcadeFlight();
@@ -623,6 +624,49 @@ public final class RegressionChecks {
         for (int x = 16; x < 128; x++) for (int z = 16; z < 128; z++) {
             var column = grid.terrainColumn(x, z);
             check(!column.type().isHazard() || column.depth() == 0, "zero obstacle density suppresses decorative islands");
+        }
+    }
+
+    private static void checkMountainIslandNetherLayouts() {
+        var showcases = Map.of(
+                CourseTerrain.MOUNTAIN, Set.of("Glacier Pass", "Eagle Ridge", "Summit Steps"),
+                CourseTerrain.ISLAND, Set.of("Wreck Lagoon", "Lantern Cay", "Palm Cove"),
+                CourseTerrain.NETHER, Set.of("Basalt Gate", "Ember Crossing", "Ashen Keep"));
+        for (var entry : showcases.entrySet()) {
+            var terrain = entry.getKey();
+            var locations = new HashSet<CourseGrid.GridPoint>();
+            for (int width : new int[]{8, 16, 28}) for (long seed = 0; seed < 16; seed++) {
+                var profile = new CourseGenerationSettings(terrain, 20, width, .5, .6, List.of());
+                var grid = themed(profile, 3, seed, CourseGrid.Layout.PARKLAND);
+                var repeat = themed(profile, 3, seed, CourseGrid.Layout.PARKLAND);
+                var names = new HashSet<String>();
+                for (int hole = 0; hole < 3; hole++) {
+                    names.add(grid.holeName(hole));
+                    var point = grid.showcaseFocus(hole);
+                    String layout = grid.holeName(hole) + " (seed " + seed + ", width " + width + ")";
+                    check(point != null && point.equals(repeat.showcaseFocus(hole)), layout + " places a seeded landmark");
+                    check(!grid.protectedLane(point.x(), point.z()) && !grid.surfaceType(point.x(), point.z()).isHazard(),
+                            layout + " keeps the landmark on dry ground outside the lane");
+                    if (grid.holeName(hole).equals("Glacier Pass") || grid.holeName(hole).equals("Basalt Gate"))
+                        check(grid.holeHint(hole).contains(grid.holeName(hole).equals("Glacier Pass") ? "walls" : "pillars"),
+                                layout + " frames the route with a pair of landmarks");
+                    locations.add(point);
+                }
+                check(names.equals(entry.getValue()), terrain + " starts with three distinct showcase holes");
+            }
+            check(locations.size() > 25, terrain + " varies landmark positions and elevations with the seed");
+            var without = themed(new CourseGenerationSettings(terrain, 20, 16, 0, 0, List.of()),
+                    3, 2026L, CourseGrid.Layout.PARKLAND);
+            for (int hole = 0; hole < 3; hole++) {
+                String hint = without.holeHint(hole);
+                check(without.showcaseFocus(hole) == null && !hint.contains("Carry") && !hint.contains("pillars")
+                                && !hint.contains("ice walls"),
+                        terrain + " suppresses decorations and hazard-specific cues when their densities are zero");
+            }
+            var daily = themed(CourseGenerationSettings.defaults(terrain), 3, 2026L, CourseGrid.Layout.DAILY);
+            for (int hole = 0; hole < 3; hole++)
+                check(daily.holeHint(hole) == null && daily.showcaseFocus(hole) == null,
+                        terrain + " leaves previously seeded Daily layouts intact");
         }
     }
 
