@@ -106,8 +106,8 @@ public final class ClosestToPinRound extends SingleThrowRound {
 
     public String result(List<Standing> standings) {
         var leaders = standings.stream().filter(entry -> entry.place() == 1).map(Standing::name).toList();
-        String score = standings.getFirst().total().label();
-        return leaders.size() == 1 ? leaders.getFirst() + " wins Closest to Pin with " + score + "."
+        String score = standings.get(0).total().label();
+        return leaders.size() == 1 ? leaders.get(0) + " wins Closest to Pin with " + score + "."
                 : String.join(", ", leaders) + " tie for first in Closest to Pin with " + score + " each.";
     }
 

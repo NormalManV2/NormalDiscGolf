@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.competition;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.time.Duration;
@@ -56,7 +57,7 @@ public record RankedSeason(int number, Instant starts, Instant ends, int minimum
     }
 
     private static Duration length(ConfigurationSection config) {
-        return Duration.ofDays(Math.clamp(config.getInt("ranked-seasons.length-days", 30), 1, 365));
+        return Duration.ofDays(Bounds.clamp(config.getInt("ranked-seasons.length-days", 30), 1, 365));
     }
 
     public boolean includes(Instant date) { return !date.isBefore(starts) && date.isBefore(ends); }

@@ -1,14 +1,52 @@
 const assert = require('node:assert/strict')
+const { createHash } = require('node:crypto')
 const { Vec3 } = require('vec3')
-const { until, pause, connect, inventory, command, basketShot, release } = require('./parkland-41.cjs')
+const { until, pause, connect, inventory, command: sendCommand, basketShot, release } = require('./parkland-41.cjs')
 
 const courseId = process.env.NDG_TEST_CUSTOM_COURSE || 'builder-meadow'
 const courseName = 'Builder Meadow'
 const afterRestart = process.argv.includes('--after-restart')
 const players = ['A', 'B'].map(side => connect('Builder' + side + process.pid % 10000))
 const [builder, guest] = players
+const legacyPack = process.argv.includes('--expect-legacy-pack')
+const modernPack = process.argv.includes('--expect-modern-pack')
+const verifyPack = legacyPack || modernPack
 const active = () => players.find(state => state.name === builder.turns.at(-1))
 const horizontalDistance = (a, b) => Math.hypot(a.x-b.x, a.z-b.z)
+
+async function command(state, text, response) {
+  if (verifyPack) await pause(650)
+  return sendCommand(state, text, response)
+}
+
+if (verifyPack) for (const state of players) {
+  const { bot } = state
+  state.displayStarts = new Map()
+  state.animatedDiscs = new Set()
+  bot.on('entitySpawn', entity => {
+    if (entity.name === 'item_display') state.displayStarts.set(entity.id, entity.position.clone())
+  })
+  bot.on('entityMoved', entity => {
+    const start = state.displayStarts.get(entity.id)
+    if (start && entity.position.distanceTo(start) > 1) state.animatedDiscs.add(entity.id)
+  })
+  bot._client.on(legacyPack ? 'resource_pack_send' : 'add_resource_pack', async pack => {
+    try {
+      assert.equal(pack.forced, true)
+      const response = await fetch(pack.url)
+      assert.ok(response.ok)
+      const bytes = Buffer.from(await response.arrayBuffer())
+      assert.equal(createHash('sha1').update(bytes).digest('hex'), pack.hash)
+      assert.ok(bytes.includes(legacyPack ? 'assets/minecraft/models/item/fire_charge.json'
+        : 'assets/ndg/items/starter-driver.json'))
+      const reply = result => bot._client.write('resource_pack_receive', { uuid: pack.uuid, result })
+      reply(3)
+      if (modernPack) reply(4)
+      reply(0)
+      state.packLoaded = true
+    } catch (error) { state.packError = error }
+  })
+}
 
 function readPoint(line, label) {
   const match = line.match(new RegExp(label + ' (-?\\d+), (-?\\d+), (-?\\d+)'))
@@ -84,13 +122,17 @@ async function playCourse(holes) {
     assert.ok(state.messages.includes(courseName + ' (custom course: ' + courseId + ')'))
     await command(state, 'shot timing on', /timing on/)
     await command(state, 'replay off', /^Instant replays: off/)
+    if (legacyPack) await until(() => /CustomModelData/.test(JSON.stringify(state.bot.inventory.slots[38]?.nbt)),
+      'the legacy driver carries its resource-pack model')
+    if (modernPack) await until(() => /ndg:starter-driver/.test(JSON.stringify(state.bot.inventory.slots[38]?.components)),
+      'the driver carries its namespaced resource-pack model')
   }
   for (const [index, hole] of holes.entries()) {
     const number = index + 1
-    for (const state of players) await command(state, 'status', new RegExp('^Hole: ' + number + '/2$'))
     await until(() => players.every(({ bot }) =>
       Object.values(bot.entities).some(entity => entity.name === 'block_display'
         && horizontalDistance(entity.position, hole.basket) < 1)), 'both clients receive the active basket model')
+    for (const state of players) await command(state, 'status', new RegExp('^Hole: ' + number + '/2$'))
     const finished = state => builder.messages.some(line => line.startsWith(state.name + ' completed hole ' + number + '!'))
     for (let attempt=0;attempt<6 && !players.every(finished);attempt++) {
       await until(() => active() && !finished(active()), 'an unfinished player has this custom hole')
@@ -114,12 +156,20 @@ async function playCourse(holes) {
     assert.ok(state.messages.includes('Final standings:'))
     assert.ok(state.messages.includes('Round reward: +20 credits. Balance: 20. Open /ndg shop.'))
     assert.ok(!state.messages.some(line => line.startsWith('Round rating:')))
+    if (verifyPack) assert.ok(state.animatedDiscs.size >= 4, 'the client received a moving display entity for each scoring throw')
   }
   console.log('PASS: both players holed out on both saved holes, received standings and rewards, and returned to their original state')
 }
 
 async function main() {
-  await until(() => players.every(state => state.spawned), 'both Java 1.21.8 clients connect')
+  await until(() => players.every(state => state.spawned), 'both Minecraft Java clients connect')
+  if (verifyPack) {
+    await until(() => {
+      for (const state of players) if (state.packError) throw state.packError
+      return players.every(state => state.packLoaded)
+    }, 'both clients download the resource pack')
+    console.log('PASS: both clients downloaded the required pack and verified its checksum and disc assets')
+  }
   await pause(550)
   if (!afterRestart) await buildCourse()
   const holes = await verifyCatalog()

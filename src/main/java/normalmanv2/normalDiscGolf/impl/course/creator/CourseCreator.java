@@ -15,10 +15,14 @@ public class CourseCreator {
     private int size;
 
     public CourseImpl create(Division division, CourseGrid grid, String courseName) {
+        return create(division, grid, courseName, null);
+    }
+
+    public CourseImpl create(Division division, CourseGrid grid, String courseName, String generationPreset) {
         if (division == null) throw new IllegalArgumentException("Course division must be set");
         if (grid == null) throw new IllegalArgumentException("Course grid must be set");
         if (courseName == null || courseName.isBlank()) throw new IllegalArgumentException("Course name must be set");
-        return new CourseImpl(division, grid, courseName);
+        return new CourseImpl(division, grid, courseName, generationPreset);
     }
 
     public CourseImpl create(int size, int numHoles, Division division, String name) {

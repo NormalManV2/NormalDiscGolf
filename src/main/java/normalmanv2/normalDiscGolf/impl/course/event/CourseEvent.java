@@ -19,7 +19,7 @@ public enum CourseEvent {
     public String id() { return id; }
     public String status() { return "Course event: " + label; }
 
-    static CourseEvent parse(String text) {
+    public static CourseEvent parse(String text) {
         String id = text.trim().toLowerCase(Locale.ROOT);
         for (CourseEvent event : values()) if (event.id.equals(id)) return event;
         return null;

@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.clubhouse;
 
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
+
 import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -138,8 +140,8 @@ record ClubhouseSite(World world, int x, int y, int z) {
             sign.setLine(i, lines[i]);
             changed = true;
         }
-        if (changed || !sign.isWaxed()) {
-            sign.setWaxed(true);
+        if (changed || BukkitCompatibility.needsWax(sign)) {
+            BukkitCompatibility.setWaxed(sign, true);
             sign.update(false, false);
         }
     }

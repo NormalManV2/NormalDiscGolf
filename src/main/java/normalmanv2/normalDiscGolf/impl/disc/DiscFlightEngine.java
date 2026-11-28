@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.common.mechanic.ThrowMechanicImpl;
@@ -34,7 +35,7 @@ public final class DiscFlightEngine {
         double yaw = Math.toRadians(skills.releaseSpreadDegrees(mechanic.recoveryLie()))
                 * control * mechanic.spreadMultiplier() * (2 * Math.random() - 1);
         DiscTrajectory trajectory = trajectory(player, skills, mechanic, round, yaw, false);
-        ItemDisplay display = player.getWorld().spawn(trajectory.location(), ItemDisplay.class, item -> {
+        ItemDisplay display = BukkitCompatibility.spawn(trajectory.location(), ItemDisplay.class, item -> {
             var special = mechanic.arcadeDisc();
             item.setItemStack(special == null ? DiscItems.discItem(disc.getType(), disc.getName(), player, true)
                     : DiscItems.arcadeItem(special, player, true));
@@ -76,7 +77,7 @@ public final class DiscFlightEngine {
             if (step.location().distanceSquared(origin) > range * range) break;
             boolean contact = step.impact() != GroundPhysics.Impact.NONE || step.motion() != GroundPhysics.Motion.AIR;
             if (tick % interval == 0 || step.impact() != GroundPhysics.Impact.NONE || step.finished())
-                player.spawnParticle(Particle.DUST, step.location(), 1, 0, 0, 0, 0, contact ? groundDust : dust);
+                player.spawnParticle(BukkitCompatibility.DUST, step.location(), 1, 0, 0, 0, 0, contact ? groundDust : dust);
             if (step.finished()) break;
         }
     }
@@ -162,7 +163,7 @@ public final class DiscFlightEngine {
         DiscTrajectory trajectory = practiceTrajectory(player, mechanic, basket, area, yaw);
         var plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
         var disc = mechanic.getDisc();
-        ItemDisplay display = player.getWorld().spawn(trajectory.location(), ItemDisplay.class, item -> {
+        ItemDisplay display = BukkitCompatibility.spawn(trajectory.location(), ItemDisplay.class, item -> {
             item.setItemStack(DiscItems.discItem(disc.getType(), disc.getName(), player, true));
             item.setBillboard(Display.Billboard.CENTER);
             item.setPersistent(false);
@@ -279,7 +280,7 @@ public final class DiscFlightEngine {
                 player.sendMessage(ChatColor.GOLD + "Rocket boosted in flight.");
             }
             case STICKY -> {
-                world.spawnParticle(Particle.HAPPY_VILLAGER, at, 12, .20, .10, .20, 0);
+                world.spawnParticle(BukkitCompatibility.HAPPY_VILLAGER, at, 12, .20, .10, .20, 0);
                 world.playSound(at, Sound.BLOCK_SLIME_BLOCK_HIT, SoundCategory.PLAYERS, .7f, 1.2f);
                 player.sendMessage(ChatColor.GREEN + "Sticky stopped on contact.");
             }

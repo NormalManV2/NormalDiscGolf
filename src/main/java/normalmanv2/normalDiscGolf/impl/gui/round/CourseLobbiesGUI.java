@@ -1,10 +1,13 @@
 package normalmanv2.normalDiscGolf.impl.gui.round;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.common.button.Button;
 import normalmanv2.normalDiscGolf.common.item.ItemBuilder;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGenerationProfile;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseTerrain;
+import normalmanv2.normalDiscGolf.impl.course.grid.HoleArchetype;
 import normalmanv2.normalDiscGolf.impl.gui.InventoryGUI;
 import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
 import normalmanv2.normalDiscGolf.impl.resourcepack.MenuSkin;
@@ -29,6 +32,8 @@ final class CourseLobbiesGUI extends InventoryGUI {
     private List<RoundQueueManager.Lobby> displayed;
     private boolean queued;
     private int page;
+    private CourseTerrain selectedTerrain;
+    private int presetPage;
     private BukkitTask refresh;
 
     CourseLobbiesGUI(RoundFormat format) {
@@ -48,20 +53,25 @@ final class CourseLobbiesGUI extends InventoryGUI {
     }
 
     private void redraw(Player player, boolean force) {
+        if (selectedTerrain != null) {
+            if (force) drawPresets();
+            return;
+        }
         List<RoundQueueManager.Lobby> lobbies = queue.lobbies(format);
         boolean inQueue = queue.isPlayerQueued(player.getUniqueId());
         if (!force && lobbies.equals(displayed) && inQueue == queued) return;
         displayed = lobbies;
         queued = inQueue;
         int pages = Math.max(1, (lobbies.size() + ROOMS_PER_PAGE - 1) / ROOMS_PER_PAGE);
-        page = Math.clamp(page, 0, pages - 1);
+        page = Bounds.clamp(page, 0, pages - 1);
         buttonMap.clear();
         getInventory().clear();
 
         for (int i = page * ROOMS_PER_PAGE; i < Math.min(lobbies.size(), (page + 1) * ROOMS_PER_PAGE); i++) {
             var lobby = lobbies.get(i);
             List<String> lore = new ArrayList<>();
-            lore.add("&7" + lobby.holes() + " holes · Seed " + lobby.seed());
+            lore.add("&7" + holeCount(lobby.holes()) + " · Seed " + lobby.seed());
+            if (lobby.preset() != null) lore.add("&bPreset: " + lobby.preset());
             lore.add("&e" + lobby.status());
             lore.add("&f" + lobby.players().size() + " / " + lobby.capacity() + " queued");
             lobby.players().forEach(name -> lore.add("&7" + name));
@@ -78,8 +88,10 @@ final class CourseLobbiesGUI extends InventoryGUI {
             List<CourseTerrain> terrains = queue.availableTerrains();
             for (int i = 0; i < terrains.size(); i++) {
                 CourseTerrain terrain = terrains.get(i);
+                boolean hasPresets = queue.lobbyProfiles(terrain).stream().anyMatch(profile -> profile.id() != null);
                 button(36 + i, icon(terrain), "&bNew " + terrain.label() + " Lobby",
-                        viewer -> queue(viewer, " new " + terrain.id()), "&7Queue and prepare a " + terrain.label() + " course.");
+                        viewer -> selectTerrain(viewer, terrain), hasPresets ? "&7Choose a generation preset."
+                                : "&7Use the server's course settings.");
             }
         }
         button(45, Material.ARROW, "&eBack to modes",
@@ -98,6 +110,59 @@ final class CourseLobbiesGUI extends InventoryGUI {
         if (page + 1 < pages) button(52, Material.ARROW, "&eNext page", viewer -> { page++; redraw(viewer, true); });
         populateInventory();
     }
+
+    private void selectTerrain(Player player, CourseTerrain terrain) {
+        var profiles = queue.lobbyProfiles(terrain);
+        if (profiles.size() == 1 && profiles.get(0).id() == null) {
+            queue(player, " new " + terrain.id());
+            return;
+        }
+        selectedTerrain = terrain;
+        presetPage = 0;
+        drawPresets();
+    }
+
+    private void drawPresets() {
+        var terrain = selectedTerrain;
+        var profiles = queue.lobbyProfiles(terrain);
+        int pages = Math.max(1, (profiles.size() + ROOMS_PER_PAGE - 1) / ROOMS_PER_PAGE);
+        presetPage = Bounds.clamp(presetPage, 0, pages - 1);
+        buttonMap.clear();
+        getInventory().clear();
+        getInventory().setItem(4, new ItemBuilder(icon(terrain)).setDisplayName("&b" + terrain.label() + " Presets")
+                .setLore("&7Choose a preset for this lobby.").build());
+        if (profiles.isEmpty()) getInventory().setItem(22, new ItemBuilder(Material.PAPER)
+                .setDisplayName("&7No presets available").build());
+
+        for (int index = presetPage * ROOMS_PER_PAGE; index < Math.min(profiles.size(), (presetPage + 1) * ROOMS_PER_PAGE); index++) {
+            CourseGenerationProfile profile = profiles.get(index);
+            var settings = profile.settings(terrain);
+            Long seed = profile.fixedSeed();
+            String selection = " new " + terrain.id() + (profile.id() == null ? "" : " " + profile.id());
+            var types = settings.archetypes().stream().map(HoleArchetype::label).toList();
+            String holeTypes = types.size() <= 3 ? String.join(", ", types) : types.size() + " hole types";
+            List<String> lore = new ArrayList<>(List.of(
+                    "&7" + holeCount(queue.lobbyHoles(format, profile)) + " · " + (seed == null ? "Random seed" : "Seed " + seed),
+                    "&7Fairway " + settings.fairwayWidth() + " blocks · Elevation " + settings.elevation(),
+                    "&7Obstacles " + Math.round(settings.obstacleDensity() * 100) + "% · Hazards "
+                            + Math.round(settings.hazardDensity() * 100) + "%",
+                    "&7" + holeTypes));
+            if (profile.id() != null) lore.add("&8" + profile.id());
+            button(9 + index % ROOMS_PER_PAGE, profile.id() == null ? Material.COMPASS : Material.BOOK,
+                    "&a" + profile.label(), viewer -> queue(viewer, selection), lore.toArray(String[]::new));
+        }
+        button(45, Material.ARROW, "&eBack to lobbies", viewer -> {
+            selectedTerrain = null;
+            redraw(viewer, true);
+        });
+        if (presetPage > 0) button(46, Material.ARROW, "&ePrevious page", viewer -> { presetPage--; drawPresets(); });
+        if (pages > 1) getInventory().setItem(50, new ItemBuilder(Material.PAPER)
+                .setDisplayName("&ePage " + (presetPage + 1) + " / " + pages).build());
+        if (presetPage + 1 < pages) button(52, Material.ARROW, "&eNext page", viewer -> { presetPage++; drawPresets(); });
+        populateInventory();
+    }
+
+    private static String holeCount(int holes) { return holes + (holes == 1 ? " hole" : " holes"); }
 
     private void queue(Player player, String selection) {
         player.performCommand("ndg queue " + format.id() + selection);

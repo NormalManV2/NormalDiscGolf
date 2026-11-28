@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import org.bukkit.Location;
 import java.util.*;
 
@@ -11,7 +12,7 @@ public final class HolePreviewPath {
     public HolePreviewPath(List<Location> source) {
         List<Location> points = new ArrayList<>();
         for (Location point : source)
-            if (points.isEmpty() || points.getLast().toVector().distanceSquared(point.toVector()) > .25) points.add(point.clone());
+            if (points.isEmpty() || points.get(points.size() - 1).toVector().distanceSquared(point.toVector()) > .25) points.add(point.clone());
         if (points.size() < 2) throw new IllegalArgumentException("A preview needs two distinct points");
         for (int segment = 0; segment < points.size() - 1; segment++) {
             Location a = points.get(Math.max(0, segment - 1)), b = points.get(segment);
@@ -23,17 +24,17 @@ public final class HolePreviewPath {
                         curve(a.getZ(),b.getZ(),c.getZ(),d.getZ(),t)));
             }
         }
-        add(points.getLast().clone());
+        add(points.get(points.size() - 1).clone());
     }
     private static double curve(double a,double b,double c,double d,double t) {
         return .5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t);
     }
     private void add(Location point) {
-        if (!samples.isEmpty()) length += samples.getLast().toVector().distance(point.toVector());
+        if (!samples.isEmpty()) length += samples.get(samples.size() - 1).toVector().distance(point.toVector());
         samples.add(point); distances.add(length);
     }
     private Location at(double distance) {
-        distance = Math.clamp(distance, 0, length);
+        distance = Bounds.clamp(distance, 0, length);
         int index = Collections.binarySearch(distances, distance);
         if (index >= 0) return samples.get(index).clone();
         int upper = Math.min(samples.size()-1, -index-1), lower = Math.max(0,upper-1);
@@ -51,7 +52,7 @@ public final class HolePreviewPath {
     }
 
     private Location movingFrame(double progress, boolean showcase, Location hazard, Location landmark) {
-        double eased = .5 - .5 * Math.cos(Math.PI * Math.clamp(progress, 0, 1));
+        double eased = .5 - .5 * Math.cos(Math.PI * Bounds.clamp(progress, 0, 1));
         int behindTee = showcase ? 6 : 0;
         double distance = Math.max(0, length - (showcase ? 14 : 16)) * eased - behindTee * (1 - eased);
         Location camera = at(distance);
@@ -62,17 +63,17 @@ public final class HolePreviewPath {
         camera.add(0, showcase ? 16 - 5 * eased : 11, 0);
         Location focus = at(distance + (showcase ? 24 : 20)).add(0, 1.5, 0);
         if (hazard != null) {
-            double proximity = 1 - Math.clamp((focus.distance(hazard) - 5) / 24, 0, 1);
-            double strength = .55 * proximity * proximity * (1 - Math.clamp((progress - .68) / .22, 0, 1));
+            double proximity = 1 - Bounds.clamp((focus.distance(hazard) - 5) / 24, 0, 1);
+            double strength = .55 * proximity * proximity * (1 - Bounds.clamp((progress - .68) / .22, 0, 1));
             focus.add(hazard.toVector().subtract(focus.toVector()).multiply(strength));
         }
         if (landmark != null) {
             double span = Math.hypot(landmark.getX() - focus.getX(), landmark.getZ() - focus.getZ());
-            double strength = .75 * (1 - Math.clamp(span / 24, 0, 1));
+            double strength = .75 * (1 - Bounds.clamp(span / 24, 0, 1));
             focus.add(0, Math.max(0, landmark.getY() - focus.getY()) * strength, 0);
         }
         camera.setDirection(focus.toVector().subtract(camera.toVector()));
-        camera.setPitch(Math.clamp(camera.getPitch(), -10f, 35f));
+        camera.setPitch(Bounds.clamp(camera.getPitch(), -10f, 35f));
         return camera;
     }
 }

@@ -49,10 +49,10 @@ public final class AceRaceRound extends SingleThrowRound {
     }
 
     public String result(List<Standing> standings) {
-        String total = aceCount(standings.getFirst().aces());
-        if (standings.size() == 1) return "Ace Race result: " + standings.getFirst().name() + " finished with " + total + ".";
+        String total = aceCount(standings.get(0).aces());
+        if (standings.size() == 1) return "Ace Race result: " + standings.get(0).name() + " finished with " + total + ".";
         var leaders = standings.stream().filter(entry -> entry.place() == 1).map(Standing::name).toList();
-        return leaders.size() == 1 ? "Ace Race result: " + leaders.getFirst() + " wins with " + total + "."
+        return leaders.size() == 1 ? "Ace Race result: " + leaders.get(0) + " wins with " + total + "."
                 : "Ace Race result: " + String.join(", ", leaders) + " tie for first with " + total + " each.";
     }
 

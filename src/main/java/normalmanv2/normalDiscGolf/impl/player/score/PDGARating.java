@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.player.score;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.common.division.Division;
 
 public class PDGARating {
@@ -28,8 +29,8 @@ public class PDGARating {
         int before = rating;
         var previousDivision = getCareerDivision();
         double normalizedScore = scoreToPar * 18.0 / holes;
-        int courseDifficulty = difficulty == 0 ? 50 : Math.clamp(difficulty, 1, 100);
-        lastRoundRating = (int)Math.round(Math.clamp(900 + (courseDifficulty - 50) * 1.5 - normalizedScore * 6, 600, 1200));
+        int courseDifficulty = difficulty == 0 ? 50 : Bounds.clamp(difficulty, 1, 100);
+        lastRoundRating = (int)Math.round(Bounds.clamp(900 + (courseDifficulty - 50) * 1.5 - normalizedScore * 6, 600, 1200));
         double weight = Math.min(.60, holes / (holes + 6.0));
         int baseline = before == 0 ? STARTING_RATING : before;
         setRating((int)Math.round(baseline + (lastRoundRating - baseline) * weight));
@@ -62,7 +63,7 @@ public class PDGARating {
         this.averageScore = this.totalRounds == 0 || !Double.isFinite(averageScore) ? 0 : averageScore;
         this.rating = Math.max(0, rating);
         this.peakRating = Math.max(this.rating, peakRating);
-        this.lastRoundRating = Math.clamp(lastRoundRating, 0, 1200);
+        this.lastRoundRating = Bounds.clamp(lastRoundRating, 0, 1200);
         this.division = division == null ? Division.JUNIOR : division;
     }
 

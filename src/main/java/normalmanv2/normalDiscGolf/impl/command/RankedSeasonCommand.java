@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.command;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.competition.RankedSeason;
@@ -77,7 +78,7 @@ final class RankedSeasonCommand {
     }
 
     private static <T> List<T> page(List<T> rows, int page, Player player) {
-        int pages = Math.max(1, Math.ceilDiv(rows.size(), PAGE_SIZE));
+        int pages = Math.max(1, Bounds.ceilDiv(rows.size(), PAGE_SIZE));
         if (page > pages) {
             player.sendMessage(ChatColor.YELLOW + "This list has " + pages + (pages == 1 ? " page." : " pages."));
             return List.of();

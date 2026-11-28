@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.impl.disc.util.MathUtil.FlightHit;
 import org.bukkit.Material;
 import org.bukkit.block.BlockFace;
@@ -53,7 +54,7 @@ public final class GroundPhysics {
             double intoFace = velocity.dot(normal);
             if (intoFace >= -.08) return Impact.NONE;
             velocity.subtract(normal.multiply(2 * intoFace)).multiply(.31);
-            velocity.setY(Math.clamp(Math.abs(velocity.getY()), .045, .14));
+            velocity.setY(Bounds.clamp(Math.abs(velocity.getY()), .045, .14));
             kicked = true;
             return Impact.TREE_KICK;
         }
@@ -69,7 +70,7 @@ public final class GroundPhysics {
         }
         if (!putting && rollerLevel == 0 && surface.skipRetention > 0 && skips < 2
                 && speed >= .78 && slope <= (surface == Surface.HARD ? .34 : .22)) {
-            double lift = Math.clamp(-velocity.getY() * .55 + .045, .075, .22);
+            double lift = Bounds.clamp(-velocity.getY() * .55 + .045, .075, .22);
             velocity.multiply(surface.skipRetention).setY(lift);
             skips++;
             return Impact.SKIP;

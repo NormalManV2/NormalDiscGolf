@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.cosmetic;
 
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -54,7 +56,7 @@ public enum ScoreDecal {
             case GOLD_RING -> {
                 var gold = new Particle.DustOptions(Color.fromRGB(255, 195, 58), 1.25f);
                 for (int i = 0; i < 24; i++) {
-                    double angle = i * Math.TAU / 24;
+                    double angle = i * Bounds.TAU / 24;
                     dust(origin, viewer, gold, 1.45, angle, .15);
                     if (i % 4 == 0) {
                         var spark = offset(origin, 1.45, angle, .43);
@@ -67,7 +69,7 @@ public enum ScoreDecal {
                 var violet = new Particle.DustOptions(Color.fromRGB(171, 102, 255), 1.15f);
                 for (int i = 0; i < 18; i++) {
                     double step = i / 17.0;
-                    double angle = step * 1.3 * Math.TAU;
+                    double angle = step * 1.3 * Bounds.TAU;
                     double radius = 1.15 - .55 * step;
                     dust(origin, viewer, teal, radius, angle, step * 1.7);
                     dust(origin, viewer, violet, radius, angle + Math.PI, step * 1.7);
@@ -78,7 +80,7 @@ public enum ScoreDecal {
                 var orange = new Particle.DustOptions(Color.fromRGB(255, 134, 33), 1.3f);
                 var red = new Particle.DustOptions(Color.fromRGB(239, 49, 34), 1.2f);
                 for (int spoke = 0; spoke < 8; spoke++) {
-                    double angle = spoke * Math.TAU / 8;
+                    double angle = spoke * Bounds.TAU / 8;
                     for (int step = 1; step <= 4; step++) {
                         dust(origin, viewer, step < 3 ? orange : red, step * .36, angle, step * .23);
                     }
@@ -94,7 +96,7 @@ public enum ScoreDecal {
 
     private static void dust(Location origin, Player viewer, Particle.DustOptions color,
                              double radius, double angle, double height) {
-        emit(offset(origin, radius, angle, height), viewer, Particle.DUST, color);
+        emit(offset(origin, radius, angle, height), viewer, BukkitCompatibility.DUST, color);
     }
 
     private static <T> void emit(Location at, Player viewer, Particle particle, T data) {

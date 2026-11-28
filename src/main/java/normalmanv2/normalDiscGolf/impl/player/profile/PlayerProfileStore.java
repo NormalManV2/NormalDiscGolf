@@ -228,7 +228,7 @@ public class PlayerProfileStore {
     }
 
     private void saveSkills(YamlConfiguration configuration, PlayerSkills playerSkills) {
-        for (Map.Entry<String, Skill> entry : playerSkills.asMap().entrySet()) {
+        for (Map.Entry<String, Skill> entry : new java.util.TreeMap<>(playerSkills.asMap()).entrySet()) {
             Skill skill = entry.getValue();
             String path = "skills." + entry.getKey();
             configuration.set(path + ".level", skill.getLevel());

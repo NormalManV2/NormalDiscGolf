@@ -40,8 +40,13 @@ public enum MenuSkin {
     char glyph() { return (char) (0xe730 + ordinal()); }
 
     public String title(boolean textured) {
-        if (!textured) return title;
-        return "§f" + LEFT + glyph() + LABEL + "§f§l" + ChatColor.stripColor(title);
+        return title(textured, null);
+    }
+
+    public String title(boolean textured, String override) {
+        String text = override == null ? title : override;
+        if (!textured) return text;
+        return "§f" + LEFT + glyph() + LABEL + "§f§l" + ChatColor.stripColor(text);
     }
 
     public static boolean available(Player player) {

@@ -61,7 +61,7 @@ public final class RoundPlayerListener implements Listener {
         ItemStack item = control(DiscItems.discItem(model, player, false), "disc:" + model.id());
         var meta = item.getItemMeta();
         var lore = new ArrayList<>(meta.getLore());
-        lore.addFirst(ChatColor.GRAY + model.flightStats());
+        lore.add(0, ChatColor.GRAY + model.flightStats());
         lore.add(ChatColor.GRAY + "Swap hands to change throw technique");
         meta.setLore(lore);
         item.setItemMeta(meta);

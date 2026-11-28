@@ -2,12 +2,12 @@ package normalmanv2.normalDiscGolf.impl.competition;
 
 import java.util.List;
 
-/** One complete Daily scorecard and its recorded flight paths, independent of a course world UUID. */
-public record DailyGhost(List<Hole> holes) {
+/** A complete scorecard with sampled throws independent of its round world. */
+public record FlightGhost(List<Hole> holes) {
     public static final int MAX_POINTS_PER_THROW = 32;
     private static final double POSITION_SCALE = 16;
 
-    public DailyGhost {
+    public FlightGhost {
         holes = List.copyOf(holes);
         if (holes.isEmpty() || holes.size() > 18) throw new IllegalArgumentException("Invalid ghost hole count");
     }
@@ -31,7 +31,7 @@ public record DailyGhost(List<Hole> holes) {
         private static short quantize(double coordinate) {
             long scaled = Math.round(coordinate * POSITION_SCALE);
             if (!Double.isFinite(coordinate) || scaled < Short.MIN_VALUE || scaled > Short.MAX_VALUE)
-                throw new IllegalArgumentException("Position outside Daily Course range");
+                throw new IllegalArgumentException("Position outside ghost recording range");
             return (short) scaled;
         }
 

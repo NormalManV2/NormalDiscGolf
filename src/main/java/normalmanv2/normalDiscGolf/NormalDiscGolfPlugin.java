@@ -3,7 +3,11 @@ package normalmanv2.normalDiscGolf;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.command.DiscGolfCommand;
 import normalmanv2.normalDiscGolf.impl.command.ThrowDiscCommand;
-import normalmanv2.normalDiscGolf.impl.course.grid.CourseGenerationSettings;
+import normalmanv2.normalDiscGolf.impl.admin.AdminSettings;
+import normalmanv2.normalDiscGolf.impl.admin.BackupTasks;
+import normalmanv2.normalDiscGolf.impl.admin.DataBackups;
+import normalmanv2.normalDiscGolf.impl.admin.DataRestore;
+import normalmanv2.normalDiscGolf.impl.admin.SetupWizard;
 import normalmanv2.normalDiscGolf.impl.listener.DiscThrowListener;
 import normalmanv2.normalDiscGolf.impl.listener.GoalScoreListener;
 import normalmanv2.normalDiscGolf.impl.listener.GuiListener;
@@ -18,6 +22,16 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class NormalDiscGolfPlugin extends JavaPlugin {
 
     private NDGManager manager;
+    private AdminSettings adminSettings;
+    private SetupWizard setupWizard;
+    private DataBackups dataBackups;
+    private DataRestore dataRestore;
+    private BackupTasks backupTasks;
+    public AdminSettings adminSettings() { return adminSettings; }
+    public SetupWizard setupWizard() { return setupWizard; }
+    public DataBackups dataBackups() { return dataBackups; }
+    public DataRestore dataRestore() { return dataRestore; }
+    public BackupTasks backupTasks() { return backupTasks; }
     private ThrowMechanicListener throwMechanicListener;
     public boolean released(org.bukkit.event.player.PlayerInteractEvent event) { return throwMechanicListener != null && throwMechanicListener.released(event); }
     public boolean cancelMeter(java.util.UUID id) {
@@ -29,12 +43,38 @@ public final class NormalDiscGolfPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        if (Bukkit.getBukkitVersion().matches("1\\.19(?:\\.[1-3])?-.*")) {
+            getLogger().severe("NormalDiscGolf requires Minecraft 1.19.4 or newer for display entities.");
+            Bukkit.getPluginManager().disablePlugin(this);
+            return;
+        }
+        var data = getDataFolder().toPath();
+        dataBackups = new DataBackups(data, getDescription().getVersion());
+        dataRestore = new DataRestore(data, dataBackups);
+        try {
+            dataRestore.applyOnStartup(getLogger());
+        } catch (java.io.IOException failure) {
+            getLogger().log(java.util.logging.Level.SEVERE,
+                    "NDG could not resolve the restore state. Data stores will stay closed. See restore metadata and backups in the plugin directory.", failure);
+            Bukkit.getPluginManager().disablePlugin(this);
+            return;
+        }
+        boolean firstStart = !new java.io.File(getDataFolder(), "config.yml").exists();
         saveDefaultConfig();
-        String profile = getConfig().getString("course.profile", "").trim();
-        if (!profile.isEmpty() && CourseGenerationSettings.activeProfile(getConfig()) == null)
-            getLogger().warning("Unknown course.profile '" + profile + "'. Using the base course settings.");
+        reloadConfig();
+        adminSettings = new AdminSettings(this);
+        setupWizard = new SetupWizard(this, adminSettings);
+        if (firstStart) getLogger().info("Operators can open /ndg admin wizard to set up the first round.");
+        try {
+            var check = adminSettings.schema().check(adminSettings.read());
+            for (String issue : check.errors()) getLogger().warning(issue);
+            for (String warning : check.warnings()) getLogger().info(warning);
+        } catch (java.io.IOException failure) {
+            getLogger().warning("Cannot check the settings file. " + failure.getMessage());
+        }
         manager = NDGManager.getInstance();
         manager.initializeOnlinePlayers();
+        backupTasks = new BackupTasks(this, manager.getPlayerDataManager());
         this.registerCommands();
         this.registerListeners();
         Bukkit.getScheduler().runTask(this, NDGManager.getInstance().getClubhouse()::start);

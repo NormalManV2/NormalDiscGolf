@@ -48,6 +48,8 @@ course:
     island: { elevation: 5, fairway-width: 17, obstacle-density: 0.46, hazard-density: 0.50 }
     nether: { elevation: 12, fairway-width: 15, obstacle-density: 0.53, hazard-density: 0.55 }
     sky: { elevation: 11, fairway-width: 16, obstacle-density: 0.32, hazard-density: 0.38 }
+  # Configured presets appear under compatible terrains in the lobby picker.
+  # Set lobby-selectable: false in a preset to reserve it for the server default.
   profiles:
     desert-canyon:
       terrain: desert
@@ -94,6 +96,19 @@ spectating:
   replays: true
   # Successful putts in putting stance at this distance or farther qualify.
   long-putt-blocks: 10
+backups:
+  # Run while the server is online. The default interval is 24 hours.
+  enabled: false
+  interval-seconds: 86400
+  # Retain this many scheduled ZIPs. Manual and pre-restore ZIPs are kept separately.
+  keep: 7
+  offsite:
+    # Private HTTPS directory accepting PUT and GET. A blank value disables mirroring.
+    url: ""
+    # Environment variable containing the complete Basic or Bearer authorization value.
+    authorization-env: "NDG_BACKUP_AUTHORIZATION"
+    # Read offsite-authorization.txt instead of an environment variable on panel-managed hosts.
+    authorization-file: false
 resource-pack:
   enabled: true
   # Use textured NDG menu frames and buttons when the resource pack is loaded.

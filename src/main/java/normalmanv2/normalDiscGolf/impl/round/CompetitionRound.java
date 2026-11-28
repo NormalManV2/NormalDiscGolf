@@ -19,6 +19,6 @@ public abstract class CompetitionRound extends FFARound {
     public abstract int strokeLimit();
 
     public final boolean eligible(ScoreCard card, UUID player) {
-        return card != null && card.getHoledOutCount() == getCourse().holes() && card.participated(player);
+        return card != null && card.completedBy(player, getCourse().holes());
     }
 }

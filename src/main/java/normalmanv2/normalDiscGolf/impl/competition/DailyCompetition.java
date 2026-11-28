@@ -27,14 +27,12 @@ public final class DailyCompetition {
     private final Path directory;
     private final Supplier<? extends ConfigurationSection> config;
     private final Clock utc;
-    private final DailyGhostStore ghosts;
     private DailyLeaderboard current;
 
     public DailyCompetition(Path directory, Supplier<? extends ConfigurationSection> config, Clock clock) {
         this.directory = directory;
         this.config = config;
         this.utc = clock.withZone(ZoneOffset.UTC);
-        this.ghosts = new DailyGhostStore(directory.resolve("ghosts"));
     }
 
     public LocalDate todayDate() { return LocalDate.now(utc); }
@@ -75,14 +73,23 @@ public final class DailyCompetition {
         return updated;
     }
 
-    public DailyGhost ghost(DailyLeaderboard board, UUID player) throws IOException {
+    public FlightGhost ghost(DailyLeaderboard board, UUID player) throws IOException {
         var entry = board.entries().get(player);
-        return entry == null ? null : ghosts.load(board.course(), entry);
+        var course = board.course();
+        return entry == null ? null : FlightGhostFile.load(ghostFile(course, entry), course.seed(), course.holes(),
+                course.strokeLimit(), entry.strokes());
     }
 
-    public boolean saveGhost(DailyLeaderboard board, StrokeStandings.Entry attempt, DailyGhost ghost) throws IOException {
+    public boolean saveGhost(DailyLeaderboard board, StrokeStandings.Entry attempt, FlightGhost ghost) throws IOException {
         var best = board.entries().get(attempt.player());
-        return best != null && best.strokes() == attempt.strokes() && ghosts.saveIfMissing(board.course(), best, ghost);
+        var course = board.course();
+        return best != null && best.strokes() == attempt.strokes()
+                && FlightGhostFile.saveIfMissing(ghostFile(course, best), course.seed(), course.holes(),
+                        course.strokeLimit(), best.strokes(), ghost);
+    }
+
+    private Path ghostFile(DailyCourse.Definition course, StrokeStandings.Entry best) {
+        return directory.resolve("ghosts").resolve(course.date().toString()).resolve(best.player() + "-" + best.strokes() + ".ndg");
     }
 
     private Path file(LocalDate date) { return directory.resolve(date + ".yml"); }

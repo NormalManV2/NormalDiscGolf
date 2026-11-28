@@ -7,6 +7,7 @@ const { Vec3 } = require('vec3')
 const tee = new Vec3(56.5, 66, 56.5)
 const basket = new Vec3(88.5, 66.9, 72.5)
 const port = Number(process.env.NDG_TEST_PORT || 25569)
+const version = process.env.NDG_TEST_VERSION || '1.21.8'
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 async function until(predicate, label, timeout = 15000) {
@@ -17,8 +18,21 @@ async function until(predicate, label, timeout = 15000) {
   }
 }
 
+function attachClientMovementTicks(bot) {
+  if (process.env.NDG_TEST_MOVEMENT_TICK_END === '1') {
+    const write = bot._client.write.bind(bot._client)
+    bot._client.write = (packet, data) => {
+      const result = write(packet, data)
+      // Paper 26.3 expects at most one position update before the client ends its tick.
+      if (packet === 'position' || packet === 'position_look') write('tick_end', {})
+      return result
+    }
+  }
+}
+
 function connect(name) {
-  const bot = mineflayer.createBot({host:'127.0.0.1', port, username:name, version:'1.21.8', auth:'offline', physicsEnabled:false})
+  const bot = mineflayer.createBot({host:'127.0.0.1', port, username:name, version, auth:'offline', physicsEnabled:false})
+  attachClientMovementTicks(bot)
   const state = {bot, name, messages:[], turns:[], spawned:false}
   bot.on('error', error => { state.error = error.message })
   bot.on('kicked', reason => { state.error = JSON.stringify(reason) })
@@ -131,7 +145,7 @@ function shortShot(bot, power = 20, pitch = -.45, target = basket) {
   return {power, aim:eye.plus(direction(heading,pitch).scaled(10))}
 }
 
-async function release(state, shot, slot = 2, throwCommand = null) {
+async function release(state, shot, slot = 2, throwCommand = null, expectXp = true) {
   const {bot} = state
   bot.setQuickBarSlot(slot)
   await bot.lookAt(shot.aim,true)
@@ -154,11 +168,11 @@ async function release(state, shot, slot = 2, throwCommand = null) {
     else bot.chat(throwCommand)
     await until(() => state.messages.slice(before).includes('Disc released.'), state.name + ' release')
     assert.ok(state.messages.slice(before).includes('Clean release'), 'meter releases at the center')
-    await until(() => state.messages.slice(before).some(line => line.startsWith('Skill XP:')), state.name + ' shot resolves')
+    if (expectXp) await until(() => state.messages.slice(before).some(line => line.startsWith('Skill XP:')), state.name + ' shot resolves')
   } finally {
     bot.off('bossBarUpdated', acceptMeter)
     bot.off('bossBarCreated', acceptMeter)
   }
 }
 
-module.exports = {tee,basket,until,pause,connect,inventory,command,openCourseLobbies,clickModeJoin,basketShot,shortShot,release}
+module.exports = {tee,basket,until,pause,connect,attachClientMovementTicks,inventory,command,openCourseLobbies,clickModeJoin,basketShot,shortShot,release}

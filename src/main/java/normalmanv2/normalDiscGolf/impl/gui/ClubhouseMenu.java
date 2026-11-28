@@ -60,6 +60,7 @@ public final class ClubhouseMenu extends InventoryGUI {
                     player.performCommand("ndg daily");
                 });
                 case 41 -> ShopItems.navigate(player, getInventory(), () -> NDGManager.getInstance().getClubhouse().openPractice(player));
+                case 43 -> ShopItems.navigate(player, getInventory(), () -> CourseLibraryMenu.open(player));
                 case 45 -> ShopItems.navigate(player, getInventory(), () -> DiscShop.open(player));
                 case 47 -> ShopItems.navigate(player, getInventory(), () -> BagMenu.open(player));
                 case 49 -> ShopItems.navigate(player, getInventory(), () -> player.performCommand("ndg menu"));
@@ -70,6 +71,7 @@ public final class ClubhouseMenu extends InventoryGUI {
                     player.closeInventory();
                     player.performCommand("ndg career");
                 });
+                case 33 -> ShopItems.navigate(player, getInventory(), () -> FeaturedCoursesMenu.open(player));
                 default -> { }
             }
         }
@@ -108,6 +110,8 @@ public final class ClubhouseMenu extends InventoryGUI {
                 ChatColor.AQUA + rating.getCareerDivision().label(),
                 ChatColor.GRAY + (rating.getRating() == 0 ? "Unrated" : "Rating " + rating.getRating()),
                 ChatColor.GRAY + "Click to view skills and rating progress"));
+        menu.setItem(33, ShopItems.icon(Material.WRITTEN_BOOK, ChatColor.GOLD + "Featured Courses",
+                ChatColor.GRAY + "Preview and play courses pinned by this server"));
 
         int slot = 19;
         for (ClubhouseMedal medal : ClubhouseMedal.values()) {
@@ -123,6 +127,8 @@ public final class ClubhouseMenu extends InventoryGUI {
                     ChatColor.GRAY + "Try a disc while you queue"));
         }
         menu.setItem(39, ShopItems.icon(Material.CLOCK, ChatColor.AQUA + "Daily Leaderboard"));
+        menu.setItem(43, ShopItems.icon(Material.MAP, ChatColor.AQUA + "Course Library",
+                ChatColor.GRAY + "Browse and replay your saved courses"));
         menu.setItem(47, ShopItems.icon(Material.BUNDLE, ChatColor.AQUA + "Your Bag"));
         menu.setItem(49, ShopItems.icon(Material.COMPASS, ChatColor.GREEN + "Play a Round",
                 ChatColor.GRAY + "Balance: " + playerData.getDiscBag().credits() + " credits"));

@@ -1,8 +1,6 @@
 package normalmanv2.normalDiscGolf.api.team;
 
 import normalmanv2.normalDiscGolf.api.component.Component;
-import org.normal.api.context.Context;
-import org.normal.api.context.ContextType;
 
 import java.util.Set;
 import java.util.UUID;

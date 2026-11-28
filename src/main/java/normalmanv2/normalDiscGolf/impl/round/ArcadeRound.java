@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.common.round.DefaultRoundSettings;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.disc.ArcadeDisc;
@@ -15,7 +16,7 @@ public final class ArcadeRound extends FFARound {
 
     public ArcadeRound(CourseImpl course, String id, DefaultRoundSettings settings, int chargeLimit) {
         super(course, id, settings);
-        this.chargeLimit = Math.clamp(chargeLimit, 0, 9);
+        this.chargeLimit = Bounds.clamp(chargeLimit, 0, 9);
     }
 
     public int chargeLimit() { return chargeLimit; }

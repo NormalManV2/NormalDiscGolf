@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.command;
 
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.course.custom.CustomCourse;
@@ -159,7 +160,7 @@ final class CourseCommand {
 
     private static void marker(Player player, GridPoint point, Color color) {
         if (point == null) return;
-        player.spawnParticle(Particle.DUST, CustomCourse.centered(player.getWorld(), point).add(0, 1, 0),
+        player.spawnParticle(BukkitCompatibility.DUST, CustomCourse.centered(player.getWorld(), point).add(0, 1, 0),
                 24, .42, .65, .42, 0, new Particle.DustOptions(color, 1.2f));
     }
 

@@ -25,7 +25,8 @@ import java.util.stream.Collectors;
 
 public final class RoundScorecardMenu extends InventoryGUI {
     private record Hole(Material icon, String title, List<String> detail) {}
-    private record Card(List<String> header, List<Hole> holes, List<String> standings, boolean match) {}
+    private record Card(List<String> header, List<Hole> holes, List<String> standings, boolean match,
+                        RoundGhosts.Controls ghost) {}
 
     private final RoundImpl round;
     private Card shown;
@@ -55,7 +56,8 @@ public final class RoundScorecardMenu extends InventoryGUI {
     }
 
     private void redraw(Player player) {
-        Team team = round.play().team(player.getUniqueId());
+        UUID viewer = player.getUniqueId();
+        Team team = round.play().team(viewer);
         ScoreCard score = team == null ? null : round.getScoreCardByTeam(team);
         if (score == null) return;
         var format = RoundFormat.of(round);
@@ -63,8 +65,11 @@ public final class RoundScorecardMenu extends InventoryGUI {
         var header = List.of(mode + " · Hole " + (round.getCurrentHole() + 1) + " / " + round.getCourse().holes(),
                 total(team, score), "Holes finished: " + finishedHoles(team, score) + " / " + round.getCourse().holes());
         List<Hole> holes = new ArrayList<>();
-        for (int hole = 0; hole < round.getCourse().holes(); hole++) holes.add(hole(team, score, hole));
-        Card card = new Card(header, holes, standings(), round instanceof MatchPlayRound);
+        var ghosts = round.play().ghosts();
+        for (int hole = 0; hole < round.getCourse().holes(); hole++)
+            holes.add(hole(team, score, hole, ghosts == null ? null : ghosts.bestOnHole(viewer, hole)));
+        Card card = new Card(header, holes, standings(), round instanceof MatchPlayRound,
+                ghosts == null ? null : ghosts.controls(viewer));
         if (card.equals(shown)) return;
         shown = card;
 
@@ -83,9 +88,22 @@ public final class RoundScorecardMenu extends InventoryGUI {
                     card.standings().stream().map(line -> ChatColor.GRAY + line).toArray(String[]::new)));
         menu.setItem(45, ShopItems.icon(Material.ARROW, ChatColor.YELLOW + "Return to Round"));
         menu.setItem(49, ShopItems.icon(Material.PAPER, ChatColor.AQUA + "Show in Chat"));
-        if (round instanceof DailyRound)
-            menu.setItem(53, ShopItems.icon(Material.CLOCK, ChatColor.AQUA + "Compare Daily Ghost"));
+        if (card.ghost() != null) drawGhostControls(card.ghost());
         applyTextures();
+    }
+
+    private void drawGhostControls(RoundGhosts.Controls ghost) {
+        var menu = getInventory();
+        if (!ghost.recorded()) {
+            menu.setItem(53, ShopItems.icon(Material.CLOCK, ChatColor.GRAY + "No Personal Ghost Yet",
+                    ChatColor.GRAY + "Hole out on every hole to record your best."));
+            return;
+        }
+        menu.setItem(47, ShopItems.icon(Material.SPYGLASS, ChatColor.AQUA + "Replay Ghost",
+                ChatColor.GRAY + "Watch your best throws on this hole"));
+        String toggle = ghost.visible() ? "Hide Ghost Paths" : ghost.playing() ? "Stop Ghost Replay" : "Show Ghost Paths";
+        menu.setItem(51, ShopItems.icon(Material.AMETHYST_SHARD, ChatColor.AQUA + toggle));
+        menu.setItem(53, ShopItems.icon(Material.CLOCK, ChatColor.AQUA + "Compare " + ghost.label() + " Ghost"));
     }
 
     private int finishedHoles(Team team, ScoreCard card) {
@@ -101,7 +119,7 @@ public final class RoundScorecardMenu extends InventoryGUI {
         return relative(score.getTotalScore()) + " · " + MatchPlayRound.strokeCount(score.getTotalStrokes());
     }
 
-    private Hole hole(Team team, ScoreCard card, int hole) {
+    private Hole hole(Team team, ScoreCard card, int hole, Integer ghostTarget) {
         boolean current = hole == round.getCurrentHole();
         String name = "Hole " + (hole + 1) + (current ? " · Current" : "");
         Material color = current ? Material.YELLOW_STAINED_GLASS_PANE : Material.GRAY_STAINED_GLASS_PANE;
@@ -129,6 +147,7 @@ public final class RoundScorecardMenu extends InventoryGUI {
                     .filter(result -> result.index() == hole).findFirst()
                     .ifPresent(result -> details.add(ChatColor.AQUA + match.describe(result)));
         }
+        if (ghostTarget != null) details.add(ChatColor.AQUA + "Ghost target: " + MatchPlayRound.strokeCount(ghostTarget));
         return new Hole(color, (current ? ChatColor.GOLD : ChatColor.AQUA) + name, details);
     }
 
@@ -162,11 +181,28 @@ public final class RoundScorecardMenu extends InventoryGUI {
     @Override public void onClick(InventoryClickEvent event) {
         if (!event.isLeftClick() || !(event.getWhoClicked() instanceof Player player)) return;
         int slot = event.getRawSlot();
-        if (slot != 45 && slot != 49 && (slot != 53 || !(round instanceof DailyRound))) return;
+        var ghosts = round.play().ghosts();
+        boolean ghostControl = slot == 47 || slot == 51 || slot == 53;
+        if (slot != 45 && slot != 49 && !(ghostControl && ghosts != null)) return;
         ShopItems.navigate(player, getInventory(), () -> {
+            if (DiscFlightResolver.findActiveRound(player) != round) {
+                player.closeInventory();
+                return;
+            }
+            if (ghostControl) {
+                var control = ghosts.controls(player.getUniqueId());
+                if (!control.recorded()) return;
+                if (slot == 51) {
+                    ghosts.command(player, control.visible() || control.playing() ? "off" : "on");
+                    redraw(player);
+                    return;
+                }
+                player.closeInventory();
+                ghosts.command(player, slot == 47 ? "play" : "compare");
+                return;
+            }
             player.closeInventory();
             if (slot == 49) player.performCommand("ndg score text");
-            if (slot == 53) player.performCommand("ndg daily ghost compare");
         });
     }
 }

@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseTerrain;
@@ -155,12 +157,12 @@ final class HoleFlyover {
 
     private static void ring(Player player, Location center, double radius, Particle.DustOptions color) {
         for (int i = 0; i < 8; i++) {
-            double angle = i * Math.TAU / 8;
+            double angle = i * Bounds.TAU / 8;
             dot(player, center.clone().add(Math.cos(angle) * radius, 0, Math.sin(angle) * radius), color);
         }
     }
 
     private static void dot(Player player, Location point, Particle.DustOptions color) {
-        player.spawnParticle(Particle.DUST, point, 1, 0, 0, 0, 0, color);
+        player.spawnParticle(BukkitCompatibility.DUST, point, 1, 0, 0, 0, 0, color);
     }
 }

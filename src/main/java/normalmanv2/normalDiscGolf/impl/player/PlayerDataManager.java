@@ -102,10 +102,12 @@ public class PlayerDataManager {
         current.setCompetitionRewards(loaded.getCompetitionRewards());
     }
 
-    public void saveAll() {
+    public boolean saveAll() {
+        boolean saved = true;
         for (UUID playerId : this.playerData.keySet()) {
-            this.savePlayerData(playerId);
+            saved &= this.savePlayerData(playerId);
         }
+        return saved;
     }
 
     public void clear() {

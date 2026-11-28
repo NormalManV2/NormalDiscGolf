@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
@@ -28,7 +30,7 @@ final class BasketCelebration {
                 world.playSound(basket, Sound.BLOCK_IRON_TRAPDOOR_CLOSE, SoundCategory.PLAYERS, .36f, 1.22f);
                 ring(basket, 1.3, .95, CHAIN);
                 if (ace) {
-                    world.spawnParticle(Particle.FIREWORK, basket.clone().add(0, 2.5, 0), 30, .2, .18, .2, .19);
+                    world.spawnParticle(BukkitCompatibility.FIREWORK, basket.clone().add(0, 2.5, 0), 30, .2, .18, .2, .19);
                     ring(basket, 1.3, 2.45, GOLD);
                 }
             }
@@ -40,9 +42,9 @@ final class BasketCelebration {
 
     private static void ring(Location basket, double radius, double height, Particle.DustOptions color) {
         for (int i = 0; i < 12; i++) {
-            double angle = i * Math.TAU / 12;
+            double angle = i * Bounds.TAU / 12;
             var point = basket.clone().add(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
-            basket.getWorld().spawnParticle(Particle.DUST, point, 1, 0, 0, 0, 0, color);
+            basket.getWorld().spawnParticle(BukkitCompatibility.DUST, point, 1, 0, 0, 0, 0, color);
         }
     }
 }

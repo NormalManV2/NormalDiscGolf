@@ -4,6 +4,7 @@ import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.impl.disc.DiscModel;
 import normalmanv2.normalDiscGolf.impl.disc.ArcadeDisc;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -11,7 +12,11 @@ import org.bukkit.inventory.meta.ItemMeta;
 public final class DiscItems {
     private DiscItems() {}
     public static ItemStack discItem(DiscType type, String name) {
-        return namedItem(type == DiscType.PUTTER ? Material.SLIME_BALL : type == DiscType.MID_RANGE ? Material.HEART_OF_THE_SEA : Material.FIRE_CHARGE, name);
+        return namedItem(discMaterial(type), name);
+    }
+
+    static Material discMaterial(DiscType type) {
+        return type == DiscType.PUTTER ? Material.SLIME_BALL : type == DiscType.MID_RANGE ? Material.HEART_OF_THE_SEA : Material.FIRE_CHARGE;
     }
 
     private static ItemStack namedItem(Material material, String name) {
@@ -42,7 +47,8 @@ public final class DiscItems {
             boolean available = display ? player.getWorld().getPlayers().stream().allMatch(pack::loaded) : pack.loaded(player);
             if (available) {
                 var meta = item.getItemMeta();
-                meta.setItemModel(new org.bukkit.NamespacedKey("ndg", model.id()));
+                if (pack.legacyModels() != null) meta.setCustomModelData(pack.legacyModels().modelData(model));
+                else BukkitCompatibility.itemModel(meta, new org.bukkit.NamespacedKey("ndg", model.id()));
                 item.setItemMeta(meta);
             }
         } catch (java.io.IOException ignored) { /* The labeled vanilla item remains usable. */ }

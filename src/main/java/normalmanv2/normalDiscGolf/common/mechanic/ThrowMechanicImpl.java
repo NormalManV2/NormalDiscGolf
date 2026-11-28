@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.common.mechanic;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import com.google.common.util.concurrent.AtomicDouble;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.mechanic.ThrowMechanic;
@@ -208,7 +209,7 @@ public class ThrowMechanicImpl implements ThrowMechanic {
             } else if (elapsed % (putting ? 4 : 8) == 0) {
                 double step = putting ? .025 : .05;
                 double minimum = putting ? .10 : .15;
-                double newPower = Math.clamp(power.get() + (increasing ? step : -step), minimum, 1);
+                double newPower = Bounds.clamp(power.get() + (increasing ? step : -step), minimum, 1);
                 if (newPower >= 1) increasing = false;
                 if (newPower <= minimum) increasing = true;
                 power.set(newPower);

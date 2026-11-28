@@ -60,7 +60,7 @@ final class ShopActions {
     static void moveToFront(Player player, DiscModel model) {
         if (!betweenRounds(player)) return;
         DiscBag bag = bag(player);
-        if (bag.packed().contains(model) && bag.packed().getFirst() != model)
+        if (bag.packed().contains(model) && bag.packed().get(0) != model)
             save(player, bag.moveToFront(model), model.displayName() + " is now first in your bag.");
     }
 

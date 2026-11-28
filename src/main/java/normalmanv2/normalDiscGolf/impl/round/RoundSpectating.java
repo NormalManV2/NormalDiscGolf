@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.disc.ShotSetup.Stance;
@@ -90,7 +92,7 @@ public final class RoundSpectating {
         discPosition = disc.getLocation();
         heading = horizontal(thrower.getLocation().getDirection());
         if (replaysAvailable()) liveItem = disc.getItemStack().clone();
-        if (liveItem != null || round instanceof DailyRound) {
+        if (liveItem != null || round.play().ghosts() != null) {
             liveFrames = new ArrayList<>();
             liveFrames.add(discPosition.clone());
         }
@@ -131,11 +133,11 @@ public final class RoundSpectating {
     boolean playHighlight(Player scorer, ScoreCard.Basket basket, Clip clip, Runnable finished) {
         if (clip == null || basket == null || !replaysAvailable()) return false;
         double minimum = plugin().getConfig().getDouble("spectating.long-putt-blocks", 10);
-        minimum = Double.isFinite(minimum) ? Math.clamp(minimum, 1, 15) : 10;
+        minimum = Double.isFinite(minimum) ? Bounds.clamp(minimum, 1, 15) : 10;
         if (!basket.ace() && (!clip.putt() || basket.distance() < minimum)) return false;
         String highlight = basket.ace() ? "Ace!" : "Long putt (" + Math.round(basket.distance()) + " blocks)";
         List<Location> frames = clip.frames();
-        discPosition = frames.getFirst();
+        discPosition = frames.get(0);
         heading = horizontal(frames.get(1).toVector().subtract(discPosition.toVector()));
         for (var team : round.getTeams()) for (UUID id : team.getTeamMembers()) {
             Player player = Bukkit.getPlayer(id);
@@ -145,16 +147,16 @@ public final class RoundSpectating {
             }
         }
         if (viewers.isEmpty()) return false;
-        replayDisc = discPosition.getWorld().spawn(discPosition, ItemDisplay.class, display -> {
+        replayDisc = BukkitCompatibility.spawn(discPosition, ItemDisplay.class, display -> {
             display.setItemStack(clip.item());
             display.setBillboard(Display.Billboard.CENTER);
             display.setBrightness(new Display.Brightness(15, 15));
             display.setGlowColorOverride(Color.AQUA);
             display.setGlowing(true);
-            display.setTeleportDuration(1);
+            BukkitCompatibility.teleportDuration(display, 1);
             display.setPersistent(false);
         });
-        int duration = Math.clamp(frames.size() - 1, 20, 60);
+        int duration = Bounds.clamp(frames.size() - 1, 20, 60);
         replayTask = new BukkitRunnable() {
             private int elapsed;
 
@@ -194,7 +196,7 @@ public final class RoundSpectating {
                 || viewers.containsKey(player.getUniqueId())) return false;
         if (anchor == null) {
             Location camera = cameraPosition(discPosition);
-            anchor = camera.getWorld().spawn(camera, ArmorStand.class, stand -> {
+            anchor = BukkitCompatibility.spawn(camera, ArmorStand.class, stand -> {
                 stand.setMarker(true);
                 stand.setVisible(false);
                 stand.setGravity(false);

@@ -4,11 +4,82 @@ A multiplayer Minecraft disc-golf plugin with recreational FFA, alternate-shot, 
 
 ## Build and install
 
-Use Java 21 and run `./gradlew build` to build `build/libs/NormalDiscGolf-1.0-SNAPSHOT-all.jar`. Drop the built jar into the `plugins` folder of a Paper or Spigot-compatible Minecraft 1.21.8 server and start it. NDG creates its configuration, resource pack, and clubhouse automatically. WorldEdit is optional for legacy schematic integration.
+Use Java 21 and run `./gradlew build` to build `build/libs/NormalDiscGolf-1.0-SNAPSHOT-all.jar`. The plugin compiles to Java 17 bytecode against the 1.19.4 Bukkit API. Drop the same jar into `plugins` on Paper 1.19.4 with Java 17, Paper 1.21.8 with Java 21, or Paper 26.3 with Java 25. NDG creates its configuration, resource pack, and clubhouse automatically. WorldEdit is optional for schematic integration. Install a WorldEdit release that supports your Minecraft server version if you use schematics.
+
+Paper 1.19.4 uses the format 13 export and CustomModelData for disc models. Flights and baskets use display entities. Menu controls use vanilla item icons on that release. The modern export covers formats 64.0 through 97.1, including Minecraft 26.3. If you host NDG's pack over HTTPS, use the ZIP exported by the target server and update the hosted copy after changing Minecraft versions.
 
 The default round has 18 holes. Set `course.holes: 3` in `plugins/NormalDiscGolf/config.yml` for a shorter round. The supported range is 1–18. The seed controls repeatable ground layout. Settings apply to subsequently created rounds; restart after changing configuration.
 
 The 18-hole course alternates six layouts with tee distances from roughly 36 to 115 blocks and pars 3 through 5. The seed controls the order within each group, the orientation of the holes, and obstacle placement. Look for spruce stands, birch groves, rock clusters, sand bunkers, and pond bends. Tees face the opening fairway on doglegs.
+
+## Server administration
+
+On first start, NDG writes `plugins/NormalDiscGolf/config.yml`, exports `NormalDiscGolfPack.zip`, and builds the clubhouse with the default settings. Run `/ndg admin` as an operator to open the settings menu. The console and players with `ndg.admin.config` can use the same commands.
+
+Open **First-run Setup Wizard** from that menu or run `/ndg admin wizard`. Choose **Default Course Length** and **Default Terrain**, then save both together. If a named generation profile is selected, the wizard edits that profile's defaults.
+
+Use **Set HTTPS Pack URL** after uploading the exported ZIP. This prepares NDG to use the hosted pack after restart. **Verify HTTPS Pack** downloads from the saved URL and checks it byte for byte against the export. The check follows redirects over HTTPS. From the console, use `ndg admin wizard url <https-url>` and `ndg admin wizard verify`.
+
+Choose **Launch Test Round** to play one private practice hole on the selected terrain with normal throws and scoring.
+
+| Command | What it does |
+| --- | --- |
+| `/ndg admin status` | Show the active course defaults, clubhouse and pack delivery status, and pending changes. |
+| `/ndg admin check` | Validate the saved config and show paths for invalid or unknown keys. |
+| `/ndg admin list [prefix] [page]` | Browse settings by key, including configured terrain profiles. |
+| `/ndg admin get <setting>` | Compare the active and saved values. |
+| `/ndg admin set <setting> <value>` | Stage a typed edit in `config.yml`. Enter list values as comma-separated items. |
+| `/ndg admin reset <setting>` | Clear an explicit override so the setting inherits its default. |
+| `/ndg admin apply` | Validate and activate saved gameplay settings while NDG has no active, preparing, or queued rounds. |
+
+Each successful in-game edit saves the previous file as `config.yml.bak`. You can also edit `config.yml` directly and use **Check Config** and **Apply Saved Changes**. Clubhouse creation and resource-pack delivery settings take effect after a server restart. Existing Daily layouts, defined weekly events, and open seasons keep their saved settings.
+
+For a shorter default round, set `course.holes` to `6`. To create a preset, start with `/ndg admin set course.profiles.short-woodland.terrain woodland`, then set `course.profiles.short-woodland.holes` to `6`. Set `course.profile` to `short-woodland` to make it the server default. For remote custom models, publish the exported ZIP at a public HTTPS URL and set `resource-pack.url` and `resource-pack.serve: false`. Setup Status shows how the server is configured to deliver it.
+
+### Backups and upgrades
+
+Open **Backups and Upgrade Checks** from `/ndg admin`, or use these commands in game or from the console.
+
+| Command | What it does |
+| --- | --- |
+| `/ndg admin backup status` | Show the active automatic backup interval, retention limit, and next due time. |
+| `/ndg admin backup create` | Save a ZIP under `plugins/NormalDiscGolf/backups` with file checksums and a baseline for each generated Course Library layout that passes validation. |
+| `/ndg admin backup list [page]` | Browse backup ZIPs. In game, click a backup to preview it. |
+| `/ndg admin backup preview <archive.zip> [page]` | Verify the ZIP and show which files would be replaced, added, kept, or were already identical. The preview leaves live data untouched. |
+| `/ndg admin backup restore <archive.zip> <confirmation-code>` | Schedule the changes shown in your preview for the next server restart. |
+| `/ndg admin backup cancel` | Cancel the scheduled restore before restarting. |
+| `/ndg admin backup probe` | Test a new off-server destination with a synthetic ZIP and checksum. |
+| `/ndg admin backup upload <archive.zip>` | Upload and verify an existing local ZIP at the configured destination. |
+| `/ndg admin backup verify <archive.zip>` | Compare the local ZIP's SHA-256 with the remote ZIP and checksum file. |
+| `/ndg admin backup download <archive.zip>` | Fetch and verify an off-server ZIP into the local backup directory for preview and restore. |
+| `/ndg admin upgrade check [archive.zip] [page]` | Regenerate the saved Course Library layouts and flag incompatible recipes. Pass a pre-upgrade ZIP to compare tees, baskets, routes, pars, and sampled terrain with the earlier build. |
+
+Automatic backups are off by default. To enable daily backups and keep the seven newest scheduled ZIPs, set these values in `config.yml` and restart or run `/ndg admin apply` while disc golf is idle. You can also edit them with `/ndg admin set backups.<setting> <value>`.
+
+```yaml
+backups:
+  enabled: true
+  interval-seconds: 86400
+  keep: 7
+```
+
+The first scheduled backup runs after one interval. Subsequent runs use the latest scheduled archive to resume the schedule after a restart. NDG cleans up older automatic ZIPs after verifying a new one, and retains manual backups, pre-restore backups, and any ZIP selected for a pending restore. A protected automatic ZIP can temporarily exceed the retention limit. Backups run while the server is online.
+
+#### Off-server copies
+
+Set `backups.offsite.url` to a private HTTPS directory on a separate server or storage service. It must support authenticated `PUT` and `GET` for ZIP and checksum files, including `If-None-Match: *` on uploads. A WebDAV directory with these methods can serve as the destination. Use a TLS certificate trusted by your Minecraft server's JVM and the final URL for that directory.
+
+Set the environment variable named by `backups.offsite.authorization-env` on the Minecraft server process. It defaults to `NDG_BACKUP_AUTHORIZATION` and expects the full `Bearer <token>` or `Basic <encoded-credentials>` value. The token stays out of `config.yml` and the ZIP. Once the environment variable is set, save and apply the URL with `/ndg admin set backups.offsite.url <https-url>` and `/ndg admin apply`, or set the URL in `config.yml` and restart. A blank URL disables off-server copies.
+
+On a panel-managed host, you can set `backups.offsite.authorization-file: true` and create `plugins/NormalDiscGolf/offsite-authorization.txt` through the private file manager. Save it as UTF-8 plain text. Put the WebDAV username on line one and the app password on line two, or use a single complete Basic or Bearer authorization value. NDG excludes this file from its ZIPs. Restrict server-file access to trusted admins and keep the credential file with your other server secrets.
+
+Leave scheduled backups disabled while you configure a new destination. Run `/ndg admin backup probe` after applying its settings. NDG writes and reads back a small synthetic ZIP and SHA-256 file, then checks that the destination rejects a conditional overwrite. The probe prints the filenames it leaves at the destination. Enable scheduled backups after the probe passes.
+
+NDG mirrors new automatic and admin-created ZIPs. It reads them back over HTTPS and verifies the SHA-256 before publishing and checking the companion `.sha256` file. If an automatic upload fails, NDG retains the local ZIP and skips pruning for that run. Use the upload command to retry a saved ZIP or send a pre-restore backup. Your storage service controls remote retention. To recover a ZIP, download it by filename and follow the local preview and confirmation steps. Downloads verify the remote checksum and the ZIP's internal manifest before making the archive available.
+
+Make a backup before replacing the plugin jar and run the upgrade check with that ZIP after restarting. The backup includes player profiles, the Course Library and its records and ghosts, authored course definitions, configuration, custom discs, obstacle schematics, and saved competition data. Authored course definitions refer to existing Minecraft worlds. Include those worlds in your server backup and use `/ndg course validate <id>` to check each authored course after an upgrade.
+
+For a restore, open the preview, review the affected files, and use the displayed confirmation command within 15 minutes. Plan a normal server stop and start. At startup, NDG verifies the reviewed changes, creates and verifies a pre-restore ZIP, then applies the changes before loading player or course data. Files created since the source backup are kept. If the changes differ from the preview, the restore is canceled and you can review it again. Check the server log for the result and the pre-restore ZIP filename. If the server stops partway through a restore, NDG rolls back the partial changes before loading its data on the next startup.
 
 ## Play
 
@@ -150,7 +221,9 @@ The themed tee boards show the hole number, par, distance, and opening shot. Fol
 
 ### Reusable course profiles
 
-In `plugins/NormalDiscGolf/config.yml`, add a profile under `course.profiles`, set `course.profile` to its name, and restart. Use letters, numbers, hyphens, or underscores in the name. The bundled config includes `desert-canyon` and `sky-islands` as starting points.
+In `plugins/NormalDiscGolf/config.yml`, add a profile under `course.profiles` and restart. Use letters, numbers, hyphens, or underscores in the name. The bundled config includes `desert-canyon` and `sky-islands` as starting points. Set `course.profile` if you also want one of the presets to be the server default.
+
+Open `/ndg menu`, pick a mode, and select **New [Terrain] Lobby**. When compatible presets are available, each choice shows the hole count, seed policy, and terrain settings. A terrain appears if a selectable preset or the server default offers it. If the server default is the only option, the terrain button queues it immediately. Set `lobby-selectable: false` inside a preset to keep it out of the picker and direct queue commands. Quick Join can join any open lobby for the selected mode and uses the server default if it creates one. To create a specific lobby directly, use `/ndg queue <mode> new <terrain> <preset>`.
 
 ```yaml
 course:
@@ -171,7 +244,7 @@ course:
 
 Omitted parameters inherit the base `course` settings. Profiles can also set `terrain: random` with `enabled-terrains`, or use `seed-mode: fixed` with a specific `seed` to replay the same layout. For archetypes, a profile's terrain-specific list takes precedence over its shared list. Set `course.profile: ""` to return to the base settings.
 
-Profile terrain settings also apply to newly generated Daily and weekly courses. Those events keep their own hole counts and seeds. Ace Race and Closest to Pin keep their mode-specific hole counts and short tees. Profiles apply to procedural courses, and saved custom courses use their authored layouts.
+The server default profile's terrain settings also apply to newly generated Daily and weekly courses. Those events keep their own hole counts and seeds. Ace Race and Closest to Pin keep their mode-specific hole counts and short tees. Profiles apply to procedural courses, and saved custom courses use their authored layouts.
 
 ## Player career
 
@@ -302,6 +375,32 @@ NDG builds a timber clubhouse near the overworld spawn on first startup. Open **
 - **Medals.** Earn six persistent medals with one-time credit rewards, from First Chains to Clean Nine. The clubhouse shows what each one takes.
 
 In doubles, teammates who throw share streak and daily progress. Personal baskets, aces, and distance records go to the player whose disc went in. Only completed rounds with a real basket count toward clubhouse progress. The extra credits use the same balance as the shop.
+
+## Course Library
+
+After a generated round, open **Round Summary** with `/ndg summary` and click **Save Course**. Open **Course Library** from `/ndg clubhouse` or use `/ndg library`. Select a saved course to launch a private round. Party leaders can bring their group.
+
+Right-click a saved course to **Rename Course** or **Create Share Code**. Copy the seven-character code from chat and give it to a friend on the same server. They can choose **Enter Share Code** in the Course Library or run `/ndg library code <code>`. The preview shows the course name, terrain, seed, par, hole count, and replay format. They can **Save a Copy** or **Queue Course** directly from it.
+
+Choose **Add to Favorites** in a saved course's details to keep it at the top of your library. Use **Show Favorites** to browse only those courses. Favorites are personal to your account and survive a restart.
+
+Share codes survive restarts and keep working after a rename. The issuer can revoke a code from the management menu. Friends who already saved a personal copy can still play it.
+
+The library keeps a personal copy of the seed, hole count, layout type, and resolved generation settings. Replays generate a fresh world with the same layout, even if you edit or remove its preset. Ace Race and Closest to Pin keep their one-throw rules. Other saved layouts replay as casual FFA. Replays earn regular throw XP and basket credits and are excluded from ratings, competitions, and clubhouse records.
+
+Back up `plugins/NormalDiscGolf/course-library/` along with the rest of the plugin data. Entries require the generator version they were saved with.
+
+### Featured Courses
+
+Open **Featured Courses** in the clubhouse or run `/ndg featured`. Select a course to preview it, save a personal copy, or queue an unrated round. Party leaders can queue for their group.
+
+Operators and players with `ndg.course.featured.manage` can pin an active share code with **Pin by Share Code** or `/ndg featured pin <code>`. Right-click a shelf entry or run `/ndg featured unpin <code>` to remove it. The console accepts both commands. Pins survive restarts. Unpinning leaves the share code active, and revoking a code removes its pin automatically.
+
+### Records and personal ghosts
+
+Open **Course Records** in a saved, shared, or featured course's details to browse the standings and see your personal best. Use **Show in Chat** for the top ten entries. Hole out on every hole of a saved-layout stroke round to post a score. A lower score replaces your best, and ties share a place. Ace Race and Closest to Pin layouts offer **Play for Record** to play the same layout under stroke rules.
+
+Once you have a ghost, open your live scorecard with the hotbar book or `/ndg score`. Each hole shows your ghost's target, and the footer lets you replay its throws on the current hole, show or hide the path, or compare scores. The `/ndg library ghost [play|on|off|compare]` commands work from the course as well. Only you see your ghost. Records and ghosts persist under `plugins/NormalDiscGolf/course-library/records/`.
 
 ## Disc shop
 
@@ -441,6 +540,28 @@ For course events, use four holes on the fixed Parkland fixture with wind enable
 For spectating and replays, use the one-hole fixed Parkland fixture with wind and course events disabled, both spectating features enabled, and `spectating.long-putt-blocks: 10`. Run `node scripts/multiplayer/spectating-flow.cjs` to check live camera movement and skip controls, actual ace and long putt replays, opt-out, and player restoration on completion and forfeit.
 
 For the course editor, use a flat permanent world with open space at spawn, wind disabled, and a short queue countdown. Run `node scripts/multiplayer/custom-course-flow.cjs` to create, validate, save, edit, and play a two-hole course. Restart the server and run the same script with `--after-restart` to play the saved layout again. Set `NDG_TEST_CUSTOM_COURSE` to an unused course ID for each new editor run and keep the same ID for its restart check.
+
+For Paper 1.19.4, start the server with Java 17 and enable the required local resource pack. Set `NDG_TEST_VERSION=1.19.4` and run the same course editor fixture with `--expect-legacy-pack` to check pack delivery, disc model data, moving item displays, and both players holing out. The generated-round fixture also accepts that client version for a two-hole FFA with `--expect-local-pack`.
+
+For Paper 26.3, start the server with Java 25. The scripted multiplayer clients use protocol 26.1 through ViaVersion and ViaBackwards. Set `NDG_TEST_VERSION=26.1` and `NDG_TEST_MOVEMENT_TICK_END=1`. Run the course editor fixture with `--expect-modern-pack` to check pack delivery, named disc models, moving item displays, and both players holing out. For the generated-course fixture, enable flyovers and use a peaceful lobby. Run `round-flow.cjs ffa 18 --expect-local-pack --expect-skill-xp` to verify that both players can throw and concede on each of the 18 holes, then receive their standings and return to the lobby.
+
+For admin setup, run `scripts/multiplayer/admin-settings-flow.cjs` from a fresh loopback server directory with `Config_Admin` as an operator and port 8088 free. Restart with the same plugin data and run it with `--after-restart`. The two clients verify the settings menu, backups, invalid-file recovery, permission checks, and the next round using settings applied live.
+
+For the wizard, point `NDG_SETUP_HTTPS` at a TLS fixture trusted by the test server's JVM. Serve the exported ZIP at `/pack.zip`, a modified copy at `/wrong.zip`, a redirect to `/pack.zip` at `/redirect.zip`, and an HTTP redirect at `/downgrade.zip`. Run `scripts/multiplayer/setup-wizard-flow.cjs` on a clean server and repeat with `--after-restart` to check the saved defaults, pack verification, and a real throw in the test round.
+
+For the Course Library, use a fresh loopback fixture and configure a selectable `course.profiles.library-line` preset for one Parkland hole with fixed seed 41. Disable wind, course events, and instant replays. Run `scripts/multiplayer/course-library-flow.cjs` with Node from the server directory to save, name, share, and preview the course. Change the preset's terrain, hole count, and seed, restart Paper, then rerun with `--after-restart` to check the same code, finish the two-player replay, save a copy, and revoke the code.
+
+To include Featured Courses in that flow, grant operator status to the loopback client `Feature_Curator` and add `--featured` to both runs. The harness exercises permission checks, shelf discovery, saved copies, replay after restart, unpinning, and share revocation.
+
+Use the same one-hole Parkland preset in a fresh fixture for `scripts/multiplayer/course-records-flow.cjs`. Disable automatic replays, wind, course events, and flyovers. Run from the server directory, then restart and repeat with `--after-restart` to verify private favorites, the standings menu, scorecard ghost controls, playback against recorded throws, score improvements, ties, and concessions.
+
+For backups, reuse a copy of that Course Records fixture with its `course-records-restart.json`. Grant the first client in that file operator access. Run `scripts/multiplayer/admin-backup-flow.cjs` from the isolated Paper server directory to create a backup, then switch to a differently versioned plugin jar and rerun with `--after-upgrade`. The clients check restore preview categories, incompatible recipe detection, and play the saved layout using its original tee, basket, and ghost records.
+
+For restores, use another copy of the same fixture and run `scripts/multiplayer/admin-restore-flow.cjs`, then restart and rerun with `--after-restart`. This fixture changes an operator's rating, removes a saved course, and adds a current-only file. It verifies the preview and confirmation, the automatic pre-restore ZIP, and two players completing the restored course.
+
+For scheduled backups, start with a copy of the completed restore fixture and run `scripts/multiplayer/automatic-backups-flow.cjs`. Restart and repeat with `--after-restart`. The isolated test uses a four-second interval to check retention after success, after a failed backup, and while a restore is pending.
+
+For off-server backups, use the same restore fixture and an isolated HTTPS PUT/GET endpoint backed by a separate directory. Set `NDG_OFFSITE_TEST_URL` and `NDG_OFFSITE_TEST_DIR` for `scripts/multiplayer/offsite-backups-flow.cjs` and set the fixture Authorization value on the Paper process. The endpoint should return HTTP 503 on PUT while the test's `fail-put` flag exists. Restart Paper and rerun the test with `--after-restart` to complete the recovered course.
 
 For round analytics, use the one-hole fixed Parkland fixture with wind, course events, and instant replays disabled. Run `node scripts/multiplayer/analytics-flow.cjs` and enter the `FIXTURE` command it prints in the isolated server console. It adds water to the temporary course to produce a real penalty. The two clients check score, a legal drive, a fairway hit, a missed and made putt, and reopening their separate summaries after the round.
 

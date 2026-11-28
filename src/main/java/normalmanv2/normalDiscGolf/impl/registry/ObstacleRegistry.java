@@ -2,9 +2,8 @@ package normalmanv2.normalDiscGolf.impl.registry;
 
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.obstacles.*;
-import org.normal.impl.registry.RegistryImpl;
 
-public class ObstacleRegistry extends RegistryImpl<String, ObstacleImpl> {
+public class ObstacleRegistry extends GameRegistry<String, ObstacleImpl> {
 
     public ObstacleRegistry() {
         this.register("tree", new Tree(null, "tree"));

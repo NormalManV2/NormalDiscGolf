@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.course.obstacle.generator;
 
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseTerrain;
@@ -114,7 +115,7 @@ public final class ObstacleGenerator {
             if (grid.protectedLane(x, z) || !world.getBlockAt(x, y, z).isEmpty()) continue;
             if (i >= features || grid.routeDistance(x, z) < 10) {
                 var plant = landscape == ParklandHole.POND
-                        ? Material.FERN : i % 2 == 0 ? Material.SHORT_GRASS : Material.OXEYE_DAISY;
+                        ? Material.FERN : i % 2 == 0 ? BukkitCompatibility.SHORT_GRASS : Material.OXEYE_DAISY;
                 world.getBlockAt(x, y, z).setType(plant, false);
                 continue;
             }
@@ -230,7 +231,7 @@ public final class ObstacleGenerator {
             case DESERT -> Material.CHISELED_RED_SANDSTONE;
             case ISLAND -> Material.STRIPPED_JUNGLE_WOOD;
             case NETHER -> Material.POLISHED_BLACKSTONE_BRICKS;
-            case SKY -> Material.POLISHED_TUFF;
+            case SKY -> BukkitCompatibility.POLISHED_TUFF;
             default -> Material.STRIPPED_SPRUCE_WOOD;
         };
         for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
@@ -267,7 +268,7 @@ public final class ObstacleGenerator {
 
         var sign = new Location(world, tee.x() + .5, ty + 2, tee.z() + .5)
                 .add(forward.clone().multiply(5)).add(new Vector(-forward.getZ(), 0, forward.getX()).multiply(3.5));
-        world.spawn(sign, TextDisplay.class, display -> {
+        BukkitCompatibility.spawn(sign, TextDisplay.class, display -> {
             String tipColor = switch (grid.terrain()) {
                 case DESERT -> "§e";
                 case MOUNTAIN, ISLAND, SKY -> "§b";
@@ -309,7 +310,7 @@ public final class ObstacleGenerator {
         }
     }
     private void label(World world, Location location, String text) {
-        world.spawn(location, TextDisplay.class, display -> {
+        BukkitCompatibility.spawn(location, TextDisplay.class, display -> {
             display.setText(text); display.setBillboard(Display.Billboard.CENTER);
             display.setPersistent(false); display.setSeeThrough(false);
         });

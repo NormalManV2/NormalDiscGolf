@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.course.event;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.EnumMap;
@@ -18,15 +19,15 @@ public record CourseEventSettings(boolean enabled, boolean includeRated, int cha
         var weights = new EnumMap<CourseEvent, Integer>(CourseEvent.class);
         for (CourseEvent event : CourseEvent.values()) {
             if (event != CourseEvent.CLEAR)
-                weights.put(event, Math.clamp(config.getInt(root + "weights." + event.id(), 1), 0, 100));
+                weights.put(event, Bounds.clamp(config.getInt(root + "weights." + event.id(), 1), 0, 100));
         }
         var sequence = config.getStringList(root + "sequence").stream().map(CourseEvent::parse)
                 .filter(Objects::nonNull).toList();
         double windScale = config.getDouble(root + "thunderstorm.wind-scale", 1);
         return new CourseEventSettings(config.getBoolean(root + "enabled", true),
                 config.getBoolean(root + "include-rated", false),
-                Math.clamp(config.getInt(root + "chance-percent", 25), 0, 100), Map.copyOf(weights), sequence,
-                Double.isFinite(windScale) ? Math.clamp(windScale, 0, 3) : 1,
+                Bounds.clamp(config.getInt(root + "chance-percent", 25), 0, 100), Map.copyOf(weights), sequence,
+                Double.isFinite(windScale) ? Bounds.clamp(windScale, 0, 3) : 1,
                 config.getBoolean(root + "thunderstorm.lightning-flashes", true));
     }
 

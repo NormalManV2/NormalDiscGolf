@@ -1,12 +1,15 @@
 name: NormalDiscGolf
 version: ${version}
 main: normalmanv2.normalDiscGolf.NormalDiscGolfPlugin
-api-version: '1.21'
+api-version: '1.19'
 prefix: NormalDiscGolf
 softdepend: [WorldEdit]
 authors: [NormalMan_V2]
 description: Disc golf in Minecraft
 permissions:
+  ndg.admin.config:
+    description: Inspect, edit, and apply NormalDiscGolf server settings.
+    default: op
   ndg.commands.cancel:
     description: Cancel a multiplayer round.
     default: op
@@ -18,4 +21,7 @@ permissions:
     default: true
   ndg.course.admin:
     description: Edit custom courses owned by other players.
+    default: op
+  ndg.course.featured.manage:
+    description: Pin and unpin shared courses on the Featured Courses shelf.
     default: op

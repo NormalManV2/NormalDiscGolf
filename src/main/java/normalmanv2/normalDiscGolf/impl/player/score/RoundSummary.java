@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.player.score;
 
+import normalmanv2.normalDiscGolf.impl.course.library.SavedCourse;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
@@ -8,7 +9,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.OptionalDouble;
 
-public record RoundSummary(String roundLabel, String scoreLine, RoundAnalytics.Stats stats, boolean markedFairways) {
+public record RoundSummary(String roundLabel, String scoreLine, RoundAnalytics.Stats stats, boolean markedFairways,
+                           SavedCourse generatedCourse) {
+    public RoundSummary(String roundLabel, String scoreLine, RoundAnalytics.Stats stats, boolean markedFairways) {
+        this(roundLabel, scoreLine, stats, markedFairways, null);
+    }
     public record Metric(String name, String value) {}
 
     public void sendTo(Player player) {

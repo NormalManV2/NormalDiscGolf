@@ -3,6 +3,7 @@ package normalmanv2.normalDiscGolf.impl.course;
 import normalmanv2.normalDiscGolf.api.course.Course;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.course.library.SavedCourse;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -15,11 +16,23 @@ public class CourseImpl implements Course {
     private final Division division;
     private final String courseName;
     private final CourseGrid grid;
+    private final String generationPreset;
+    private final SavedCourse libraryCourse;
 
     public CourseImpl(Division division, CourseGrid grid, String courseName) {
+        this(division, grid, courseName, null);
+    }
+
+    public CourseImpl(Division division, CourseGrid grid, String courseName, String generationPreset) {
+        this(division, grid, courseName, generationPreset, null);
+    }
+
+    public CourseImpl(Division division, CourseGrid grid, String courseName, String generationPreset, SavedCourse libraryCourse) {
         this.division = division;
         this.courseName = courseName;
         this.grid = grid;
+        this.generationPreset = generationPreset;
+        this.libraryCourse = libraryCourse;
     }
 
     @Override
@@ -84,8 +97,11 @@ public class CourseImpl implements Course {
 
     public World world(String roundId) { return Bukkit.getWorld(roundId); }
     public boolean isCustom() { return false; }
+    public boolean isLibraryReplay() { return libraryCourse != null; }
+    public SavedCourse libraryCourse() { return libraryCourse; }
     public String holeName(int hole) { return grid.holeName(hole); }
     public long seed() { return grid.seed(); }
+    public String generationPreset() { return generationPreset; }
     public TileTypes tileAt(Location location) { return grid.getTileTypeAtLocation(location); }
 
     public Location safeLie(Location landing, Location fallback) {
@@ -112,7 +128,9 @@ public class CourseImpl implements Course {
     public String generationInfo() {
         int difficulty = grid.difficultyRating();
         return grid.terrain().label() + " • Seed " + grid.seed()
-                + (difficulty == 0 ? "" : " • Difficulty " + difficulty + "/100");
+                + (difficulty == 0 ? "" : " • Difficulty " + difficulty + "/100")
+                + (generationPreset == null ? "" : " • Preset " + generationPreset)
+                + (isLibraryReplay() ? " • Course Library" : "");
     }
 
 }

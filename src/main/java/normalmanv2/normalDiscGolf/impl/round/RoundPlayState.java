@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.api.team.Team;
@@ -39,6 +40,7 @@ public final class RoundPlayState {
     private final RoundFormat format;
     private final RoundCourseEvents courseEvents;
     private final RoundSpectating spectating;
+    private RoundGhosts ghosts;
     private final CustomHoleMarkers customMarkers = new CustomHoleMarkers();
     private final Map<Team, Location> lies = new HashMap<>();
     private final Map<Team, UUID> lastThrower = new HashMap<>();
@@ -67,10 +69,17 @@ public final class RoundPlayState {
     }
     public boolean usesPairedAttempts() { return format != null && format.usesPairedAttempts(); }
     public boolean usesOneDisc() { return format == RoundFormat.ONE_DISC; }
+    public RoundGhosts enableGhosts(String label, String command) {
+        ghosts = new RoundGhosts(round, label, command);
+        return ghosts;
+    }
+    public RoundGhosts ghosts() { return ghosts; }
     public boolean usesRoulette() { return format == RoundFormat.DISC_ROULETTE; }
     public boolean normalizesCareerSkills() {
         if (round instanceof CompetitionRound) return true;
-        return format != null && !round.getCourse().isCustom() && format.countsForStrokeRating()
+        return format != null && format.countsForStrokeRating()
+                && !(round instanceof SetupTestRound)
+                && !round.getCourse().isCustom() && !round.getCourse().isLibraryReplay()
                 && plugin().getConfig().getBoolean("career.normalize-rated-skills", true);
     }
 
@@ -264,7 +273,7 @@ public final class RoundPlayState {
                          Stance stance, boolean hazardContact, boolean expiredInAir) {
         Shot completed = shot;
         if (completed == null || !completed.player().equals(player.getUniqueId()) || completed.hole() != round.getCurrentHole() || round.isOver()) return;
-        if (round instanceof DailyRound daily) daily.ghosts().record(completed.player(), completed.hole(), spectating.recordedFrames());
+        if (ghosts != null) ghosts.record(completed.player(), completed.hole(), spectating.recordedFrames());
         var clip = spectating.finishFlight(stance, goal);
         shot = null;
         clearRouletteDraw();
@@ -274,7 +283,8 @@ public final class RoundPlayState {
         var type = round.getCourse().tileAt(landing);
         boolean hazard = !goal && (hazardContact || type.isHazard());
         recordAnalytics(completed, landing, stance, type, goal, hazard, expiredInAir);
-        if (disc != null) awardPractice(player, disc, technique, hazard, goal, stance, completed.practice());
+        if (disc != null && !(round instanceof SetupTestRound))
+            awardPractice(player, disc, technique, hazard, goal, stance, completed.practice());
         if (usesPairedAttempts() && (!goal || format == RoundFormat.WORST_SHOT)) {
             recordPairedAttempt(player, completed, landing, goal, hazard, clip);
             return;
@@ -333,8 +343,8 @@ public final class RoundPlayState {
         boolean scoredBefore = card.getHoleScores().containsKey(hole);
         Bukkit.getPluginManager().callEvent(new GoalScoreEvent(player, hole, round, distance));
         ScoreCard.Basket result = card.getBaskets().get(hole);
-        if (!scoredBefore && result != null && round instanceof DailyRound daily)
-            daily.ghosts().announceHole(player.getUniqueId(), card, hole);
+        if (!scoredBefore && result != null && ghosts != null)
+            ghosts.announceHole(player.getUniqueId(), card, hole);
         if (scoredBefore || result == null || round.isOver() || world.getPlayers().isEmpty()) {
             round.nextTurn();
             return;
@@ -468,7 +478,7 @@ public final class RoundPlayState {
             for (UUID id : pairedShotTurn.team().getTeamMembers()) {
                 Player player = Bukkit.getPlayer(id);
                 if (player != null && player.getWorld() == marker.getWorld())
-                    player.spawnParticle(Particle.DUST, marker, 6, .16, .35, .16, 0, new Particle.DustOptions(color, 1));
+                    player.spawnParticle(BukkitCompatibility.DUST, marker, 6, .16, .35, .16, 0, new Particle.DustOptions(color, 1));
             }
         }
     }
@@ -546,7 +556,7 @@ public final class RoundPlayState {
             return;
         }
         card.recordHoleScore(hole, maxStrokes(), round.getCourse().holePars().get(hole));
-        if (round instanceof DailyRound daily) daily.ghosts().announceHole(team.getOwner(), card, hole);
+        if (ghosts != null) ghosts.announceHole(team.getOwner(), card, hole);
         card.resetCurrentStrokes();
         for (UUID id : team.getTeamMembers()) plugin().cancelMeter(id);
         round.setTeamScored(hole, team);
@@ -586,7 +596,7 @@ public final class RoundPlayState {
             else handler.cancelRound(round);
         } else if (elimination != null && round.getTeams().size() == 1) {
             var handler = NDGManager.getInstance().getRoundHandler();
-            if (Bukkit.getPlayer(round.getTeams().getFirst().getOwner()) == null) handler.cancelRound(round);
+            if (Bukkit.getPlayer(round.getTeams().get(0).getOwner()) == null) handler.cancelRound(round);
             else handler.endRound(round);
         } else if (basketCelebration != null || spectating.replaying()) {
             // The scheduled turn change will use the remaining teams.
@@ -609,7 +619,7 @@ public final class RoundPlayState {
         plugin().cancelMeter(id);
         courseEvents.removePlayer(id);
         spectating.removePlayer(id);
-        if (round instanceof DailyRound daily) daily.ghosts().remove(id);
+        if (ghosts != null) ghosts.remove(id);
         roundBags.remove(id);
         lockedDiscs.remove(id);
         if (rouletteDisc(id) != null) clearRouletteDraw();
@@ -647,7 +657,7 @@ public final class RoundPlayState {
             if (round.isOver()) return;
         }
         if (choosingLie() != null) showLieMarkers();
-        if (round instanceof DailyRound daily) daily.ghosts().tick();
+        if (ghosts != null) ghosts.tick();
         hud.update(Math.max(0, (deadline - System.currentTimeMillis()) / 1000));
     }
     private void turnChangedSilently() {
@@ -661,7 +671,7 @@ public final class RoundPlayState {
     public void dispose() {
         customMarkers.clear();
         spectating.dispose();
-        if (round instanceof DailyRound daily) daily.ghosts().clear();
+        if (ghosts != null) ghosts.clear();
         courseEvents.dispose();
         if (basketCelebration != null) {
             basketCelebration.cancel();

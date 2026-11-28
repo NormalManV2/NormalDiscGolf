@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.manager.round.queue;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.round.delegate.settings.DelegateRoundSettings;
@@ -10,9 +11,11 @@ import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.creator.CourseCreator;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGenerationSettings;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGenerationProfile;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseTerrain;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.course.custom.CustomCourse;
+import normalmanv2.normalDiscGolf.impl.course.library.SavedCourse;
 import normalmanv2.normalDiscGolf.impl.competition.DailyCourse;
 import normalmanv2.normalDiscGolf.impl.course.tile.TileTypes;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
@@ -29,6 +32,7 @@ import normalmanv2.normalDiscGolf.impl.team.TeamImpl;
 import normalmanv2.normalDiscGolf.impl.util.Constants;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -49,10 +53,11 @@ public class RoundQueueManager {
         CUSTOM_COURSE_BUSY,
         DAILY_UNAVAILABLE,
         LOBBY_UNAVAILABLE,
-        TERRAIN_UNAVAILABLE
+        TERRAIN_UNAVAILABLE,
+        PRESET_UNAVAILABLE
     }
 
-    public record Lobby(String id, CourseTerrain terrain, long seed, int holes, int capacity,
+    public record Lobby(String id, CourseTerrain terrain, long seed, int holes, String preset, int capacity,
                         List<String> players, String status) {}
 
     private final RoundHandler roundHandler;
@@ -106,6 +111,11 @@ public class RoundQueueManager {
     }
 
     public QueueResult addPartyToQueue(Collection<UUID> players, String roundFormat, String lobby, CourseTerrain terrain) {
+        return addPartyToQueue(players, roundFormat, lobby, terrain, null);
+    }
+
+    public QueueResult addPartyToQueue(Collection<UUID> players, String roundFormat, String lobby, CourseTerrain terrain,
+                                      String preset) {
         String normalizedFormat = normalizeRoundFormat(roundFormat);
         if (normalizedFormat == null) {
             return QueueResult.INVALID_FORMAT;
@@ -131,9 +141,15 @@ public class RoundQueueManager {
 
         QueueResult ready = validatePlayers(playerIds);
         if (ready != QueueResult.SUCCESS) return ready;
+        if (preset != null && (format == RoundFormat.DAILY || terrain == null || !"new".equalsIgnoreCase(lobby)))
+            return QueueResult.PRESET_UNAVAILABLE;
+        var config = config();
+        var profile = preset == null ? CourseGenerationProfile.serverDefault(config)
+                : CourseGenerationProfile.selectable(config, preset);
+        if (profile == null) return QueueResult.PRESET_UNAVAILABLE;
         DailyCourse.Definition daily = format == RoundFormat.DAILY ? currentDaily() : null;
         if (format == RoundFormat.DAILY && daily == null) return QueueResult.DAILY_UNAVAILABLE;
-        if (terrain != null && (format == RoundFormat.DAILY || !availableTerrains().contains(terrain)))
+        if (terrain != null && (format == RoundFormat.DAILY || !profile.terrains().contains(terrain)))
             return QueueResult.TERRAIN_UNAVAILABLE;
         Division division = Division.JUNIOR; // Recreational matchmaking keeps friends together regardless of rating.
         DefaultRoundSettings settings = this.createSettings(normalizedFormat, division);
@@ -151,7 +167,7 @@ public class RoundQueueManager {
                     .filter(round -> hasCapacityForParty(round, normalizedFormat, playerIds.size())).findFirst();
             if (existing.isPresent()) return commitParty(existing.get(), playerIds, normalizedFormat);
         }
-        GameRound round = createLobby(normalizedFormat, division, settings, daily, terrain);
+        GameRound round = createLobby(normalizedFormat, division, settings, daily, terrain, profile);
         QueueResult joined = commitParty(round, playerIds, normalizedFormat);
         if (joined == QueueResult.SUCCESS) addRoundToQueue(round);
         else roundHandler.discardRound(round);
@@ -159,7 +175,29 @@ public class RoundQueueManager {
     }
 
     public List<CourseTerrain> availableTerrains() {
-        return CourseGenerationSettings.availableTerrains(NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class).getConfig());
+        var config = config();
+        var terrains = new LinkedHashSet<>(CourseGenerationProfile.serverDefault(config).terrains());
+        CourseGenerationProfile.selectable(config).forEach(profile -> terrains.addAll(profile.terrains()));
+        return List.copyOf(terrains);
+    }
+
+    public List<CourseGenerationProfile> lobbyProfiles(CourseTerrain terrain) {
+        var config = config();
+        var profiles = new ArrayList<CourseGenerationProfile>();
+        var serverDefault = CourseGenerationProfile.serverDefault(config);
+        if (serverDefault.terrains().contains(terrain)) profiles.add(serverDefault);
+        CourseGenerationProfile.selectable(config).stream().filter(profile -> profile.terrains().contains(terrain))
+                .forEach(profiles::add);
+        return List.copyOf(profiles);
+    }
+
+    public int lobbyHoles(RoundFormat format, CourseGenerationProfile profile) {
+        return format == RoundFormat.ACE_RACE || format == RoundFormat.CLOSEST_TO_PIN
+                ? Bounds.clamp(config().getInt(format.id() + ".holes", 6), 1, 18) : profile.holes();
+    }
+
+    private ConfigurationSection config() {
+        return NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class).getConfig();
     }
 
     public List<Lobby> lobbies(RoundFormat format) {
@@ -176,7 +214,8 @@ public class RoundQueueManager {
                     String status = roundHandler.isBuildingCourse(round) ? "Preparing course"
                             : !roundHandler.courseReady(round) ? "Waiting to prepare course"
                             : since == null ? "Course ready · Waiting for players" : "Starting in " + secondsRemaining(since) + "s";
-                    return new Lobby(round.getId(), course.grid().terrain(), course.seed(), course.holes(), capacity, names, status);
+                    return new Lobby(round.getId(), course.grid().terrain(), course.seed(), course.holes(),
+                            course.generationPreset(), capacity, names, status);
                 }).toList();
     }
 
@@ -205,12 +244,48 @@ public class RoundQueueManager {
         return round.getCourse() instanceof CustomCourse other && other.id().equals(course.id());
     }
 
+    public QueueResult addPlayersToSavedCourse(Collection<UUID> players, SavedCourse saved, boolean forRecord) {
+        List<UUID> playerIds = players.stream().distinct().toList();
+        if (playerIds.isEmpty()) return QueueResult.PLAYER_DATA_MISSING;
+        if (playerIds.size() > Constants.FFA_ROUND_MAX_PLAYERS) return QueueResult.PARTY_TOO_LARGE;
+        QueueResult ready = validatePlayers(playerIds);
+        if (ready != QueueResult.SUCCESS) return ready;
+
+        String format = (forRecord ? RoundFormat.FFA : saved.replayFormat()).id();
+        String worldName = createWorldName(format, Division.JUNIOR);
+        var settings = new DefaultRoundSettings(Constants.FFA_ROUND_MAX_PLAYERS, RoundType.RECREATIONAL, Division.JUNIOR, true);
+        GameRound round = roundHandler.createQueuedRound(format, saved.instantiate(settings.division(), worldName), worldName, settings);
+        QueueResult joined = commitParty(round, playerIds, format);
+        if (joined == QueueResult.SUCCESS) addRoundToQueue(round);
+        else roundHandler.discardRound(round);
+        return joined;
+    }
+
     private QueueResult validatePlayers(List<UUID> playerIds) {
+        return validatePlayers(playerIds, true);
+    }
+
+    public QueueResult addSetupTest(UUID owner, CourseGenerationSettings generation, long seed) {
+        List<UUID> players = List.of(owner);
+        QueueResult ready = validatePlayers(players, false);
+        if (ready != QueueResult.SUCCESS) return ready;
+        Division division = Division.JUNIOR;
+        String world = createWorldName("setup", division);
+        var grid = new CourseGrid(23, 9, List.of(TileTypes.values()), 1, seed, CourseGrid.Layout.PARKLAND, generation);
+        var settings = new DefaultRoundSettings(1, RoundType.RECREATIONAL, division, true);
+        var round = roundHandler.createQueuedSetupTest(new CourseImpl(division, grid, world), world, settings);
+        QueueResult joined = commitParty(round, players, RoundFormat.FFA.id());
+        if (joined == QueueResult.SUCCESS) addRoundToQueue(round);
+        else roundHandler.discardRound(round);
+        return joined;
+    }
+
+    private QueueResult validatePlayers(List<UUID> playerIds, boolean requirePack) {
         for (UUID playerId : playerIds) {
             if (Bukkit.getPlayer(playerId) == null) {
                 return QueueResult.PLAYER_OFFLINE;
             }
-            if (!packReady(playerId)) return QueueResult.RESOURCE_PACK_REQUIRED;
+            if (requirePack && !packReady(playerId)) return QueueResult.RESOURCE_PACK_REQUIRED;
 
             if (this.isPlayerInActiveRound(playerId)) {
                 return QueueResult.PLAYER_IN_ACTIVE_ROUND;
@@ -444,16 +519,17 @@ public class RoundQueueManager {
                 .filter(round -> this.hasCapacityForParty(round, roundFormat, 1))
                 .findFirst()
                 .orElseGet(() -> {
-                    GameRound newRound = createLobby(roundFormat, division, settings, daily, null);
+                    GameRound newRound = createLobby(roundFormat, division, settings, daily, null,
+                            CourseGenerationProfile.serverDefault(config()));
                     this.addRoundToQueue(newRound);
                     return newRound;
                 });
     }
 
     private GameRound createLobby(String roundFormat, Division division, DefaultRoundSettings settings,
-                                  DailyCourse.Definition daily, CourseTerrain terrain) {
+                                  DailyCourse.Definition daily, CourseTerrain terrain, CourseGenerationProfile profile) {
         String worldName = this.createWorldName(roundFormat, division);
-        CourseImpl course = this.createCourse(roundFormat, division, worldName, daily, terrain);
+        CourseImpl course = this.createCourse(roundFormat, division, worldName, daily, terrain, profile);
         return this.roundHandler.createQueuedRound(roundFormat, course, worldName, settings);
     }
 
@@ -569,20 +645,16 @@ public class RoundQueueManager {
     }
 
     private CourseImpl createCourse(String roundFormat, Division division, String worldName, DailyCourse.Definition daily,
-                                    CourseTerrain terrain) {
+                                    CourseTerrain terrain, CourseGenerationProfile profile) {
         if (daily != null) return new DailyCourse(daily, division, worldName);
-        var config = normalmanv2.normalDiscGolf.NormalDiscGolfPlugin
-                .getPlugin(normalmanv2.normalDiscGolf.NormalDiscGolfPlugin.class).getConfig();
         RoundFormat format = RoundFormat.parse(roundFormat);
         boolean shortLayout = format == RoundFormat.ACE_RACE || format == RoundFormat.CLOSEST_TO_PIN;
-        int holes = shortLayout ? Math.clamp(config.getInt(format.id() + ".holes", 6), 1, 18)
-                : CourseGenerationSettings.holes(config);
+        int holes = lobbyHoles(format, profile);
         var layout = shortLayout ? CourseGrid.Layout.SHORT : CourseGrid.Layout.PARKLAND;
-        long seed = CourseGenerationSettings.seed(config);
+        long seed = profile.nextSeed();
         CourseGrid grid = new CourseGrid(23, ((holes + 2) / 3) * 7 + 2, List.of(TileTypes.values()),
-                holes, seed, layout, terrain == null ? CourseGenerationSettings.read(config, seed)
-                        : CourseGenerationSettings.read(config, terrain));
-        return new CourseCreator().create(division, grid, worldName);
+                holes, seed, layout, terrain == null ? profile.settings(seed) : profile.settings(terrain));
+        return new CourseCreator().create(division, grid, worldName, profile.id() == null ? null : profile.label());
     }
 
     private DailyCourse.Definition currentDaily() {

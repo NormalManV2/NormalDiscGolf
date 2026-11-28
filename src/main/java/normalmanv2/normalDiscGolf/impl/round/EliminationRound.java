@@ -47,8 +47,8 @@ public final class EliminationRound extends FFARound {
     public Set<UUID> entrants() { return names.keySet(); }
 
     public int place(UUID entrant) {
-        int eliminated = knockouts.reversed().indexOf(entrant);
-        return eliminated < 0 ? 1 : eliminated + 2;
+        int eliminated = knockouts.lastIndexOf(entrant);
+        return eliminated < 0 ? 1 : knockouts.size() - eliminated + 1;
     }
 
     /** Resolves the completed stage and returns whether the next stage replays this hole. */
@@ -99,12 +99,12 @@ public final class EliminationRound extends FFARound {
     }
 
     public List<String> results() {
-        UUID winner = getTeams().getFirst().getOwner();
+        UUID winner = getTeams().get(0).getOwner();
         var lines = new ArrayList<String>();
         lines.add("Elimination winner: " + names.get(winner) + "!");
         lines.add("Final standings:");
         lines.add("1. " + names.get(winner));
-        for (UUID player : knockouts.reversed()) lines.add((lines.size() - 1) + ". " + names.get(player));
+        for (int i = knockouts.size() - 1; i >= 0; i--) lines.add((lines.size() - 1) + ". " + names.get(knockouts.get(i)));
         return lines;
     }
 }

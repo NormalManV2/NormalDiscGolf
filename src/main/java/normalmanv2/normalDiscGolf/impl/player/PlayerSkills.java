@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.player;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.impl.disc.ShotSetup;
 import normalmanv2.normalDiscGolf.impl.disc.ShotSetup.Stance;
@@ -98,7 +99,7 @@ public class PlayerSkills {
     }
 
     public double turnMultiplier() {
-        return 1 - .08 * Math.clamp(form.getLevel() - 1, 0, 4);
+        return 1 - .08 * Bounds.clamp(form.getLevel() - 1, 0, 4);
     }
 
     public double fadeMultiplier(String id) {

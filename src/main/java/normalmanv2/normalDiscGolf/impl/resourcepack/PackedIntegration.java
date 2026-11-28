@@ -5,6 +5,7 @@ import com.sun.net.httpserver.HttpServer;
 import normalmanv2.normalDiscGolf.NormalDiscGolfPlugin;
 import normalmanv2.normalDiscGolf.impl.NDGManager;
 import normalmanv2.normalDiscGolf.impl.disc.DiscCatalog;
+import org.bukkit.Bukkit;
 import normalmanv2.normalDiscGolf.impl.disc.DiscFlightResolver;
 import normalmanv2.normalDiscGolf.impl.listener.RoundPlayerListener;
 import org.bukkit.entity.Player;
@@ -19,7 +20,7 @@ import java.security.*;
 import java.util.*;
 import java.util.zip.*;
 
-/** Builds a self-contained 1.21.8 pack. Public delivery is configured by the server owner. */
+/** Exports the disc and menu assets used by local and hosted resource packs. */
 public final class PackedIntegration implements Listener, AutoCloseable {
     public enum Delivery {
         DISABLED("Vanilla icons · pack disabled", "This server has disabled custom disc models."),
@@ -56,6 +57,7 @@ public final class PackedIntegration implements Listener, AutoCloseable {
     private static final UUID PACK_UUID = UUID.fromString("454c9909-7092-4e6b-bd65-f799099b1ab1");
     private final NormalDiscGolfPlugin plugin;
     private final DiscCatalog catalog;
+    private final LegacyDiscModels legacyModels;
     private final String packUrl;
     private final boolean enabled;
     private final boolean menuTextures;
@@ -67,6 +69,7 @@ public final class PackedIntegration implements Listener, AutoCloseable {
     public PackedIntegration(NormalDiscGolfPlugin plugin, DiscCatalog catalog) throws IOException {
         this.plugin = plugin;
         this.catalog = catalog;
+        legacyModels = Bukkit.getBukkitVersion().startsWith("1.19.4-") ? new LegacyDiscModels(catalog) : null;
         var config = plugin.getConfig();
         enabled = config.getBoolean("resource-pack.enabled", true);
         menuTextures = config.getBoolean("resource-pack.menu-textures", true);
@@ -144,9 +147,15 @@ public final class PackedIntegration implements Listener, AutoCloseable {
     public void savePack() throws IOException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
-            entry(zip, "pack.mcmeta", "{\"pack\":{\"pack_format\":64,\"description\":\"Normal Disc Golf • Parkland\"}}");
+            entry(zip, "pack.mcmeta", legacyModels != null
+                    ? "{\"pack\":{\"pack_format\":13,\"description\":\"Normal Disc Golf • Parkland\"}}"
+                    : """
+                    {"pack":{"pack_format":64,"supported_formats":[64,97],
+                    "min_format":[64,0],"max_format":[97,1],"description":"Normal Disc Golf • Parkland"}}
+                    """);
             DiscPackModels.write(zip, catalog);
             MenuTextures.write(zip);
+            if (legacyModels != null) legacyModels.write(zip);
         }
         byte[] data = bytes.toByteArray();
         byte[] hash;
@@ -171,8 +180,10 @@ public final class PackedIntegration implements Listener, AutoCloseable {
         zip.closeEntry();
     }
     public byte[] getBytes() { return archive.bytes().clone(); }
+    LegacyDiscModels legacyModels() { return legacyModels; }
     public byte[] getHash() { return archive.hash().clone(); }
     public String getPackUrl() { return packUrl; }
+    public boolean isLocalOnly() { return localOnly; }
     public Delivery delivery(Player player) {
         if (!enabled) return Delivery.DISABLED;
         if (!eligible(player)) return Delivery.LOCAL_ONLY;
@@ -196,26 +207,27 @@ public final class PackedIntegration implements Listener, AutoCloseable {
 
     public boolean send(Player player) {
         if (!delivery(player).canOffer()) return false;
-        player.addResourcePack(PACK_UUID, packUrl, getHash(), "Parkland disc models and colors", required);
+        PackRequest.send(player, PACK_UUID, packUrl, getHash(), "Parkland disc models and colors", required);
         deliveries.put(player.getUniqueId(), Delivery.OFFERED);
         return true;
     }
     @EventHandler public void status(PlayerResourcePackStatusEvent event) {
-        if (!PACK_UUID.equals(event.getID())) return;
+        if (!PackRequest.matches(event, PACK_UUID)) return;
         Player player = event.getPlayer();
         UUID id = player.getUniqueId();
         Delivery previous = deliveries.get(id);
         if (previous == null || !previous.pending() && previous != Delivery.LOADED) return;
-        Delivery next = switch (event.getStatus()) {
-            case ACCEPTED -> Delivery.DOWNLOADING;
-            case DOWNLOADED -> Delivery.APPLYING;
-            case SUCCESSFULLY_LOADED -> Delivery.LOADED;
-            case DECLINED -> Delivery.DECLINED;
-            case FAILED_DOWNLOAD, INVALID_URL -> Delivery.FAILED_DOWNLOAD;
-            case FAILED_RELOAD -> Delivery.FAILED_RELOAD;
-            case DISCARDED -> Delivery.REMOVED;
+        Delivery next = switch (event.getStatus().name()) {
+            case "ACCEPTED" -> Delivery.DOWNLOADING;
+            case "DOWNLOADED" -> Delivery.APPLYING;
+            case "SUCCESSFULLY_LOADED" -> Delivery.LOADED;
+            case "DECLINED" -> Delivery.DECLINED;
+            case "FAILED_DOWNLOAD", "INVALID_URL" -> Delivery.FAILED_DOWNLOAD;
+            case "FAILED_RELOAD" -> Delivery.FAILED_RELOAD;
+            case "DISCARDED" -> Delivery.REMOVED;
+            default -> null;
         };
-        if (previous == next || previous == Delivery.LOADED && next.pending()
+        if (next == null || previous == next || previous == Delivery.LOADED && next.pending()
                 || previous == Delivery.APPLYING && next == Delivery.DOWNLOADING) return;
         deliveries.put(id, next);
         refreshModels(player, previous == Delivery.LOADED || next == Delivery.LOADED);

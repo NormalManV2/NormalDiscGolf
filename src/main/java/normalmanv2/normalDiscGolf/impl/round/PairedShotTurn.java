@@ -47,12 +47,12 @@ final class PairedShotTurn {
 
     Attempt fallback(Location basket) {
         return legalLies().stream().min(Comparator.comparingDouble(attempt -> attempt.lie.distanceSquared(basket)))
-                .orElse(attempts.getFirst());
+                .orElse(attempts.get(0));
     }
 
     Attempt worst(Location basket) {
         for (Attempt attempt : attempts) if (attempt.outcome() == Outcome.HAZARD) return attempt;
         return legalLies().stream().max(Comparator.comparingDouble(attempt -> attempt.lie.distanceSquared(basket)))
-                .orElseGet(attempts::getLast);
+                .orElseGet(() -> attempts.get(attempts.size() - 1));
     }
 }

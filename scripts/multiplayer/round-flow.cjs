@@ -3,6 +3,7 @@ const fs = require('node:fs')
 const assert = require('node:assert/strict')
 const { createHash } = require('node:crypto')
 const { Vec3 } = require('vec3')
+const { attachClientMovementTicks } = require('./parkland-41.cjs')
 const format = process.argv[2] || 'ffa'
 const expectedHoles = Number(process.argv[3] || 18)
 const expectLocalPack = process.argv.includes('--expect-local-pack')
@@ -58,6 +59,8 @@ const carrySurfaces = {
 const trickColors = {flex:0xffff00,tomahawk:0xff00ff,thumber:0xae7aff}
 const tricks = Object.keys(trickColors)
 const port = Number(process.env.NDG_TEST_PORT || 25569)
+const version = process.env.NDG_TEST_VERSION || '1.21.8'
+const legacyPackRequest = version === '1.19.4'
 const bestShot = format === 'best-shot'
 const teamFormat = format === 'doubles' || bestShot
 const names = teamFormat ? ['NDG_Alice','NDG_Bob','NDG_Cara','NDG_Drew'] : ['NDG_Alice','NDG_Bob']
@@ -70,7 +73,8 @@ const until = async (predicate, label, ms=90000) => {
 const command = (bot,text) => bot.chat('/ndg '+text)
 let finished = false
 function connect(name) {
-  const bot=mineflayer.createBot({host:'127.0.0.1',port,username:name,version:'1.21.8',auth:'offline',physicsEnabled:false})
+  const bot=mineflayer.createBot({host:'127.0.0.1',port,username:name,version,auth:'offline',physicsEnabled:false})
+  attachClientMovementTicks(bot)
   const state={messages:[],ready:false,active:false,hole:0,shots:new Map(),completed:false,lock:false,previewFrames:0,maxPreviewPitch:0,aimParticles:0}
   states.set(bot,state);bots.push(bot)
   bot.on('error',error=>{state.error=error.message})
@@ -96,7 +100,7 @@ function connect(name) {
       capture.flight.push(point)
     }
   })
-  if (expectPack) bot._client.on('add_resource_pack', async pack => {
+  if (expectPack) bot._client.on(legacyPackRequest ? 'resource_pack_send' : 'add_resource_pack', async pack => {
     try {
       const url = new URL(pack.url)
       if (configuredPackUrl) assert.equal(url.href, configuredPackUrl, 'pack uses the configured address')
@@ -106,8 +110,9 @@ function connect(name) {
       assert.ok(response.ok, 'pack available over HTTP')
       const bytes = Buffer.from(await response.arrayBuffer())
       assert.equal(createHash('sha1').update(bytes).digest('hex'), pack.hash, 'download matches advertised hash')
-      bot._client.write('resource_pack_receive', {uuid: pack.uuid, result: 3})
-      bot._client.write('resource_pack_receive', {uuid: pack.uuid, result: 0})
+      const packId = legacyPackRequest ? {} : { uuid: pack.uuid }
+      bot._client.write('resource_pack_receive', {...packId, result: 3})
+      bot._client.write('resource_pack_receive', {...packId, result: 0})
       state.packReady = true
     } catch (error) { state.error = error.message }
   })

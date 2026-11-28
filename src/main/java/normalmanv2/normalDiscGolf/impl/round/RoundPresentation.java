@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.round;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.team.Team;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
@@ -60,7 +61,7 @@ public final class RoundPresentation {
         if (world == null || course.isCustom()) return;
         Location destination = teePosition(round, player, world);
         HoleFlyover flyover = impl.play().flyover(world, hole);
-        int ticks = Math.clamp(plugin.getConfig().getInt("preview.seconds", 6), 2, 10) * 20;
+        int ticks = Bounds.clamp(plugin.getConfig().getInt("preview.seconds", 6), 2, 10) * 20;
         GameMode mode = player.getGameMode();
         boolean allowFlight = player.getAllowFlight(), flying = player.isFlying();
         player.setGameMode(GameMode.SPECTATOR);

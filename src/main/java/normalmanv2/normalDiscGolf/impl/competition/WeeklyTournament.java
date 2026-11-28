@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.competition;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.time.DayOfWeek;
@@ -46,11 +47,11 @@ public record WeeklyTournament(Definition definition, Status status, Map<UUID, S
         var date = notBefore.atZone(ZoneOffset.UTC).toLocalDate().with(TemporalAdjusters.nextOrSame(day));
         Instant start = date.atTime(time).toInstant(ZoneOffset.UTC);
         if (start.isBefore(notBefore)) start = date.plusWeeks(1).atTime(time).toInstant(ZoneOffset.UTC);
-        int capacity = Math.clamp(config.getInt(prefix + "max-players", 8), 2, 8);
+        int capacity = Bounds.clamp(config.getInt(prefix + "max-players", 8), 2, 8);
         List<Integer> prizes = config.isList(prefix + "prizes") ? config.getIntegerList(prefix + "prizes") : List.of(100, 60, 30);
-        return new Definition(start, start.minus(Duration.ofHours(Math.clamp(config.getInt(prefix + "signup-hours", 72), 1, 168))),
-                Math.clamp(config.getInt(prefix + "holes", 9), 1, 18),
-                Math.clamp(config.getInt(prefix + "min-players", 2), 2, capacity), capacity,
+        return new Definition(start, start.minus(Duration.ofHours(Bounds.clamp(config.getInt(prefix + "signup-hours", 72), 1, 168))),
+                Bounds.clamp(config.getInt(prefix + "holes", 9), 1, 18),
+                Bounds.clamp(config.getInt(prefix + "min-players", 2), 2, capacity), capacity,
                 prizes.stream().limit(capacity).toList());
     }
 

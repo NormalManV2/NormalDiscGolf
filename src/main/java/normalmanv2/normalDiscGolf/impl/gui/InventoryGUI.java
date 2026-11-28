@@ -17,15 +17,21 @@ import java.util.Map;
 public abstract class InventoryGUI implements InventoryHandler {
 
     private final MenuSkin skin;
+    private final String title;
     private Inventory inventory;
     private boolean textured;
     protected final Map<Integer, Button> buttonMap = new HashMap<>();
 
-    protected InventoryGUI(MenuSkin skin) { this.skin = skin; }
+    protected InventoryGUI(MenuSkin skin) { this(skin, null); }
+
+    protected InventoryGUI(MenuSkin skin, String title) {
+        this.skin = skin;
+        this.title = title;
+    }
 
     public void prepare(Player player) {
         textured = MenuSkin.available(player);
-        inventory = Bukkit.createInventory(null, skin.slots(), skin.title(textured));
+        inventory = Bukkit.createInventory(null, skin.slots(), skin.title(textured, title));
     }
 
     @Override
@@ -62,7 +68,7 @@ public abstract class InventoryGUI implements InventoryHandler {
         refreshForPack(player);
         if (textured || titleChanged) updateItems();
         if (titleChanged && player.getOpenInventory().getTopInventory().equals(inventory))
-            player.getOpenInventory().setTitle(skin.title(textured));
+            player.getOpenInventory().setTitle(skin.title(textured, title));
     }
 
     private void updateItems() {

@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.course.custom;
 
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.BlockDisplay;
@@ -36,7 +37,7 @@ public final class CustomHoleMarkers {
     }
 
     private void label(Location at, String text) {
-        displays.add(at.getWorld().spawn(at, TextDisplay.class, display -> {
+        displays.add(BukkitCompatibility.spawn(at, TextDisplay.class, display -> {
             display.setText(text);
             display.setBillboard(Display.Billboard.CENTER);
             display.setShadowed(true);
@@ -45,7 +46,7 @@ public final class CustomHoleMarkers {
     }
 
     private void block(Location at, Material material, float x, float y, float z, float width, float height, float depth) {
-        displays.add(at.getWorld().spawn(at, BlockDisplay.class, display -> {
+        displays.add(BukkitCompatibility.spawn(at, BlockDisplay.class, display -> {
             display.setBlock(material.createBlockData());
             display.setTransformation(new Transformation(new Vector3f(x, y, z), new Quaternionf(),
                     new Vector3f(width, height, depth), new Quaternionf()));

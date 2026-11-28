@@ -69,22 +69,14 @@ final class DailyCourseCommand {
             player.sendMessage(ChatColor.YELLOW + "Daily ghosts are available while playing the Daily Course.");
             return;
         }
-        if (args.length == 2) {
-            round.ghosts().sendStatus(player);
-            return;
-        }
-        switch (args.length == 3 ? args[2].toLowerCase(Locale.ROOT) : "") {
-            case "on" -> round.ghosts().setVisible(player, true);
-            case "off" -> round.ghosts().setVisible(player, false);
-            case "compare" -> round.ghosts().sendComparison(player, true);
-            default -> player.sendMessage(ChatColor.YELLOW + "Use /ndg daily ghost [on|off|compare].");
-        }
+        round.play().ghosts().command(player, args.length == 2 ? "status"
+                : args.length == 3 ? args[2].toLowerCase(Locale.ROOT) : "");
     }
 
     static List<String> complete(String[] args) {
         if (args.length == 2) return List.of("play", "leaderboard", "ghost");
         if (args.length == 3 && args[1].equalsIgnoreCase("leaderboard")) return List.of("today");
-        if (args.length == 3 && args[1].equalsIgnoreCase("ghost")) return List.of("on", "off", "compare");
+        if (args.length == 3 && args[1].equalsIgnoreCase("ghost")) return List.of("on", "off", "play", "compare");
         return List.of();
     }
 }

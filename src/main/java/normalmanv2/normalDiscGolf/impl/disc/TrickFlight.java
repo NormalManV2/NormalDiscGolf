@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.disc;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.disc.ShotSetup.Angle;
 import normalmanv2.normalDiscGolf.impl.disc.ShotSetup.Stance;
@@ -30,8 +31,8 @@ public final class TrickFlight {
     public Vector aim(Vector direction) {
         double rise = switch (stance) {
             case FLEX -> Math.max(.14, direction.getY());
-            case TOMAHAWK -> Math.clamp(direction.getY(), .64, .91);
-            case THUMBER -> Math.clamp(direction.getY(), .73, .94);
+            case TOMAHAWK -> Bounds.clamp(direction.getY(), .64, .91);
+            case THUMBER -> Bounds.clamp(direction.getY(), .73, .94);
             default -> throw new IllegalStateException("Unsupported trick shot: " + stance);
         };
         double heading = Math.atan2(direction.getZ(), direction.getX());
@@ -56,7 +57,7 @@ public final class TrickFlight {
             double bend = tick <= flexBreak
                     ? -(.034 + .004 * turn)
                     : (.055 + .005 * fade) * Math.min(1, (tick - flexBreak) / 4.0)
-                            * Math.clamp((39 - tick) / 14.0, .2, 1);
+                            * Bounds.clamp((39 - tick) / 14.0, .2, 1);
             motion.rotateAroundY(bendSign * bend);
             return;
         }
@@ -71,6 +72,6 @@ public final class TrickFlight {
     }
 
     public static double releaseControl(int level) {
-        return 1 - .09 * Math.clamp(level - 1, 0, 4);
+        return 1 - .09 * Bounds.clamp(level - 1, 0, 4);
     }
 }

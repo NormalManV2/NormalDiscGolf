@@ -1,5 +1,7 @@
 package normalmanv2.normalDiscGolf.impl.resourcepack;
 
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
+
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
@@ -79,17 +81,17 @@ public final class MenuTextures {
     }
 
     public static ItemStack apply(ItemStack item, boolean textured) {
-        if (item == null) return null;
+        if (item == null || !BukkitCompatibility.hasItemModels()) return item;
         Icon icon = ICONS.get(item.getType());
         if (icon == null) return item;
         var meta = item.getItemMeta();
         if (meta == null) return item;
-        NamespacedKey current = meta.getItemModel();
+        NamespacedKey current = BukkitCompatibility.itemModel(meta);
         boolean menuIcon = current != null && "ndg".equals(current.getNamespace()) && current.getKey().startsWith(MODEL_PATH);
         if (current != null && !menuIcon) return item;
         NamespacedKey model = textured ? icon.key : null;
         if (java.util.Objects.equals(current, model)) return item;
-        meta.setItemModel(model);
+        BukkitCompatibility.itemModel(meta, model);
         ItemStack updated = item.clone();
         updated.setItemMeta(meta);
         return updated;

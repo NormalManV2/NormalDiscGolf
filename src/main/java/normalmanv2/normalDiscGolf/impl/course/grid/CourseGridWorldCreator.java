@@ -13,6 +13,7 @@ import org.bukkit.generator.WorldInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import java.util.List;
+import java.util.Objects;
 
 public class CourseGridWorldCreator extends WorldCreator {
 
@@ -26,7 +27,8 @@ public class CourseGridWorldCreator extends WorldCreator {
         seed(course.grid().seed());
         if (course.grid().isThemed()) {
             if (course.grid().terrain() == CourseTerrain.NETHER) environment(World.Environment.NETHER);
-            Biome biome = Registry.BIOME.getOrThrow(NamespacedKey.minecraft(course.grid().terrain().biome()));
+            var biomeKey = NamespacedKey.minecraft(course.grid().terrain().biome());
+            Biome biome = Objects.requireNonNull(Registry.BIOME.get(biomeKey), () -> "Missing biome " + biomeKey);
             biomeProvider(new BiomeProvider() {
                 @Override public Biome getBiome(WorldInfo world, int x, int y, int z) { return biome; }
                 @Override public List<Biome> getBiomes(WorldInfo world) { return List.of(biome); }

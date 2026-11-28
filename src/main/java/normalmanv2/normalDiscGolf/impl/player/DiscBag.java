@@ -71,7 +71,7 @@ public record DiscBag(long credits, Set<DiscModel> unlocked, List<DiscModel> pac
         if (!packed.contains(model)) throw new IllegalArgumentException("Disc must be packed");
         var next = new ArrayList<>(packed);
         next.remove(model);
-        next.addFirst(model);
+        next.add(0, model);
         return new DiscBag(credits, unlocked, next, capacity);
     }
 

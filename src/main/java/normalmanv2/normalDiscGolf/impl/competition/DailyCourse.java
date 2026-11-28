@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.competition;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGenerationSettings;
@@ -34,7 +35,7 @@ public final class DailyCourse extends CourseImpl {
 
     public static Definition createDefinition(LocalDate date, ConfigurationSection config) {
         long seed = new Random(date.toEpochDay() ^ 0x534336fd727b297aL).nextLong();
-        return new Definition(date, seed, Math.clamp(config.getInt("daily-course.holes", 6), 1, 18),
+        return new Definition(date, seed, Bounds.clamp(config.getInt("daily-course.holes", 6), 1, 18),
                 CourseGenerationSettings.read(config, seed), config.getBoolean("flight.wind", true),
                 Math.max(3, config.getInt("max-strokes-per-hole", 12)));
     }

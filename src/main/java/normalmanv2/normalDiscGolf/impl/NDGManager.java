@@ -8,6 +8,9 @@ import normalmanv2.normalDiscGolf.impl.competition.DailyCompetition;
 import normalmanv2.normalDiscGolf.impl.competition.RankedSeasons;
 import normalmanv2.normalDiscGolf.impl.competition.WeeklyTournaments;
 import normalmanv2.normalDiscGolf.impl.course.custom.CustomCourseStore;
+import normalmanv2.normalDiscGolf.impl.course.library.CourseLibraryStore;
+import normalmanv2.normalDiscGolf.impl.course.library.CourseRecords;
+import normalmanv2.normalDiscGolf.impl.course.library.FileCourseLibraryStore;
 import normalmanv2.normalDiscGolf.impl.course.difficulty.CourseDifficulty;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.ObstacleImpl;
 import normalmanv2.normalDiscGolf.impl.disc.DiscModel;
@@ -30,7 +33,7 @@ import normalmanv2.normalDiscGolf.impl.manager.round.queue.RoundQueueManager;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.normal.impl.registry.RegistryImpl;
+import normalmanv2.normalDiscGolf.impl.registry.GameRegistry;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -44,18 +47,20 @@ public class NDGManager {
     private final DiscRegistry discRegistry = new DiscRegistry();
     private final DiscCatalog discCatalog;
     private final CustomCourseStore customCourses;
+    private final CourseLibraryStore courseLibrary;
+    private final CourseRecords courseRecords;
     private final DailyCompetition dailyCompetition;
     private final Clubhouse clubhouse;
     private final RankedSeasons rankedSeasons;
     private final WeeklyTournaments weeklyTournaments;
     private final ThrowTechniqueRegistry throwTechniqueRegistry = new ThrowTechniqueRegistry();
     private final InviteService inviteService = new InviteService();
-    private final RegistryImpl<String, ObstacleImpl> obstacleRegistry;
+    private final GameRegistry<String, ObstacleImpl> obstacleRegistry;
     private final FileManager fileManager;
     private final ObstacleManager obstacleManager;
     private final GuiManager guiManager = new GuiManager();
     private final RoundQueueManager roundQueueManager;
-    private final RegistryImpl<Division, CourseDifficulty> divisionCourseRegistry = new CourseDivisionRegistry();
+    private final GameRegistry<Division, CourseDifficulty> divisionCourseRegistry = new CourseDivisionRegistry();
     private final PartyManager partyManager = new PartyManager();
     private PackedIntegration packed;
     private final NormalDiscGolfPlugin plugin;
@@ -67,13 +72,15 @@ public class NDGManager {
         this.plugin = NormalDiscGolfPlugin.getPlugin(NormalDiscGolfPlugin.class);
         this.discCatalog = DiscCatalog.load(plugin.getDataFolder().toPath().resolve("custom-discs"), plugin.getLogger());
         this.customCourses = new CustomCourseStore(plugin.getDataFolder().toPath().resolve("custom-courses"), plugin.getLogger());
+        this.courseLibrary = new FileCourseLibraryStore(plugin.getDataFolder().toPath().resolve("course-library"), plugin.getLogger());
+        this.courseRecords = new CourseRecords(plugin.getDataFolder().toPath().resolve("course-library").resolve("records"));
         this.dailyCompetition = new DailyCompetition(plugin.getDataFolder().toPath().resolve("daily-courses"),
                 plugin::getConfig, java.time.Clock.systemUTC());
         this.clubhouse = new Clubhouse(plugin);
         this.playerDataManager = new PlayerDataManager(new PlayerProfileStore(this.plugin, discCatalog));
         this.rankedSeasons = new RankedSeasons(plugin, this.playerDataManager, java.time.Clock.systemUTC());
         this.obstacleRegistry = Bukkit.getPluginManager().isPluginEnabled("WorldEdit")
-                ? new ObstacleRegistry() : new RegistryImpl<>();
+                ? new ObstacleRegistry() : new GameRegistry<>();
         this.fileManager = new FileManager(plugin);
         this.obstacleManager = new ObstacleManager(this.fileManager);
         this.roundHandler = new RoundHandler(plugin);
@@ -115,7 +122,7 @@ public class NDGManager {
         return new CourseCreator();
     }
 
-    public RegistryImpl<Division, CourseDifficulty> getDivisionCourseRegistry() {
+    public GameRegistry<Division, CourseDifficulty> getDivisionCourseRegistry() {
         return this.divisionCourseRegistry;
     }
 
@@ -141,6 +148,8 @@ public class NDGManager {
 
     public DiscCatalog getDiscCatalog() { return discCatalog; }
     public CustomCourseStore getCustomCourses() { return customCourses; }
+    public CourseLibraryStore getCourseLibrary() { return courseLibrary; }
+    public CourseRecords getCourseRecords() { return courseRecords; }
     public DailyCompetition getDailyCompetition() { return dailyCompetition; }
     public Clubhouse getClubhouse() { return clubhouse; }
     public RankedSeasons getRankedSeasons() { return rankedSeasons; }
@@ -150,7 +159,7 @@ public class NDGManager {
         return this.inviteService;
     }
 
-    public RegistryImpl<String, ObstacleImpl> getObstacleRegistry() {
+    public GameRegistry<String, ObstacleImpl> getObstacleRegistry() {
         return this.obstacleRegistry;
     }
 

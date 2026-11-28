@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.technique;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.disc.DiscModel;
 import normalmanv2.normalDiscGolf.impl.disc.DiscTrajectory;
@@ -52,7 +53,7 @@ public abstract class ThrowTechnique {
     }
 
     private static double smoothRamp(double value, double start, double end) {
-        double progress = Math.clamp((value - start) / (end - start), 0, 1);
+        double progress = Bounds.clamp((value - start) / (end - start), 0, 1);
         return progress * progress * (3 - 2 * progress);
     }
 

@@ -52,7 +52,10 @@ public final class ServerSmokeChecks extends JavaPlugin {
         Bukkit.getScheduler().runTaskLater(this, () -> {
             try { verify(); getLogger().info("NDG_SMOKE_PASS"); }
             catch(Throwable failure) { getLogger().log(java.util.logging.Level.SEVERE,"NDG_SMOKE_FAIL",failure); }
-            finally { Bukkit.shutdown(); }
+            finally {
+                // Let Paper finish the long verification tick before asking it to stop.
+                Bukkit.getScheduler().runTaskLater(this, Bukkit::shutdown, 2);
+            }
         }, 40);
     }
     private void verify() throws Exception {

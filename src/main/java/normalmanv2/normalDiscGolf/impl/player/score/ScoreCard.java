@@ -61,6 +61,7 @@ public class ScoreCard {
     public int getBestBasketStreak() { return bestBasketStreak; }
     public void recordParticipation(UUID player) { participants.add(player); }
     public boolean participated(UUID player) { return participants.contains(player); }
+    public boolean completedBy(UUID player, int holes) { return baskets.size() == holes && participated(player); }
 
     public void trackStroke() {
         this.currentStrokes++;

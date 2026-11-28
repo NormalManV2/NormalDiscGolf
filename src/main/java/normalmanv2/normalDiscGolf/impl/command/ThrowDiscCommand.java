@@ -73,7 +73,7 @@ public class ThrowDiscCommand extends AbstractCommand {
         DiscModel model = NDGManager.getInstance().getDiscCatalog().find(requested);
         if (type != null) model = packed.stream().filter(disc -> disc.type() == type).findFirst().orElse(null);
         if (requested.isEmpty() && !packed.isEmpty()) {
-            model = held != null && packed.contains(held) ? held : packed.getFirst();
+            model = held != null && packed.contains(held) ? held : packed.get(0);
         }
         if (special != null) model = special.model();
         else if (model == null || !packed.contains(model)) {

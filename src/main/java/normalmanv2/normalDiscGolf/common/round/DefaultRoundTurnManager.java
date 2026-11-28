@@ -114,7 +114,8 @@ public class DefaultRoundTurnManager implements DelegateRoundTurnManager, Wirabl
                     NDGManager.getInstance().getRoundHandler().endRound(round);
                     return;
                 }
-                UUID winner = match.score().holes().getLast().winner();
+                var played = match.score().holes();
+                UUID winner = played.get(played.size() - 1).winner();
                 if (winner != null) teeOpener = teams.stream().filter(team -> team.contains(winner)).findFirst().orElse(teeOpener);
             }
             this.advanceHole();

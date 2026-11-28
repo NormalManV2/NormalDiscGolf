@@ -28,7 +28,7 @@ public enum WoodlandHole {
 
     public String hint(List<GridPoint> route) {
         if (this != FERNBEND) return hint;
-        GridPoint tee = route.getFirst(), bend = route.get(1), basket = route.getLast();
+        GridPoint tee = route.get(0), bend = route.get(1), basket = route.get(route.size() - 1);
         int turn = (bend.x() - tee.x()) * (basket.z() - bend.z())
                 - (bend.z() - tee.z()) * (basket.x() - bend.x());
         return hint.formatted(turn > 0 ? "right" : "left");

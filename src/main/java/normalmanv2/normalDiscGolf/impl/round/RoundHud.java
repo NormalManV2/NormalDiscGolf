@@ -107,7 +107,7 @@ public final class RoundHud {
                     "§aHole " + (round.getCurrentHole() + 1) + " / " + round.getCourse().holes(),
                     (single == null ? "§fPar " + round.getCourse().holePars().get(round.getCurrentHole()) : "§fOne throw")
                             + (textured ? " §f• " : " §7• ") + Math.round(distance) + " blocks"
-                            + (round instanceof DailyRound daily ? daily.ghosts().target(id, round.getCurrentHole()) : ""),
+                            + (round.play().ghosts() == null ? "" : round.play().ghosts().target(id, round.getCurrentHole())),
                     single != null ? "§fAttempt: " + single.holeResult(team)
                             : "§fStrokes: " + (scored != null ? scored + " (in)" : card == null ? "0" : String.valueOf(card.getCurrentStrokes())),
                     closest != null ? "§6Total: " + closest.total(team).label()

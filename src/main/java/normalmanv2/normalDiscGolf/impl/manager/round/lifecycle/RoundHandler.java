@@ -29,6 +29,7 @@ import normalmanv2.normalDiscGolf.impl.round.FFARound;
 import normalmanv2.normalDiscGolf.impl.round.MatchPlayRound;
 import normalmanv2.normalDiscGolf.impl.round.RoundFormat;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
+import normalmanv2.normalDiscGolf.impl.util.BukkitCompatibility;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.World;
@@ -38,6 +39,11 @@ import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 
 public class RoundHandler {
@@ -54,7 +60,8 @@ public class RoundHandler {
     private final Map<GameRound, BossBar> preparationBars;
     private final NormalDiscGolfPlugin plugin;
     private BukkitTask queueTask;
-    private final Set<String> ownedWorlds = new HashSet<>();
+    private record GeneratedWorld(UUID id, Path directory) {}
+    private final Map<String, GeneratedWorld> ownedWorlds = new HashMap<>();
 
     public RoundHandler(NormalDiscGolfPlugin normalDiscGolfPlugin) {
         this.activeRounds = new HashSet<>();
@@ -102,7 +109,7 @@ public class RoundHandler {
         if (round.getCourse() instanceof CustomCourse course) {
             List<String> errors = course.validate();
             if (!errors.isEmpty()) {
-                this.sendRoundMessage(round, ChatColor.RED + "Custom course could not start. " + errors.getFirst());
+                this.sendRoundMessage(round, ChatColor.RED + "Custom course could not start. " + errors.get(0));
                 discardRound(round);
                 return;
             }
@@ -200,19 +207,36 @@ public class RoundHandler {
             case MATCH -> new MatchPlayRound(course, courseName, settings);
         };
 
+        return prepareOnQueue(round);
+    }
+
+    public GameRound createQueuedSetupTest(CourseImpl course, String courseName, DefaultRoundSettings settings) {
+        return prepareOnQueue(new normalmanv2.normalDiscGolf.impl.round.SetupTestRound(course, courseName, settings));
+    }
+
+    private GameRound prepareOnQueue(GameRound round) {
         round.wire(round, this.plugin);
         this.roundsRequiringPreparation.add(round);
         return round;
     }
 
     private World createCourseWorld(CourseImpl course, String courseName, Division division) {
-        boolean fresh = !new java.io.File(Bukkit.getWorldContainer(), courseName).exists();
+        Path directory = BukkitCompatibility.generatedWorldDirectory(courseName).toAbsolutePath().normalize();
+        Path legacyDirectory = Bukkit.getWorldContainer().toPath().resolve(courseName);
+        boolean fresh = courseName.startsWith("ndg_") && Bukkit.getWorld(courseName) == null
+                && Files.notExists(directory, LinkOption.NOFOLLOW_LINKS)
+                && Files.notExists(legacyDirectory, LinkOption.NOFOLLOW_LINKS);
         World world = Bukkit.createWorld(new CourseGridWorldCreator(courseName, course, division));
         if (world == null) throw new IllegalStateException("World " + courseName + " could not be created");
-        if (fresh && courseName.startsWith("ndg_")) {
-            ownedWorlds.add(courseName);
-            try { java.nio.file.Files.writeString(world.getWorldFolder().toPath().resolve(".ndg-generated"), courseName); }
-            catch (java.io.IOException exception) { plugin.getLogger().warning("Could not mark generated world: " + exception.getMessage()); }
+        if (fresh && world.getWorldFolder().toPath().toAbsolutePath().normalize().equals(directory)) {
+            ownedWorlds.put(courseName, new GeneratedWorld(world.getUID(), directory));
+            try {
+                if (directory.equals(directory.toRealPath())) {
+                    Files.writeString(directory.resolve(".ndg-generated"), courseName, StandardOpenOption.CREATE_NEW);
+                }
+            } catch (IOException exception) {
+                plugin.getLogger().warning("Could not mark generated world: " + exception.getMessage());
+            }
         }
         world.setGameRule(org.bukkit.GameRule.DO_DAYLIGHT_CYCLE, false);
         world.setGameRule(org.bukkit.GameRule.DO_WEATHER_CYCLE, false);
@@ -435,7 +459,7 @@ public class RoundHandler {
     }
 
     public boolean isCourseWorld(World world) {
-        return ownedWorlds.contains(world.getName()) || this.activeRounds.stream().anyMatch(r -> r.getId().equals(world.getName()));
+        return ownedWorlds.containsKey(world.getName()) || this.activeRounds.stream().anyMatch(r -> r.getId().equals(world.getName()));
     }
 
     public void leavePlayer(Player player) {
@@ -475,11 +499,12 @@ public class RoundHandler {
     }
 
     private void releaseWorld(String name) {
-        if (!ownedWorlds.contains(name)) return;
-        World world = Bukkit.getWorld(name);
+        GeneratedWorld generated = ownedWorlds.get(name);
+        if (generated == null) return;
+        World world = Bukkit.getWorld(generated.id());
         if (world != null) {
             world.removePluginChunkTickets(plugin);
-            World lobby = Bukkit.getWorlds().stream().filter(w -> !ownedWorlds.contains(w.getName())).findFirst().orElse(null);
+            World lobby = Bukkit.getWorlds().stream().filter(w -> !ownedWorlds.containsKey(w.getName())).findFirst().orElse(null);
             for (Player player : new ArrayList<>(world.getPlayers())) {
                 NDGManager.getInstance().getPlayerSessionManager().restorePlayer(player);
                 if (player.getWorld() == world && lobby != null) player.teleport(lobby.getSpawnLocation());
@@ -490,17 +515,17 @@ public class RoundHandler {
             }
         }
         try {
-            java.nio.file.Path container = Bukkit.getWorldContainer().toPath().toRealPath();
-            java.nio.file.Path directory = container.resolve(name).normalize();
-            // Only this process's marked, direct-child generated worlds may be deleted.
-            if (!directory.getParent().equals(container) || java.nio.file.Files.isSymbolicLink(directory)) return;
-            java.nio.file.Path marker = directory.resolve(".ndg-generated");
-            if (!java.nio.file.Files.isRegularFile(marker) || !java.nio.file.Files.readString(marker).equals(name)) return;
-            try (var paths = java.nio.file.Files.walk(directory)) {
-                for (var file : paths.sorted(java.util.Comparator.reverseOrder()).toList()) java.nio.file.Files.delete(file);
+            Path directory = generated.directory();
+            Path marker = directory.resolve(".ndg-generated");
+            // Delete only a directory created and marked by this plugin instance.
+            if (Files.isRegularFile(marker, LinkOption.NOFOLLOW_LINKS) && directory.equals(directory.toRealPath())
+                    && Files.readString(marker).equals(name)) {
+                try (var paths = Files.walk(directory)) {
+                    for (Path file : paths.sorted(Comparator.reverseOrder()).toList()) Files.delete(file);
+                }
             }
             ownedWorlds.remove(name);
-        } catch (java.io.IOException exception) {
+        } catch (IOException exception) {
             plugin.getLogger().warning("Could not remove generated course " + name + ": " + exception.getMessage());
         }
     }
@@ -552,6 +577,6 @@ public class RoundHandler {
         this.startWhenPrepared.clear();
         this.roundsRequiringPreparation.clear();
         this.preparedRounds.clear();
-        for (String name : new HashSet<>(ownedWorlds)) releaseWorld(name);
+        for (String name : new HashSet<>(ownedWorlds.keySet())) releaseWorld(name);
     }
 }

@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.course.grid;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid.GridPoint;
 import normalmanv2.normalDiscGolf.impl.course.grid.WoodlandHole.Landmark;
 import normalmanv2.normalDiscGolf.impl.course.grid.WoodlandHole.LandmarkType;
@@ -28,8 +29,8 @@ final class ThemedCourse {
                 List<GridPoint> guards, List<Pool> pools, int teeY, int basketY, double width, int par,
                 WoodlandHole woodlandHole, List<Landmark> landmarks, TerrainShowcase showcase,
                 CanyonArch arch, List<SkyIsland> islands) {
-        GridPoint tee() { return route.getFirst(); }
-        GridPoint basket() { return route.getLast(); }
+        GridPoint tee() { return route.get(0); }
+        GridPoint basket() { return route.get(route.size() - 1); }
         double distance(double x, double z) {
             return Math.min(routeDistance(route, x, z), routeDistance(alternative, x, z));
         }
@@ -158,7 +159,7 @@ final class ThemedCourse {
             }
             if (random.nextDouble() < hazard && !straightShowcase) {
                 int pocketZ = woodlandHole == null ? z0 + drift / 2 - side * (17 + random.nextInt(6))
-                        : Math.clamp(z0 - side * ((int)Math.ceil(lane) + 24), 17, CELL - 17);
+                        : Bounds.clamp(z0 - side * ((int)Math.ceil(lane) + 24), 17, CELL - 17);
                 var pocket = orient(index, orientation, x0 + length / 2, pocketZ);
                 double radius = 5 + hazard * 9;
                 if (landmarks.stream().noneMatch(landmark -> squared(landmark.position(), pocket.x(), pocket.z())
@@ -177,7 +178,7 @@ final class ThemedCourse {
         int base = settings.terrain().altitude;
         int teeY = base + (int)Math.round(noise(tee.x(), tee.z()) * elevation * .45);
         int difference = (int)Math.round((random.nextDouble() - .5) * elevation * 1.25);
-        if (shortLayout) difference = Math.clamp(difference, -7, 7);
+        if (shortLayout) difference = Bounds.clamp(difference, -7, 7);
         else if (archetype == HoleArchetype.CLIFFSIDE && elevation > 0) difference += side * (elevation / 4);
         if (archetype == HoleArchetype.ELEVATED_BASKET) difference = Math.max(4, Math.abs(difference) / 2 + 4);
         int basketY = teeY + difference;
@@ -303,7 +304,7 @@ final class ThemedCourse {
         if (arch != null) return new GridPoint(arch.center().x(), arch.spring() + arch.rise() / 2, arch.center().z());
         var marks = terrainLandmarks.get(index);
         if (marks.isEmpty()) return null;
-        var mark = marks.getFirst();
+        var mark = marks.get(0);
         return new GridPoint(mark.base().x(), mark.base().y() + mark.height() * 2 / 3, mark.base().z());
     }
 
@@ -321,7 +322,7 @@ final class ThemedCourse {
         switch (hole) {
             case CATHEDRAL_RUN -> {
                 for (int flank : new int[]{-1, 1}) for (int at : new int[]{3, 7}) {
-                    int distance = Math.clamp(length * at / 10 + random.nextInt(-2, 3), 15, length - 15);
+                    int distance = Bounds.clamp(length * at / 10 + random.nextInt(-2, 3), 15, length - 15);
                     var point = orient(index, orientation, x + distance,
                             z + flank * (setback + random.nextInt(2)));
                     result.add(new Landmark(LandmarkType.OLD_GROWTH_PINE, point, random.nextInt(9, 13)));
@@ -424,7 +425,7 @@ final class ThemedCourse {
 
         int y = surfaceHeight(hole, x, z, route, local);
         int depth = terrain == CourseTerrain.SKY
-                ? Math.clamp((int)Math.round((mass - route) * .77), 4, 20)
+                ? Bounds.clamp((int)Math.round((mass - route) * .77), 4, 20)
                 : terrain == CourseTerrain.MOUNTAIN ? 32 : 16;
         boolean pin = hole != null && squared(hole.basket(), x, z) < 24;
         TileTypes type = !inBounds ? TileTypes.OUT_OF_BOUNDS : pin ? TileTypes.PIN
@@ -456,18 +457,18 @@ final class ThemedCourse {
         double tee = squared(hole.tee(), x, z), pin = squared(hole.basket(), x, z);
         if (tee <= 49) return hole.teeY();
         if (pin <= 49) return hole.basketY();
-        double factor = Math.clamp((route - hole.width() * .65) / 15, 0, 1);
+        double factor = Bounds.clamp((route - hole.width() * .65) / 15, 0, 1);
         double headingX = hole.basket().x() - hole.tee().x(), headingZ = hole.basket().z() - hole.tee().z();
         double projection = ((x - hole.tee().x()) * headingX + (z - hole.tee().z()) * headingZ)
                 / (headingX * headingX + headingZ * headingZ);
-        double t = Math.clamp((projection - .12) / .76, 0, 1);
+        double t = Bounds.clamp((projection - .12) / .76, 0, 1);
         double height = hole.teeY() + (hole.basketY() - hole.teeY()) * t;
         height += factor * (rough - height);
         if (hole.archetype() == HoleArchetype.CLIFFSIDE && route > hole.width()
                 && (x - hole.tee().x()) * headingZ - (z - hole.tee().z()) * headingX < 0)
             height -= Math.min(1, (route - hole.width()) / 11) * (settings.elevation() * .50);
         if (hole.showcase() == TerrainShowcase.PAINTED_RIM || hole.showcase() == TerrainShowcase.SPLIT_MESA) {
-            double rim = Math.clamp((route - hole.width() - 2 + local * 2) / 15, 0, 1);
+            double rim = Bounds.clamp((route - hole.width() - 2 + local * 2) / 15, 0, 1);
             height += Math.floor(rim * 5) * settings.elevation() * .26;
         }
         if (terrain == CourseTerrain.ISLAND) height = Math.max(waterline + 1, height);
@@ -498,7 +499,7 @@ final class ThemedCourse {
                 + settings.obstacleDensity() * 21 + hole.pools().size() * 5
                 - (hole.alternative().isEmpty() ? 0 : 4)
                 + (settings.terrain() == CourseTerrain.SKY || settings.terrain() == CourseTerrain.ISLAND ? 8 : 0)).average().orElse(0);
-        return Math.clamp((int)Math.round(mean), 1, 100);
+        return Bounds.clamp((int)Math.round(mean), 1, 100);
     }
 
     private static GridPoint interpolate(GridPoint a, GridPoint b, double t) {

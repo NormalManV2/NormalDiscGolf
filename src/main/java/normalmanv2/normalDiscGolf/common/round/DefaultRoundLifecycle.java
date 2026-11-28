@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.common.round;
 
+import normalmanv2.normalDiscGolf.impl.course.library.SavedCourse;
 import normalmanv2.normalDiscGolf.api.round.GameRound;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundLifecycle;
 import normalmanv2.normalDiscGolf.api.round.lifecycle.RoundResult;
@@ -27,6 +28,7 @@ import normalmanv2.normalDiscGolf.impl.round.CompetitionRound;
 import normalmanv2.normalDiscGolf.impl.round.WeeklyTournamentRound;
 import normalmanv2.normalDiscGolf.impl.round.RoundFormat;
 import normalmanv2.normalDiscGolf.impl.round.RoundState;
+import normalmanv2.normalDiscGolf.impl.round.SetupTestRound;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.World;
@@ -34,6 +36,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -44,6 +47,7 @@ import java.util.StringJoiner;
 import java.util.UUID;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.logging.Level;
 
 public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
     private boolean started = false;
@@ -162,15 +166,32 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
             sendRoundMessage(ChatColor.AQUA + daily.definition().description());
             sendRoundMessage(ChatColor.GRAY + "Everyone uses starter discs and the same skill bonuses. Hole out on every hole to post a daily score.");
             try {
-                daily.ghosts().loadBaselines(NDGManager.getInstance().getDailyCompetition());
-            } catch (java.io.IOException failure) {
-                plugin.getLogger().log(java.util.logging.Level.WARNING, "Could not load Daily ghost baselines", failure);
+                var ghosts = daily.play().enableGhosts("Daily", "/ndg daily ghost");
+                var competition = NDGManager.getInstance().getDailyCompetition();
+                var board = competition.board(daily.definition().date());
+                if (board != null && board.course().equals(daily.definition()))
+                    ghosts.loadBaselines(board.entries(), entry -> competition.ghost(board, entry.player()));
+            } catch (IOException failure) {
+                plugin.getLogger().log(Level.WARNING, "Could not load Daily ghost baselines", failure);
             }
         } else if (this.round instanceof WeeklyTournamentRound weekly) {
             sendRoundMessage(ChatColor.GOLD + "Weekly tournament is live. " + weekly.event().date() + " UTC.");
             sendRoundMessage(ChatColor.GRAY + "Everyone uses starter discs and the same skill bonuses. Hole out on every hole to place.");
         } else if (this.round.getCourse() instanceof normalmanv2.normalDiscGolf.impl.course.CourseImpl course)
             sendRoundMessage(ChatColor.AQUA + course.generationInfo());
+        if (round instanceof SetupTestRound)
+            sendRoundMessage(ChatColor.AQUA + "Setup test round • One hole • Practice only");
+        if (this.round instanceof RoundImpl live && live.getCourse().isLibraryReplay()
+                && RoundFormat.of(live) == RoundFormat.FFA) {
+            var ghosts = live.play().enableGhosts("Course", "/ndg library ghost");
+            var records = NDGManager.getInstance().getCourseRecords();
+            var course = live.getCourse().libraryCourse();
+            try {
+                ghosts.loadBaselines(records.scores(course), entry -> records.ghost(course, entry));
+            } catch (IOException failure) {
+                plugin.getLogger().log(Level.WARNING, "Could not load saved-layout records", failure);
+            }
+        }
         if (this.round instanceof RoundImpl liveRound && !(liveRound instanceof CompetitionRound) && liveRound.play().normalizesCareerSkills())
             sendRoundMessage(ChatColor.GRAY + "Career XP is active. Every player uses the same skill bonuses in this rated format.");
         ((normalmanv2.normalDiscGolf.impl.round.RoundImpl)this.round).play().startHole();
@@ -196,6 +217,8 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
             this.sendRoundResults();
             this.sendRoundSummaries();
             if (round instanceof DailyRound daily) publishDailyResults(daily);
+            if (round instanceof RoundImpl live && live.getCourse().isLibraryReplay() && live.play().ghosts() != null)
+                publishCourseRecords(live);
             if (round instanceof WeeklyTournamentRound weekly) NDGManager.getInstance().getWeeklyTournaments().finish(weekly);
         } finally {
             this.restoreRoundPlayers();
@@ -205,7 +228,7 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
     }
 
     private void applyRoundRewards() {
-        if (round instanceof WeeklyTournamentRound) return;
+        if (round instanceof WeeklyTournamentRound || round instanceof SetupTestRound) return;
         int creditsPerBasket = Math.max(0, plugin.getConfig().getInt("disc-shop.credits-per-basket", 10));
         if (round instanceof MatchPlayRound match) {
             payMatchBaskets(match, creditsPerBasket);
@@ -216,7 +239,7 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
             return;
         }
         if (round instanceof SingleThrowRound || round instanceof ArcadeRound || round instanceof DailyRound
-                || round instanceof RoundImpl impl && impl.getCourse().isCustom()) {
+                || round instanceof RoundImpl impl && (impl.getCourse().isCustom() || impl.getCourse().isLibraryReplay())) {
             for (Team team : round.getTeams())
                 payBasketCredits(team.getOwner(), round.getScoreCardByTeam(team).getHoledOutCount(), creditsPerBasket);
             return;
@@ -278,7 +301,7 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
             UUID id = team.getOwner();
             ScoreCard card = daily.getScoreCardByTeam(team);
             Player player = Bukkit.getPlayer(id);
-            if (player != null) daily.ghosts().sendComparison(player, false);
+            if (player != null) daily.play().ghosts().sendComparison(player, false);
             if (daily.eligible(card, id)) {
                 attempts.add(new StrokeStandings.Entry(id, formatPlayerName(id), card.getTotalStrokes(), card.getTotalScore()));
             } else {
@@ -295,7 +318,7 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
                 UUID id = attempt.player();
                 finished.add(id);
                 if (updated.entries().get(id).strokes() != attempt.strokes()) continue;
-                var ghost = daily.ghosts().completed(id, daily.getScoreCardById(id));
+                var ghost = daily.play().ghosts().completed(id, daily.getScoreCardById(id));
                 if (ghost == null) continue;
                 Player player = Bukkit.getPlayer(id);
                 try {
@@ -316,6 +339,52 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
         } catch (java.io.IOException failure) {
             plugin.getLogger().log(java.util.logging.Level.WARNING, "Could not save daily scores", failure);
             sendRoundMessage(ChatColor.RED + "Your round finished. The Daily Course leaderboard could not save the scores.");
+        }
+    }
+
+    private void publishCourseRecords(RoundImpl live) {
+        var course = live.getCourse().libraryCourse();
+        var ghosts = live.play().ghosts();
+        var attempts = new ArrayList<StrokeStandings.Entry>();
+        for (var team : live.getTeams()) {
+            UUID id = team.getOwner();
+            Player player = Bukkit.getPlayer(id);
+            var card = live.getScoreCardByTeam(team);
+            if (player != null) ghosts.sendComparison(player, false);
+            if (card != null && card.completedBy(id, course.holes())) {
+                attempts.add(new StrokeStandings.Entry(id, formatPlayerName(id), card.getTotalStrokes(), card.getTotalScore()));
+            } else if (player != null) {
+                player.sendMessage(ChatColor.YELLOW + "Hole out on every hole to post a course record.");
+            }
+        }
+        if (attempts.isEmpty()) return;
+
+        var records = NDGManager.getInstance().getCourseRecords();
+        try {
+            var updated = records.submit(course, attempts);
+            for (var attempt : attempts) {
+                UUID id = attempt.player();
+                var best = updated.best().get(id);
+                Player player = Bukkit.getPlayer(id);
+                if (player != null) {
+                    player.sendMessage(ChatColor.AQUA + (updated.improved().contains(id) ? "New course best: " : "Your course best: ")
+                            + best.score());
+                }
+                if (best.strokes() != attempt.strokes()) continue;
+                var ghost = ghosts.completed(id, live.getScoreCardById(id));
+                if (ghost == null) continue;
+                try {
+                    if (records.saveGhost(course, best, ghost) && player != null)
+                        player.sendMessage(ChatColor.AQUA + "Course ghost saved. Use /ndg library ghost play in your next round.");
+                } catch (IOException failure) {
+                    plugin.getLogger().log(Level.WARNING, "Could not save course ghost for " + id, failure);
+                    if (player != null)
+                        player.sendMessage(ChatColor.YELLOW + "Your course best was saved. The ghost could not be saved.");
+                }
+            }
+        } catch (IOException failure) {
+            plugin.getLogger().log(Level.WARNING, "Could not save layout records", failure);
+            sendRoundMessage(ChatColor.RED + "Your round finished. The course records could not be saved.");
         }
     }
 
@@ -464,13 +533,15 @@ public class DefaultRoundLifecycle implements DelegateRoundLifecycle {
         if (!(round instanceof RoundImpl active)) return;
         RoundFormat format = RoundFormat.of(active);
         var course = active.getCourse();
-        String label = (format == null ? "Disc Golf" : format.label()) + " | "
+        var savedCourse = round instanceof SetupTestRound ? null : SavedCourse.capture(course, format);
+        String label = (round instanceof SetupTestRound ? "Setup Test" : format == null ? "Disc Golf" : format.label()) + " | "
                 + (course.isCustom() ? course.name() : course.grid().terrain().label());
         Set<UUID> recipients = new HashSet<>();
         if (round instanceof EliminationRound elimination) recipients.addAll(elimination.entrants());
         else for (Team team : round.getTeams()) recipients.addAll(team.getTeamMembers());
         for (UUID id : recipients) {
-            var summary = new RoundSummary(label, summaryScore(active, id), active.play().analytics(id), !course.isCustom());
+            var summary = new RoundSummary(label, summaryScore(active, id), active.play().analytics(id),
+                    !course.isCustom(), savedCourse);
             active.getPlayerDataManager().getOrCreatePlayerData(id).setLatestRoundSummary(summary);
             Player player = Bukkit.getPlayer(id);
             if (player != null) {

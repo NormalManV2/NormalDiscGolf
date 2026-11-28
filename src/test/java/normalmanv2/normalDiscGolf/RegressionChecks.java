@@ -5,7 +5,7 @@ import normalmanv2.normalDiscGolf.common.round.DefaultRoundSettings;
 import normalmanv2.normalDiscGolf.api.round.settings.RoundType;
 import normalmanv2.normalDiscGolf.impl.competition.DailyCompetition;
 import normalmanv2.normalDiscGolf.impl.competition.DailyCourse;
-import normalmanv2.normalDiscGolf.impl.competition.DailyGhost;
+import normalmanv2.normalDiscGolf.impl.competition.FlightGhost;
 import normalmanv2.normalDiscGolf.impl.competition.RankedSeason;
 import normalmanv2.normalDiscGolf.impl.competition.RankedSeasonStore;
 import normalmanv2.normalDiscGolf.impl.competition.StrokeStandings;
@@ -14,6 +14,7 @@ import normalmanv2.normalDiscGolf.impl.competition.WeeklyTournamentStore;
 import normalmanv2.normalDiscGolf.api.disc.DiscType;
 import normalmanv2.normalDiscGolf.common.disc.DiscImpl;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGrid;
+import normalmanv2.normalDiscGolf.impl.course.grid.CourseGenerationProfile;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseGenerationSettings;
 import normalmanv2.normalDiscGolf.impl.course.grid.CourseTerrain;
 import normalmanv2.normalDiscGolf.impl.course.grid.HoleArchetype;
@@ -38,6 +39,12 @@ import normalmanv2.normalDiscGolf.impl.disc.Driver;
 import normalmanv2.normalDiscGolf.impl.disc.DiscStock;
 import normalmanv2.normalDiscGolf.impl.disc.DiscFlightEngine;
 import normalmanv2.normalDiscGolf.impl.disc.DiscTrajectory;
+import normalmanv2.normalDiscGolf.impl.course.CourseImpl;
+import normalmanv2.normalDiscGolf.impl.course.library.CourseLibraryEntry;
+import normalmanv2.normalDiscGolf.impl.course.library.CourseLibraryStore.PinResult;
+import normalmanv2.normalDiscGolf.impl.course.library.CourseRecords;
+import normalmanv2.normalDiscGolf.impl.course.library.FileCourseLibraryStore;
+import normalmanv2.normalDiscGolf.impl.course.library.SavedCourse;
 import normalmanv2.normalDiscGolf.impl.disc.GroundPhysics;
 import normalmanv2.normalDiscGolf.impl.disc.ArcadeDisc;
 import normalmanv2.normalDiscGolf.impl.disc.ArcadeFlight;
@@ -77,6 +84,11 @@ public final class RegressionChecks {
         checkMatchPlay();
         checkAceRaceCourses();
         checkCourseProfiles();
+        checkAdminSettings();
+        checkDataBackups();
+        checkSelectableCourseProfiles();
+        checkCourseLibrary();
+        checkCourseRecords();
         checkThemedCourses();
         checkWoodlandLandmarks();
         checkDesertAndSkyLayouts();
@@ -321,11 +333,11 @@ public final class RegressionChecks {
             card.recordBasket(1, 2, 3, first, 4);
             check(round.eligible(card, first) && !round.eligible(card, second), "only full participated cards qualify");
 
-            var flight = List.of(DailyGhost.Point.at(56.5, 67.625, 56.875), DailyGhost.Point.at(88.45, 67.125, 72.5));
-            var ace = new DailyGhost.Hole(1, List.of(flight));
-            var birdie = new DailyGhost.Hole(2, List.of(flight, flight.reversed()));
-            var archived = new DailyGhost(List.of(ace, birdie));
-            var tied = new DailyGhost(List.of(birdie, ace));
+            var flight = List.of(FlightGhost.Point.at(56.5, 67.625, 56.875), FlightGhost.Point.at(88.45, 67.125, 72.5));
+            var ace = new FlightGhost.Hole(1, List.of(flight));
+            var birdie = new FlightGhost.Hole(2, List.of(flight, flight.reversed()));
+            var archived = new FlightGhost(List.of(ace, birdie));
+            var tied = new FlightGhost(List.of(birdie, ace));
             var previous = attempts.entries().get(first);
             check(service.ghost(attempts, first) == null && service.saveGhost(attempts, previous, archived),
                     "matching a legacy daily best supplies its first recording");
@@ -335,7 +347,7 @@ public final class RegressionChecks {
                     "a worse result cannot touch the best ghost");
             var improvement = new StrokeStandings.Entry(first, "Ace", 2, -4);
             attempts = service.submit(definition, List.of(improvement));
-            var improved = new DailyGhost(List.of(ace, ace));
+            var improved = new FlightGhost(List.of(ace, ace));
             check(service.ghost(attempts, first) == null && service.saveGhost(attempts, improvement, improved),
                     "a lower score selects a new recording without reusing the old paths");
             config.set("daily-course.holes", 1);
@@ -494,6 +506,226 @@ public final class RegressionChecks {
                 "wind reading improves directional and strength detail");
     }
 
+    private static void checkCourseLibrary() throws java.io.IOException {
+        var directory = java.nio.file.Files.createTempDirectory("ndg-library-check-");
+        try {
+            UUID owner = UUID.randomUUID();
+            UUID other = UUID.randomUUID();
+            var logger = java.util.logging.Logger.getLogger("CourseLibraryChecks");
+            var store = new FileCourseLibraryStore(directory, logger);
+            var settings = new CourseGenerationSettings(CourseTerrain.MOUNTAIN, 17, 13, .41, .12,
+                    List.of(HoleArchetype.CLIFFSIDE, HoleArchetype.GAP_SHOT));
+            var grid = new CourseGrid(23, 9, List.of(TileTypes.values()), 3, -490226213448881L,
+                    CourseGrid.Layout.SHORT, settings);
+            grid.generate(Division.JUNIOR);
+            var original = new CourseImpl(Division.JUNIOR, grid, "first-world", "Alpine Trial");
+            var course = SavedCourse.capture(original, RoundFormat.CLOSEST_TO_PIN);
+            check(store.list(owner).isEmpty(), "a new library starts empty");
+            check(store.save(owner, course) && !store.save(owner, course), "saving twice writes only one entry");
+
+            var reopened = new FileCourseLibraryStore(directory, logger);
+            var legacy = reopened.find(owner, course.id()).orElseThrow();
+            check(reopened.list(other).isEmpty() && reopened.find(other, course.id()).isEmpty(), "course ownership is private");
+            check(List.of(legacy).equals(reopened.list(owner)) && legacy.course().equals(course)
+                    && legacy.displayName().equals(course.label()), "old library entries open with their default name");
+            check(reopened.share(other, course.id()).isEmpty() && !reopened.rename(other, course.id(), "Different name"),
+                    "other players cannot edit or publish a private entry");
+            expectRejected(() -> CourseLibraryEntry.validateName("§aColored"), "course names cannot inject text styling");
+            check(reopened.rename(owner, course.id(), "Alpine Evening"), "owner can name their saved course");
+            check(reopened.setFavorite(other, course.id(), true).isEmpty()
+                    && reopened.setFavorite(owner, course.id(), true).orElseThrow().favorite(), "favorites are owner-specific");
+            String code = reopened.share(owner, course.id()).orElseThrow();
+            check(code.length() == 7 && reopened.share(owner, course.id()).orElseThrow().equals(code), "sharing reuses the code");
+
+            var restarted = new FileCourseLibraryStore(directory, logger);
+            var shared = restarted.resolveShare(code.toLowerCase(Locale.ROOT)).orElseThrow();
+            check(shared.course().equals(course) && shared.name().equals("Alpine Evening") && !shared.favorite()
+                    && restarted.find(owner, course.id()).orElseThrow().favorite(), "favorites persist and stay out of shared entries");
+            check(restarted.featuredCourses().isEmpty() && restarted.resolveFeatured(code).isEmpty(),
+                    "shared courses require an explicit pin to appear on the shelf");
+            check(restarted.pin("invalid!") == PinResult.UNAVAILABLE
+                    && restarted.pin(code.toLowerCase(Locale.ROOT)) == PinResult.PINNED
+                    && restarted.pin(code) == PinResult.ALREADY_PINNED, "only active shares can be pinned once");
+            var afterPin = new FileCourseLibraryStore(directory, logger);
+            check(afterPin.featuredCourses().size() == 1 && afterPin.resolveFeatured(code).orElseThrow().equals(shared),
+                    "pinned courses preserve the exact share after reload");
+            check(afterPin.unpin(code) && afterPin.resolveFeatured(code).isEmpty() && afterPin.resolveShare(code).isPresent(),
+                    "unpinning removes the listing and keeps the share code active");
+            var afterUnpin = new FileCourseLibraryStore(directory, logger);
+            check(afterUnpin.featuredCourses().isEmpty() && afterUnpin.pin(code) == PinResult.PINNED,
+                    "unpinning survives reload and the share can be pinned again");
+            check(afterUnpin.rename(owner, course.id(), "Alpine Morning")
+                    && afterUnpin.resolveFeatured(code).orElseThrow().name().equals("Alpine Morning")
+                    && afterUnpin.find(owner, course.id()).orElseThrow().favorite(), "renaming preserves private favorites");
+            check(afterUnpin.save(other, shared) && !afterUnpin.save(other, shared), "recipient can save one independent copy");
+            check(!afterUnpin.revokeShare(other, course.id()) && afterUnpin.revokeShare(owner, course.id()), "only the issuer can revoke the code");
+            var afterRevocation = new FileCourseLibraryStore(directory, logger);
+            check(afterRevocation.featuredCourses().isEmpty() && afterRevocation.resolveShare(code).isEmpty()
+                            && afterRevocation.find(other, course.id()).orElseThrow().equals(shared),
+                    "revocation persists and keeps the recipient's copy");
+
+            var saved = shared.course();
+            var replay = saved.instantiate(Division.JUNIOR, "replay-world");
+            replay.grid().generate(Division.JUNIOR);
+            check(replay.isLibraryReplay() && replay.seed() == original.seed() && replay.holePars().equals(original.holePars())
+                    && saved.replayFormat() == RoundFormat.CLOSEST_TO_PIN, "replay preserves short-hole par and scoring mode");
+            check(replay.teeLocations().equals(original.teeLocations()) && replay.holeLocations().equals(original.holeLocations()),
+                    "every tee and basket is reconstructed");
+            for (var tee : original.teeLocations().values()) {
+                for (int dx = -15; dx <= 15; dx++) for (int dz = -15; dz <= 15; dz++) {
+                    int x = tee.x() + dx, z = tee.z() + dz;
+                    check(replay.grid().terrainColumn(x, z).equals(grid.terrainColumn(x, z)), "terrain samples match the original");
+                }
+            }
+            check(SavedCourse.capture(replay, saved.replayFormat()).id().equals(course.id()), "replaying preserves save identity");
+        } finally {
+            try (var paths = java.nio.file.Files.walk(directory)) {
+                for (var path : paths.sorted(Comparator.reverseOrder()).toList()) java.nio.file.Files.deleteIfExists(path);
+            }
+        }
+    }
+
+    private static void checkCourseRecords() throws java.io.IOException {
+        var directory = java.nio.file.Files.createTempDirectory("ndg-course-records-");
+        try {
+            var grid = new CourseGrid(23, 9, List.of(TileTypes.values()), 1, 2046L, CourseGrid.Layout.SHORT);
+            grid.generate(Division.JUNIOR);
+            var course = new CourseImpl(Division.JUNIOR, grid, "short");
+            var aceRace = SavedCourse.capture(course, RoundFormat.ACE_RACE);
+            var pin = SavedCourse.capture(course, RoundFormat.CLOSEST_TO_PIN);
+            var stroke = SavedCourse.capture(course, RoundFormat.FFA);
+            check(!aceRace.id().equals(pin.id()) && aceRace.layoutId().equals(pin.layoutId())
+                    && pin.layoutId().equals(stroke.layoutId()), "identical layouts share stroke records across play options");
+            var records = new CourseRecords(directory);
+            UUID alice = UUID.randomUUID(), bob = UUID.randomUUID();
+            var first = new StrokeStandings.Entry(alice, "Alice", 2, 1);
+            var tied = new StrokeStandings.Entry(bob, "Bob", 2, 1);
+            var points = List.of(FlightGhost.Point.at(56, 66, 56), FlightGhost.Point.at(88, 67, 72));
+            var firstGhost = new FlightGhost(List.of(new FlightGhost.Hole(2, List.of(points))));
+            check(records.submit(aceRace, List.of(first, tied)).improved().equals(Set.of(alice, bob))
+                    && records.saveGhost(aceRace, first, firstGhost), "first completed scores and ghost are stored");
+            check(!records.saveGhost(stroke, first, firstGhost), "an equal score keeps the existing ghost");
+            var reopened = new CourseRecords(directory);
+            check(StrokeStandings.rank(reopened.scores(pin).values()).stream().allMatch(row -> row.place() == 1)
+                    && reopened.ghost(pin, first).equals(firstGhost) && reopened.ghost(pin, tied) == null,
+                    "ties, persistence and private ownership");
+            var best = new StrokeStandings.Entry(alice, "Alice", 1, 0);
+            check(reopened.submit(stroke, List.of(best)).improved().equals(Set.of(alice))
+                    && reopened.submit(stroke, List.of(first)).improved().isEmpty()
+                    && reopened.scores(aceRace).get(alice).equals(best) && reopened.ghost(aceRace, best) == null,
+                    "better scores outrank older ghosts and weaker attempts");
+            var otherGrid = new CourseGrid(23, 9, List.of(TileTypes.values()), 1, 2047L, CourseGrid.Layout.SHORT);
+            otherGrid.generate(Division.JUNIOR);
+            var other = SavedCourse.capture(new CourseImpl(Division.JUNIOR, otherGrid, "other"), RoundFormat.FFA);
+            check(reopened.scores(other).isEmpty(), "different layouts have independent standings");
+        } finally {
+            try (var paths = java.nio.file.Files.walk(directory)) {
+                for (var path : paths.sorted(Comparator.reverseOrder()).toList()) java.nio.file.Files.deleteIfExists(path);
+            }
+        }
+    }
+
+    private static void checkDataBackups() throws java.io.IOException {
+        var directory = java.nio.file.Files.createTempDirectory("ndg-backups-check-");
+        try {
+            var grid = new CourseGrid(23, 9, List.of(TileTypes.values()), 1, 41);
+            grid.generate(Division.JUNIOR);
+            var generated = new CourseImpl(Division.JUNIOR, grid, "backup-check");
+            var recipe = SavedCourse.capture(generated, RoundFormat.FFA);
+            var library = new FileCourseLibraryStore(directory.resolve("course-library"), java.util.logging.Logger.getAnonymousLogger());
+            UUID owner = UUID.randomUUID();
+            library.save(owner, recipe);
+            var config = directory.resolve("config.yml");
+            java.nio.file.Files.writeString(config, "course: {}\n");
+            var before = new normalmanv2.normalDiscGolf.impl.admin.DataBackups(directory, "before");
+            var archive = before.create();
+            check(archive.files() == 2 && archive.checkedCourses() == 1 && archive.flaggedCourses() == 0,
+                    "backup verifies each generated saved layout");
+            var after = new normalmanv2.normalDiscGolf.impl.admin.DataBackups(directory, "after");
+            var upgrade = after.check(archive.filename());
+            check(upgrade.baselineVersion().equals("before") && upgrade.rows().size() == 1 && upgrade.rows().getFirst().compatible(),
+                    "backup baseline matches a regenerated course");
+            java.nio.file.Files.writeString(config, "course: {holes: 6}\n");
+            var preview = after.preview(archive.filename());
+            check(preview.rows().stream().anyMatch(row -> row.file().equals("config.yml") && row.action().name().equals("REPLACE"))
+                    && java.nio.file.Files.readString(config).contains("holes: 6"), "preview identifies replacement without restoring");
+            var file = directory.resolve("course-library").resolve(owner.toString()).resolve(recipe.id() + ".yml");
+            String current = java.nio.file.Files.readString(file);
+            java.nio.file.Files.writeString(file, current.replace("generator: " + CourseGrid.GENERATOR_VERSION, "generator: 9999"));
+            check(!after.check(archive.filename()).rows().getFirst().compatible(), "an unsupported generator is reported");
+            java.nio.file.Files.delete(file);
+            var log = java.util.logging.Logger.getAnonymousLogger();
+            log.setLevel(java.util.logging.Level.OFF);
+            var restore = new normalmanv2.normalDiscGolf.impl.admin.DataRestore(directory, after);
+            restore.queue(archive.filename(), after.preview(archive.filename()).fingerprint());
+            java.nio.file.Files.writeString(config, "course: {holes: 3}\n");
+            restore.applyOnStartup(log);
+            check(restore.pendingArchive() == null && java.nio.file.Files.readString(config).contains("holes: 3")
+                    && !java.nio.file.Files.exists(file) && after.list().size() == 1,
+                    "a stale scheduled restore leaves the entire dataset alone on startup");
+
+            var previous = after.create();
+            var journal = directory.resolve("restore-in-progress.properties");
+            var metadata = new java.util.Properties();
+            metadata.setProperty("safety", previous.filename());
+            String original = java.nio.file.Files.readString(config);
+            String restored = "course: {}\n";
+            metadata.setProperty("file.config.yml", restoreChecksum(original) + "|" + restoreChecksum(restored));
+            String coursePath = directory.relativize(file).toString().replace('\\', '/');
+            metadata.setProperty("file." + coursePath, "-|" + restoreChecksum(current));
+            try (var out = java.nio.file.Files.newOutputStream(journal)) {
+                metadata.store(out, null);
+            }
+            // Simulate a process stopping after some replacements and additions reached disk.
+            java.nio.file.Files.writeString(config, restored);
+            java.nio.file.Files.writeString(file, current);
+            restore.applyOnStartup(log);
+            check(!java.nio.file.Files.exists(journal) && java.nio.file.Files.readString(config).equals(original)
+                    && !java.nio.file.Files.exists(file), "startup rolls back an interrupted restore");
+        } finally {
+            try (var paths = java.nio.file.Files.walk(directory)) {
+                for (var path : paths.sorted(Comparator.reverseOrder()).toList()) java.nio.file.Files.deleteIfExists(path);
+            }
+        }
+    }
+
+    private static String restoreChecksum(String contents) throws java.io.IOException {
+        byte[] bytes = contents.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        try {
+            var sha = java.security.MessageDigest.getInstance("SHA-256");
+            return bytes.length + ":" + java.util.HexFormat.of().formatHex(sha.digest(bytes));
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new java.io.IOException(impossible);
+        }
+    }
+
+    private static void checkAdminSettings() throws java.io.IOException {
+        try (var stream = RegressionChecks.class.getResourceAsStream("/config.yml");
+             var reader = new java.io.InputStreamReader(Objects.requireNonNull(stream), java.nio.charset.StandardCharsets.UTF_8)) {
+            var defaults = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(reader);
+            var schema = new normalmanv2.normalDiscGolf.impl.admin.SettingsSchema(defaults);
+            check(schema.check(defaults).valid(), "the shipped configuration is valid");
+            check(schema.parse("course.profiles.pilot.seed", "-912345678901234567").equals(-912345678901234567L),
+                    "dynamic presets accept long seeds");
+            check(schema.parse("course.profiles.pilot.terrains.mountain.elevation", "16").equals(16)
+                    && schema.parse("course.profiles.pilot.terrains.mountain.hazard-density", "0.2").equals(0.2),
+                    "dynamic terrains use the same ranges as bundled terrain overrides");
+            check(schema.parse("course-events.sequence", "[fog, clear]").equals(List.of("fog", "clear"))
+                    && schema.parse("weekly-tournament.prizes", "100, 0").equals(List.of(100, 0)),
+                    "typed lists are parsed without YAML guessing");
+            expectRejected(() -> schema.parse("course.profiles.pilot.holes", "19"), "out-of-range presets are rejected");
+            expectRejected(() -> schema.parse("preview.enabled", "sure"), "invalid booleans are rejected");
+            expectRejected(() -> schema.parse("resource-pack.url", "file:///demo"), "pack URLs require HTTP(S)");
+            var candidate = new org.bukkit.configuration.file.YamlConfiguration();
+            candidate.setDefaults(defaults);
+            candidate.set("course.profile", "missing");
+            candidate.set("weekly-tournament.min-players", 8);
+            candidate.set("weekly-tournament.max-players", 4);
+            candidate.set("resource-pack.required", true);
+            check(schema.check(candidate).errors().size() == 3, "validation catches invalid profile, capacity and pack setup");
+        }
+    }
+
     private static void checkCourseProfiles() {
         var config = new MemoryConfiguration();
         config.set("course.holes", 18);
@@ -524,6 +756,44 @@ public final class RegressionChecks {
         check(CourseGenerationSettings.holes(config) == 18
                         && CourseGenerationSettings.availableTerrains(config).equals(List.of(CourseTerrain.WOODLAND)),
                 "missing profiles fall back to the base settings");
+    }
+
+    private static void checkSelectableCourseProfiles() {
+        var config = new org.bukkit.configuration.file.YamlConfiguration();
+        config.set("course.terrain", "woodland");
+        config.set("course.holes", 18);
+        config.set("course.terrains.mountain.elevation", 19);
+        config.set("course.profile", "home");
+        config.set("course.profiles.home.holes", 4);
+        config.set("course.profiles.home.lobby-selectable", false);
+        config.set("course.profiles.ridge-event.terrain", "mountain");
+        config.set("course.profiles.ridge-event.seed-mode", "fixed");
+        config.set("course.profiles.ridge-event.seed", -2026L);
+        config.set("course.profiles.ridge-event.terrains.mountain.fairway-width", 20);
+        config.set("course.profiles.open-ridge.terrain", "random");
+        config.set("course.profiles.open-ridge.enabled-terrains", List.of("mountain", "sky"));
+        config.set("course.profiles.bogus", "not a section");
+        var defaults = new org.bukkit.configuration.file.YamlConfiguration();
+        defaults.set("course.profiles.bundled.terrain", "island");
+        config.setDefaults(defaults);
+        config.options().copyDefaults(true);
+
+        var available = CourseGenerationProfile.selectable(config);
+        check(available.stream().map(CourseGenerationProfile::id).toList().equals(List.of("open-ridge", "ridge-event")),
+                "only available named presets configured by the server appear in the picker");
+        var ridge = CourseGenerationProfile.selectable(config, "ridge-event");
+        check(ridge.label().equals("Ridge Event") && ridge.nextSeed() == -2026L && ridge.holes() == 18
+                        && ridge.terrains().equals(List.of(CourseTerrain.MOUNTAIN)),
+                "the chosen preset inherits base fields independently of the active server default");
+        var mountain = ridge.settings(CourseTerrain.MOUNTAIN);
+        check(mountain.elevation() == 19 && mountain.fairwayWidth() == 20, "preset-specific settings override the base terrain");
+        var openRidge = CourseGenerationProfile.selectable(config, "open-ridge");
+        check(openRidge.terrains().equals(List.of(CourseTerrain.MOUNTAIN, CourseTerrain.SKY)) && openRidge.fixedSeed() == null,
+                "a selectable preset can cover multiple terrains and generate random seeds");
+        check(CourseGenerationProfile.selectable(config, "home") == null
+                        && CourseGenerationProfile.selectable(config, "ridge-event.terrain") == null
+                        && CourseGenerationProfile.serverDefault(config).holes() == 4,
+                "a private preset can still supply the server default and nested paths are not profile IDs");
     }
 
     private static void checkThemedCourses() {

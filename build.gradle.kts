@@ -4,6 +4,7 @@ plugins {
 }
 
 java { toolchain { languageVersion.set(JavaLanguageVersion.of(21)) } }
+tasks.compileJava { options.release.set(17) }
 
 group = "normalmanv2.normalDiscGolf"
 version = property("version") as String
@@ -20,11 +21,11 @@ repositories {
 }
 
 dependencies {
-    compileOnly("org.spigotmc:spigot-api:1.21.8-R0.1-SNAPSHOT")
+    compileOnly("org.spigotmc:spigot-api:1.19.4-R0.1-SNAPSHOT")
+    compileOnly("org.jetbrains:annotations:24.1.0")
     testImplementation("org.spigotmc:spigot-api:1.21.8-R0.1-SNAPSHOT")
-    compileOnly("com.sk89q.worldedit:worldedit-core:7.3.19")
-    compileOnly("com.sk89q.worldedit:worldedit-bukkit:7.3.19")
-    implementation("org.NormalMan:NormalAPI:1.1")
+    compileOnly("com.sk89q.worldedit:worldedit-core:7.2.20")
+    compileOnly("com.sk89q.worldedit:worldedit-bukkit:7.2.20")
 }
 
 tasks {
@@ -43,9 +44,6 @@ tasks {
     }
 
     shadowJar {
-        fun relocate(packageName: String) = relocate(packageName, "normalmanv2.normalDiscGolf.shaded.$packageName")
-        relocate("org.normal")
-
         dependencies {
             exclude(dependency("it.unimi.dsi:fastutil"))
             exclude(dependency("com.mojang:datafixerupper"))

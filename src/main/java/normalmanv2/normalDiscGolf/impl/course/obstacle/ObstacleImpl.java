@@ -81,7 +81,6 @@ public class ObstacleImpl implements Obstacle, Cloneable {
 
                 Operation operation = holder.createPaste(editSession)
                         .ignoreAirBlocks(false)
-                        .ignoreStructureVoidBlocks(false)
                         .to(position)
                         .build();
 
@@ -138,12 +137,12 @@ public class ObstacleImpl implements Obstacle, Cloneable {
         double z = this.location.getZ();
         BlockVector3 size = this.getSchematicSize();
 
-        double halfX = size.x() / 2.0;
-        double halfZ = size.z() / 2.0;
+        double halfX = size.getBlockX() / 2.0;
+        double halfZ = size.getBlockZ() / 2.0;
 
         return new BoundingBox(
                 x - halfX, y, z - halfZ,
-                x + halfX, y + size.y(), z + halfZ
+                x + halfX, y + size.getBlockY(), z + halfZ
         );
     }
 

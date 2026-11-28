@@ -1,5 +1,6 @@
 package normalmanv2.normalDiscGolf.impl.course.grid;
 
+import normalmanv2.normalDiscGolf.impl.util.Bounds;
 import normalmanv2.normalDiscGolf.common.division.Division;
 import normalmanv2.normalDiscGolf.impl.course.obstacle.generator.ObstacleGenerator;
 import normalmanv2.normalDiscGolf.impl.course.tile.Tile;
@@ -12,6 +13,8 @@ import org.bukkit.World;
 import java.util.*;
 
 public class CourseGrid {
+    // Bump when the same recipe would produce different playable geometry.
+    public static final int GENERATOR_VERSION = 1;
 
     private final Tile[][] grid;
     private final int width, depth;
@@ -195,7 +198,7 @@ public class CourseGrid {
                 }
                 path.add(grid[cellX + last[0]][cellZ + last[1]]);
                 plannedRoutes.put(i, path);
-                Tile first = path.getFirst(), end = path.getLast();
+                Tile first = path.get(0), end = path.get(path.size() - 1);
                 GridPoint tee = centerPoint(first.getGridPoint().x / TILE_SIZE, first.getGridPoint().z / TILE_SIZE);
                 GridPoint pin = centerPoint(end.getGridPoint().x / TILE_SIZE, end.getGridPoint().z / TILE_SIZE);
                 teeLocations.put(i, tee); holeLocations.put(i, pin);
@@ -477,7 +480,7 @@ public class CourseGrid {
     private double landingZoneWeight(double t) {
         double primaryLanding = Math.exp(-Math.pow((t - 0.45) / 0.18, 2));
         double approachLanding = Math.exp(-Math.pow((t - 0.78) / 0.16, 2));
-        return Math.clamp(primaryLanding, approachLanding, 1.0);
+        return Bounds.clamp(primaryLanding, approachLanding, 1.0);
     }
 
     private void paintDisk(int cx, int cz, int r, TileTypes setTo) {
@@ -602,8 +605,8 @@ public class CourseGrid {
     private Tile tileAtPoint(GridPoint point) {
         int x = (point.x / TILE_SIZE);
         int z = (point.z / TILE_SIZE);
-        x = Math.clamp(x, 0, width - 1);
-        z = Math.clamp(z, 0, depth - 1);
+        x = Bounds.clamp(x, 0, width - 1);
+        z = Bounds.clamp(z, 0, depth - 1);
         return grid[x][z];
     }
 
@@ -681,6 +684,8 @@ public class CourseGrid {
     public long seed() { return seed; }
     public CourseTerrain terrain() { return terrainSettings.terrain(); }
     public CourseGenerationSettings terrainSettings() { return terrainSettings; }
+    public Layout layout() { return courseLayout; }
+    public List<TileTypes> tileTypes() { return tileTypes; }
     public boolean isThemed() { return themed != null; }
     public int difficultyRating() { return themed == null ? 0 : themed.difficulty(); }
 
@@ -752,9 +757,9 @@ public class CourseGrid {
         if (themed != null) return terrainColumn(x, z).height();
         double elevation = Math.sin(x / 38.0) * 2.0 + Math.cos(z / 45.0) * 1.6;
         for (GridPoint point : teeLocations.values())
-            elevation *= Math.clamp((Math.hypot(x - point.x(), z - point.z()) - 7) / 10, 0, 1);
+            elevation *= Bounds.clamp((Math.hypot(x - point.x(), z - point.z()) - 7) / 10, 0, 1);
         for (GridPoint point : holeLocations.values())
-            elevation *= Math.clamp((Math.hypot(x - point.x(), z - point.z()) - 7) / 10, 0, 1);
+            elevation *= Bounds.clamp((Math.hypot(x - point.x(), z - point.z()) - 7) / 10, 0, 1);
         return Constants.DEFAULT_TILE_Y + 1 + (int)Math.round(elevation);
     }
 
@@ -772,7 +777,7 @@ public class CourseGrid {
     public static double segmentDistance(double x, double z, double ax, double az, double bx, double bz) {
         double dx = bx - ax, dz = bz - az;
         double length = dx * dx + dz * dz;
-        double t = length == 0 ? 0 : Math.clamp(((x - ax) * dx + (z - az) * dz) / length, 0, 1);
+        double t = length == 0 ? 0 : Bounds.clamp(((x - ax) * dx + (z - az) * dz) / length, 0, 1);
         return Math.hypot(x - ax - t * dx, z - az - t * dz);
     }
     public boolean protectedLane(double x, double z) {
